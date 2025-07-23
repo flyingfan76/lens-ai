@@ -18,7 +18,12 @@
       "Bash(git remote add:*)",
       "Bash(git config:*)",
       "Bash(git push -u origin feature/initial-development)",
-      "Bash(ping:*)"
+      "Bash(ping:*)",
+      "Bash(sudo mkdir -p /Applications/Nikon_SDK)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(touch:*)",
+      "Bash(tree:*)"
     ],
     "deny": []
   }

@@ -29,6 +29,9 @@ temp/
 *.tmp
 *.temp
 
+# Local storage (development mode)
+storage/
+
 # OS generated files
 .DS_Store
 .DS_Store?

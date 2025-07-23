@@ -76,16 +76,33 @@ brew install --cask android-commandlinetools
 ```
 
 #### 4. Camera SDK Prerequisites
-```bash
-# Canon SDK (Download from Canon Developer Program)
-# Place SDK in: /Applications/Canon_SDK/EDSDK
 
-# Sony SDK (Register at Sony Developer World)
-# Get API key and configure in .env
+**SDK Directory Structure:**
+```
+lens-ai/
+├── sdk/
+│   ├── canon/     # Canon EDSDK files
+│   ├── nikon/     # Nikon SDK files  
+│   └── sony/      # Sony SDK files (if applicable)
+```
+
+**Download and Setup:**
+```bash
+# Create SDK directory structure
+mkdir -p sdk/canon sdk/nikon sdk/sony
+
+# Canon SDK (Download from Canon Developer Program)
+# Extract EDSDK to: ./sdk/canon/
 
 # Nikon SDK (Download from Nikon Developer Program)  
-# Place SDK in: /Applications/Nikon_SDK
+# Extract SDK contents to: ./sdk/nikon/
+# Should contain: Command/ and Module/ folders
+
+# Sony SDK (Register at Sony Developer World)
+# Get API key and configure in .env (no local files needed)
 ```
+
+**Note:** The `sdk/` folder is excluded from git tracking to keep SDK files private.
 
 ### Environment Setup
 
@@ -127,9 +144,9 @@ REDIS_URL=redis://localhost:6379
 JWT_SECRET=your_secure_jwt_secret_here
 
 # Camera SDK Configuration
-CANON_SDK_PATH=/Applications/Canon_SDK/EDSDK
+CANON_SDK_PATH=./sdk/canon
 SONY_API_KEY=your_sony_api_key_here
-NIKON_SDK_PATH=/Applications/Nikon_SDK
+NIKON_SDK_PATH=./sdk/nikon
 
 # Storage Configuration
 # Set STORAGE_MODE to 'local' for local file storage simulation (no AWS required)
