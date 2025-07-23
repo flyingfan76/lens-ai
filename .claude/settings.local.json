@@ -4,7 +4,19 @@
       "Bash(ls:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(mkdir:*)",
+      "WebFetch(domain:developers.canon.com)",
+      "Bash(npm install:*)",
+      "Bash(find:*)",
+      "Bash(chmod:*)",
+      "Bash(python3:*)",
+      "Bash(npm run lint:*)",
+      "Bash(flutter analyze:*)",
+      "Bash(node:*)",
+      "Bash(rm:*)",
+      "Bash(git remote add:*)",
+      "Bash(git config:*)"
     ],
     "deny": []
   }

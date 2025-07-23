@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-This is a new camera company project repository. The codebase is currently empty and ready for initial development.
+This is the Lens AI project repository - an AI-powered mobile camera control and photography assistant. The project bridges professional camera capabilities with user-friendly operation through advanced AI technology.
+
+**Repository:** https://github.com/flyingfan76/lens-ai.git
 
 ## Development Setup
 

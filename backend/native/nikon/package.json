@@ -1,0 +1,22 @@
+{
+  "name": "nikon-sdk-native",
+  "version": "1.0.0",
+  "description": "Native Node.js bindings for Nikon MAID SDK",
+  "main": "build/Release/nikon_sdk.node",
+  "scripts": {
+    "install": "node-gyp rebuild",
+    "build": "node-gyp build",
+    "clean": "node-gyp clean",
+    "configure": "node-gyp configure"
+  },
+  "dependencies": {
+    "nan": "^2.17.0"
+  },
+  "devDependencies": {
+    "node-gyp": "^10.0.1"
+  },
+  "gypfile": true,
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

@@ -1,0 +1,68 @@
+name: lens_ai
+description: Lens AI - AI-powered mobile camera control and photography assistant
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+  flutter: ">=3.16.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # Core dependencies
+  cupertino_icons: ^1.0.6
+  provider: ^6.1.1
+  http: ^1.1.2
+  shared_preferences: ^2.2.2
+  path_provider: ^2.1.2
+  
+  # Camera & Image processing
+  camera: ^0.10.5+9
+  image: ^4.1.4
+  
+  # Networking & Communication
+  web_socket_channel: ^2.4.0
+  dio: ^5.4.0
+  
+  # AI & ML
+  tflite_flutter: ^0.10.4
+  
+  # UI Components
+  flutter_svg: ^2.0.9
+  cached_network_image: ^3.3.0
+  lottie: ^3.0.0
+  
+  # Device & Platform
+  device_info_plus: ^9.1.1
+  permission_handler: ^11.2.0
+  connectivity_plus: ^5.0.2
+  
+  # Utils
+  intl: ^0.19.0
+  uuid: ^4.3.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+  build_runner: ^2.4.7
+  json_annotation: ^4.8.1
+  json_serializable: ^6.7.1
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/models/
+    - assets/animations/
+  
+  fonts:
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/Roboto-Regular.ttf
+        - asset: assets/fonts/Roboto-Bold.ttf
+          weight: 700

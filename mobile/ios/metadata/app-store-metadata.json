@@ -1,0 +1,31 @@
+{
+  "app_name": "Camera Companion: AI Photo",
+  "app_subtitle": "Professional Remote Control",
+  "keywords": "camera,control,photography,remote,AI,professional,DSLR,settings,assistant,tutorial,Canon,Sony,Nikon",
+  "promotional_text": "Transform any camera into a professional studio with AI-powered scene analysis and automatic settings optimization. Perfect for beginners and pros alike!",
+  "description": "**Professional Photography Made Simple with AI**\n\nTransform your camera into a professional tool with Camera Companion - the intelligent photography assistant that makes expert-level photos accessible to everyone.\n\n**🤖 AI-Powered Intelligence**\n• Smart scene recognition for portraits, landscapes, sports & macro\n• Automatic camera settings optimization (ISO, aperture, shutter speed)\n• Real-time photography tips and recommendations\n• Advanced NeRF-based 3D scene analysis for perfect focus\n\n**📱 Universal Camera Control**\n• Wireless control for Canon, Sony, Nikon, Fujifilm cameras\n• Live view streaming with <200ms latency\n• Remote capture with full parameter control\n• Professional style presets (\"Creamy Portrait\", \"Vivid Landscape\")\n\n**🎓 Learn While You Shoot**\n• Interactive photography tutorials for all skill levels\n• Plain-language camera setting explanations\n• Before/after examples showing setting impacts\n• Contextual help based on your shooting scenario\n\n**☁️ Seamless Workflow**\n• Automatic cloud backup and sync across devices\n• Smart photo organization and management\n• Social sharing with AI-optimized compression\n• Cross-platform compatibility (iOS/Android)\n\n**✨ Advanced Features**\n• Multi-brand camera detection and optimization\n• Learning system that adapts to your style\n• Background sync with offline support\n• Professional-grade manual controls\n\n**Perfect for:**\n• Photography enthusiasts wanting to improve their skills\n• Beginners learning camera settings and techniques\n• Professionals needing reliable remote camera control\n• Content creators seeking consistent, high-quality results\n\n**Supported Cameras:**\nCanon (EOS R series, 5D Mark IV, 6D Mark II), Sony (α7 series, α6000 series), Nikon (Z series, D850, D780), Fujifilm (X-T series, X-H series), and more.\n\nDownload Camera Companion today and discover how AI can transform your photography journey from amateur to professional.",
+  "release_notes": "🚀 Major Performance Update!\n\n• 75% faster AI analysis with improved accuracy\n• Enhanced WebSocket streaming with 30 FPS frame rate limiting\n• Reduced memory usage by 60% for better device performance\n• New HTTP request batching for 80% faster settings updates\n• Fixed Sony camera connectivity issues\n• Improved timeout handling prevents app freezing\n• Better error handling and user feedback\n\nThis update makes Camera Companion faster, more reliable, and more efficient than ever. Your photography workflow just got a major upgrade!",
+  "marketing_url": "https://camera-companion.com",
+  "support_url": "https://camera-companion.com/support",
+  "privacy_policy_url": "https://camera-companion.com/privacy",
+  "category": {
+    "primary": "Photo & Video",
+    "secondary": "Productivity"
+  },
+  "content_rating": "4+",
+  "app_review_information": {
+    "contact": {
+      "first_name": "Camera",
+      "last_name": "Companion Team",
+      "phone": "+1-555-CAMERA",
+      "email": "review@camera-companion.com"
+    },
+    "demo_account": {
+      "username": "demo@camera-companion.com",
+      "password": "CameraDemo2024!"
+    },
+    "notes": "This app requires a compatible camera (Canon, Sony, Nikon, Fujifilm) for full functionality. Demo mode available without camera for testing core features."
+  },
+  "version": "1.0.0",
+  "copyright": "© 2024 Camera Companion Inc."
+}

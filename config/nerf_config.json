@@ -1,0 +1,171 @@
+{
+  "service": {
+    "name": "Lens AI NeRF Service",
+    "version": "1.0.0",
+    "host": "0.0.0.0",
+    "port": 8001,
+    "environment": "development"
+  },
+  
+  "nerf": {
+    "quality_preset": "real_time",
+    "device": "cuda",
+    "num_layers": 6,
+    "hidden_dim": 128,
+    "num_coarse_samples": 32,
+    "num_fine_samples": 64,
+    "batch_size": 512,
+    "real_time_batch_size": 256,
+    "enable_real_time_optimization": true,
+    "max_processing_time_ms": 5000,
+    
+    "scene_analysis": {
+      "enable_semantic_features": true,
+      "semantic_dim": 16,
+      "enable_lighting_estimation": true,
+      "lighting_dim": 8,
+      "scene_understanding_depth": 3
+    },
+    
+    "camera_optimization": {
+      "optimize_exposure": true,
+      "optimize_focus": true,
+      "optimize_composition": true,
+      "optimize_depth_of_field": true,
+      "max_inference_time_ms": 100.0,
+      "max_optimization_iterations": 10
+    }
+  },
+  
+  "training": {
+    "learning_rate": 0.0005,
+    "max_epochs": 50000,
+    "save_frequency": 5000,
+    "test_frequency": 2500,
+    "num_workers": 2,
+    "mixed_precision": true
+  },
+  
+  "paths": {
+    "data_dir": "ai/data",
+    "models_dir": "ai/models/nerf",
+    "checkpoints_dir": "ai/checkpoints",
+    "logs_dir": "logs",
+    "outputs_dir": "ai/outputs"
+  },
+  
+  "performance": {
+    "enable_gpu_acceleration": true,
+    "enable_memory_optimization": true,
+    "max_memory_gb": 8,
+    "enable_model_caching": true,
+    "cache_size_mb": 512
+  },
+  
+  "integration": {
+    "backend_integration": true,
+    "enable_websocket": false,
+    "enable_real_time_streaming": false,
+    "fallback_to_traditional": true,
+    "compatibility_mode": true
+  },
+  
+  "logging": {
+    "level": "INFO",
+    "enable_detailed_logging": false,
+    "log_file": "logs/nerf_service.log",
+    "max_log_size_mb": 100,
+    "log_rotation_count": 5
+  },
+  
+  "security": {
+    "enable_cors": true,
+    "allowed_origins": ["http://localhost:3000", "http://localhost:8080"],
+    "max_upload_size_mb": 50,
+    "enable_rate_limiting": true,
+    "rate_limit_requests_per_minute": 60
+  },
+  
+  "quality_presets": {
+    "fast": {
+      "num_coarse_samples": 16,
+      "num_fine_samples": 32,
+      "batch_size": 256,
+      "max_processing_time_ms": 2000
+    },
+    "real_time": {
+      "num_coarse_samples": 32,
+      "num_fine_samples": 64,
+      "batch_size": 512,
+      "max_processing_time_ms": 5000
+    },
+    "quality": {
+      "num_coarse_samples": 128,
+      "num_fine_samples": 256,
+      "batch_size": 2048,
+      "max_processing_time_ms": 15000
+    }
+  },
+  
+  "camera_profiles": {
+    "canon": {
+      "native_iso": 100,
+      "excellent_iso_range": [100, 200, 400],
+      "good_iso_range": [800, 1600],
+      "acceptable_iso_range": [3200, 6400],
+      "preferred_aperture_range": ["f/2.8", "f/4.0", "f/5.6", "f/8.0"],
+      "shutter_speed_range": ["1/4000", "1/60"]
+    },
+    "nikon": {
+      "native_iso": 64,
+      "excellent_iso_range": [64, 100, 200],
+      "good_iso_range": [400, 800, 1600],
+      "acceptable_iso_range": [3200, 6400],
+      "preferred_aperture_range": ["f/2.8", "f/4.0", "f/5.6", "f/8.0"],
+      "shutter_speed_range": ["1/4000", "1/60"]
+    },
+    "sony": {
+      "native_iso": 100,
+      "excellent_iso_range": [100, 200, 400, 800],
+      "good_iso_range": [1600, 3200],
+      "acceptable_iso_range": [6400, 12800],
+      "preferred_aperture_range": ["f/2.8", "f/4.0", "f/5.6", "f/8.0"],
+      "shutter_speed_range": ["1/8000", "1/60"]
+    }
+  },
+  
+  "scene_type_mappings": {
+    "portrait": {
+      "depth_threshold": 2.0,
+      "focus_score_threshold": 0.8,
+      "preferred_aperture": "f/2.8",
+      "preferred_focus_mode": "single"
+    },
+    "landscape": {
+      "depth_complexity_threshold": 5.0,
+      "preferred_aperture": "f/8.0",
+      "preferred_focus_mode": "hyperfocal",
+      "max_iso": 400
+    },
+    "macro": {
+      "depth_threshold": 1.0,
+      "focus_score_threshold": 0.9,
+      "preferred_aperture": "f/5.6",
+      "preferred_focus_mode": "manual"
+    },
+    "low_light": {
+      "lighting_quality_threshold": 0.3,
+      "preferred_aperture": "f/2.8",
+      "max_iso": 1600
+    }
+  },
+  
+  "experimental_features": {
+    "enable_multi_view_nerf": false,
+    "enable_dynamic_scenes": false,
+    "enable_real_time_training": false,
+    "enable_advanced_composition_analysis": true,
+    "enable_lighting_recommendation": true,
+    "enable_bokeh_quality_assessment": true
+  }
+}
