@@ -2,7 +2,13 @@
   "name": "lens-ai",
   "version": "0.1.0",
   "description": "AI-powered mobile camera control and photography assistant",
-  "keywords": ["camera", "photography", "ai", "mobile", "flutter"],
+  "keywords": [
+    "camera",
+    "photography",
+    "ai",
+    "mobile",
+    "flutter"
+  ],
   "license": "MIT",
   "scripts": {
     "dev": "flutter run --hot",
@@ -26,10 +32,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/flyingfan/lens-ai.git"
+    "url": "git+https://github.com/flyingfan76/lens-ai.git"
   },
   "bugs": {
-    "url": "https://github.com/flyingfan/lens-ai/issues"
+    "url": "https://github.com/flyingfan76/lens-ai/issues"
   },
-  "homepage": "https://github.com/flyingfan/lens-ai#readme"
+  "homepage": "https://github.com/flyingfan76/lens-ai#readme"
 }
