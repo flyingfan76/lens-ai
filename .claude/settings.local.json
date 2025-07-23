@@ -23,7 +23,12 @@
       "Bash(cp:*)",
       "Bash(mv:*)",
       "Bash(touch:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(ln:*)",
+      "Bash(npm run clean)",
+      "Bash(npm run build:*)",
+      "Bash(npm run configure)",
+      "Bash(clang++:*)"
     ],
     "deny": []
   }

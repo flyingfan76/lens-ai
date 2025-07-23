@@ -97,6 +97,10 @@ mkdir -p sdk/canon sdk/nikon sdk/sony
 # Nikon SDK (Download from Nikon Developer Program)  
 # Extract SDK contents to: ./sdk/nikon/
 # Should contain: Command/ and Module/ folders
+# Create symlinks to avoid build issues with spaces in paths:
+cd sdk/nikon/Module/Mac
+ln -sf "Header Files" headers
+ln -sf "Binary Files" binaries
 
 # Sony SDK (Register at Sony Developer World)
 # Get API key and configure in .env (no local files needed)
@@ -120,12 +124,19 @@ git lfs pull
 
 #### 3. Create Environment Configuration
 ```bash
+# Copy example configuration for development
 cp .env.example .env
 ```
 
-#### 4. Configure Environment Variables
+**✅ Development Ready**: The `.env` file is pre-configured for local development mode with:
+- `STORAGE_MODE=local` (no AWS required)
+- `NODE_ENV=development`
+- Local storage path: `./storage`
+- SDK paths: `./sdk/nikon`, `./sdk/canon`
+
+#### 4. Configure Environment Variables (Optional)
 ```bash
-# Edit .env file with your configuration
+# Edit .env file only if you need custom configuration
 nano .env
 ```
 
@@ -205,7 +216,9 @@ cd native/canon && npm install && npm run build
 # Build Sony SDK bindings  
 cd ../sony && npm install && npm run build
 
-# Build Nikon SDK bindings
+# Build Nikon SDK bindings 
+# Note: Currently uses stub implementation due to MAID SDK macOS compatibility issues
+# The build creates a functional Node.js addon that reports "not available" status
 cd ../nikon && npm install && npm run build
 ```
 
@@ -833,14 +846,24 @@ docker volume prune -f
 
 #### 5. Camera SDK Issues
 ```bash
-# Problem: SDK not found
+# Problem: Nikon SDK build errors with spaces in paths
+# Solution: Create symlinks (automatically done by setup)
+cd sdk/nikon/Module/Mac
+ln -sf "Header Files" headers
+ln -sf "Binary Files" binaries
+
+# Problem: Nikon MAID SDK compilation errors on macOS
+# Solution: This is expected - stub implementation is used
+# Check build output shows successful creation of nikon_sdk.node
+
+# Problem: Canon SDK not found
 # Solution: Verify SDK paths
-ls -la /Applications/Canon_SDK/EDSDK
-export CANON_SDK_PATH=/Applications/Canon_SDK/EDSDK
+ls -la ./sdk/canon/
+export CANON_SDK_PATH=./sdk/canon
 
 # Problem: Permission denied
 # Solution: Fix permissions
-sudo chown -R $(whoami) /Applications/Canon_SDK/
+chmod -R 755 sdk/
 ```
 
 ### Build Performance Optimization

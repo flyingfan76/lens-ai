@@ -1,13 +1,12 @@
 #include <nan.h>
 #include <node.h>
-#include "nikon_wrapper.h"
+#include "nikon_wrapper_stub.h"
 
 using namespace v8;
 
 // Initialize the addon
 void InitAll(Local<Object> exports) {
-    Nan::Set(exports, Nan::New("NikonSDK").ToLocalChecked(),
-             Nan::GetFunction(Nan::New<FunctionTemplate>(NikonWrapper::New)).ToLocalChecked());
+    NikonWrapper::Init(exports);
 }
 
 NODE_MODULE(nikon_sdk, InitAll)

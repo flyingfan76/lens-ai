@@ -4,7 +4,7 @@
 #include <nan.h>
 #include <node.h>
 #include <uv.h>
-#include "NkMaid.h"
+#include "maid3_compat.h"
 #include <vector>
 #include <map>
 #include <memory>
