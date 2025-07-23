@@ -3,6 +3,7 @@ const sharp = require('sharp');
 const crypto = require('crypto');
 const path = require('path');
 const logger = require('../utils/logger');
+const LocalStorageService = require('./local_storage_service');
 
 class AWSService {
   constructor() {
@@ -10,6 +11,8 @@ class AWSService {
     this.bucketName = process.env.AWS_S3_BUCKET || 'camera-companion-images';
     this.region = process.env.AWS_REGION || 'us-east-1';
     this.initialized = false;
+    this.localMode = process.env.STORAGE_MODE === 'local' || process.env.NODE_ENV === 'development';
+    this.localStorageService = null;
     
     this.uploadConfig = {
       maxFileSize: 50 * 1024 * 1024, // 50MB
@@ -34,9 +37,20 @@ class AWSService {
 
   initialize() {
     try {
-      // Configure AWS SDK
+      // Check if we should use local storage mode
+      if (this.localMode) {
+        this.localStorageService = new LocalStorageService();
+        this.initialized = true;
+        logger.info('AWS service initialized in LOCAL MODE - using local file storage');
+        return;
+      }
+
+      // Configure AWS SDK for cloud mode
       if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
-        logger.warn('AWS credentials not configured. S3 features will be disabled.');
+        logger.warn('AWS credentials not configured. Falling back to local storage mode.');
+        this.localMode = true;
+        this.localStorageService = new LocalStorageService();
+        this.initialized = true;
         return;
       }
 
@@ -52,7 +66,7 @@ class AWSService {
       });
 
       this.initialized = true;
-      logger.info('AWS S3 service initialized successfully');
+      logger.info('AWS S3 service initialized successfully in CLOUD MODE');
     } catch (error) {
       logger.error('Failed to initialize AWS service:', error);
     }
@@ -61,6 +75,11 @@ class AWSService {
   async uploadPhoto(file, userId, options = {}) {
     if (!this.initialized) {
       throw new Error('AWS service not initialized');
+    }
+
+    // Delegate to local storage service if in local mode
+    if (this.localMode) {
+      return await this.localStorageService.uploadPhoto(file, userId, options);
     }
 
     try {
@@ -120,6 +139,11 @@ class AWSService {
       throw new Error('AWS service not initialized');
     }
 
+    // Delegate to local storage service if in local mode
+    if (this.localMode) {
+      return await this.localStorageService.downloadPhoto(s3Key, userId);
+    }
+
     try {
       // Verify user has access to this file
       const headResult = await this.s3.headObject({
@@ -152,6 +176,11 @@ class AWSService {
   async deletePhoto(s3Key, userId) {
     if (!this.initialized) {
       throw new Error('AWS service not initialized');
+    }
+
+    // Delegate to local storage service if in local mode
+    if (this.localMode) {
+      return await this.localStorageService.deletePhoto(s3Key, userId);
     }
 
     try {
@@ -187,6 +216,11 @@ class AWSService {
       throw new Error('AWS service not initialized');
     }
 
+    // Delegate to local storage service if in local mode
+    if (this.localMode) {
+      return await this.localStorageService.generatePresignedUrl(s3Key, userId, expiresIn);
+    }
+
     try {
       // Verify user has access
       const headResult = await this.s3.headObject({
@@ -215,6 +249,11 @@ class AWSService {
   async getUserStorageUsage(userId) {
     if (!this.initialized) {
       throw new Error('AWS service not initialized');
+    }
+
+    // Delegate to local storage service if in local mode
+    if (this.localMode) {
+      return await this.localStorageService.getUserStorageUsage(userId);
     }
 
     try {
@@ -462,6 +501,11 @@ class AWSService {
   async healthCheck() {
     if (!this.initialized) {
       return { healthy: false, error: 'Service not initialized' };
+    }
+
+    // Delegate to local storage service if in local mode
+    if (this.localMode) {
+      return await this.localStorageService.healthCheck();
     }
 
     try {

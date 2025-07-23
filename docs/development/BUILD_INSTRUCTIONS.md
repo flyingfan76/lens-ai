@@ -1,4 +1,4 @@
-# 🏗️ Build Instructions for Camera Companion
+# 🏗�? Build Instructions for Camera Companion
 
 This guide provides comprehensive instructions for building Camera Companion on macOS for development, testing, and production environments.
 
@@ -91,8 +91,8 @@ brew install --cask android-commandlinetools
 
 #### 1. Clone Repository
 ```bash
-git clone https://github.com/camera-company/camera-companion.git
-cd camera-companion
+git clone https://github.com/flyingfan76/lens-ai.git
+cd lens-ai
 ```
 
 #### 2. Install Git LFS (for models and assets)
@@ -120,7 +120,7 @@ PORT=3000
 PYTHON_ENV=development
 
 # Database Configuration
-MONGODB_URI=mongodb://localhost:27017/camera_companion
+MONGODB_URI=mongodb://localhost:27017/lens-ai
 REDIS_URL=redis://localhost:6379
 
 # JWT Configuration
@@ -131,10 +131,18 @@ CANON_SDK_PATH=/Applications/Canon_SDK/EDSDK
 SONY_API_KEY=your_sony_api_key_here
 NIKON_SDK_PATH=/Applications/Nikon_SDK
 
-# AWS Configuration (for cloud features)
+# Storage Configuration
+# Set STORAGE_MODE to 'local' for local file storage simulation (no AWS required)
+# Set to 'cloud' for actual AWS S3 storage
+STORAGE_MODE=local
+
+# AWS Configuration (only needed when STORAGE_MODE=cloud)
 AWS_ACCESS_KEY_ID=your_aws_access_key
 AWS_SECRET_ACCESS_KEY=your_aws_secret_key
 AWS_S3_BUCKET=camera-companion-dev
+
+# Local Storage Configuration (used when STORAGE_MODE=local)
+LOCAL_STORAGE_PATH=./storage
 
 # AI Service Configuration
 AI_SERVICE_URL=http://localhost:8000
@@ -162,7 +170,7 @@ This will:
 - Build all components
 - Start all services
 
-## 🛠️ Development Build
+## 🛠�? Development Build
 
 ### Backend Development Build
 
@@ -204,6 +212,65 @@ npm run dev
 # Test API endpoints
 curl http://localhost:3000/api/health
 curl http://localhost:3000/api/camera/discover
+
+# Test local storage mode (if STORAGE_MODE=local)
+curl http://localhost:3000/api/cloud/health
+```
+
+### Local Storage Mode Setup (for Development)
+
+For development and testing without AWS setup, the project includes a local storage simulation mode:
+
+#### 1. Configure Local Storage Mode
+```bash
+# In your .env file, set:
+STORAGE_MODE=local
+LOCAL_STORAGE_PATH=./storage
+
+# Optional: remove AWS credentials (they won't be needed)
+# AWS_ACCESS_KEY_ID=
+# AWS_SECRET_ACCESS_KEY=
+```
+
+#### 2. Features in Local Mode
+- **File Storage**: Photos stored locally in `./storage/users/{userId}/photos/`
+- **Thumbnails**: Generated and stored alongside photos
+- **Metadata**: JSON metadata files stored in `./storage/metadata/`
+- **API Compatibility**: Same API endpoints work identically
+- **File Serving**: Photos accessible via `http://localhost:3000/storage/{filepath}`
+
+#### 3. Local Storage Directory Structure
+```
+storage/
+├── users/
+│   └── {userId}/
+│       └── photos/
+│           ├── {timestamp}-{hash}.jpg
+│           ├── {timestamp}-{hash}_thumb_small.jpg
+│           ├── {timestamp}-{hash}_thumb_medium.jpg
+│           └── {timestamp}-{hash}_thumb_large.jpg
+└── metadata/
+    ├── {timestamp}-{hash}.json
+    ├── {timestamp}-{hash}_thumb_small.json
+    ├── {timestamp}-{hash}_thumb_medium.json
+    └── {timestamp}-{hash}_thumb_large.json
+```
+
+#### 4. Test Local Storage
+```bash
+# Start backend with local storage
+npm run dev
+
+# Test photo upload (requires authentication)
+curl -X POST http://localhost:3000/api/cloud/photos/upload \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -F "photo=@test_image.jpg"
+
+# View uploaded photos
+ls -la storage/users/*/photos/
+
+# Access photo via URL
+curl http://localhost:3000/storage/users/USER_ID/photos/FILENAME.jpg
 ```
 
 ### Mobile Development Build
@@ -653,7 +720,7 @@ jobs:
 #!/bin/bash
 set -e
 
-echo "🏗️ Building Camera Companion..."
+echo "🏗�? Building Camera Companion..."
 
 # Build backend
 echo "📦 Building backend..."
@@ -667,7 +734,7 @@ cd mobile && flutter build apk --release && cd ..
 echo "🤖 Building AI service..."
 cd ai && docker build -t camera-companion-ai . && cd ..
 
-echo "✅ Build completed successfully!"
+echo "�? Build completed successfully!"
 ```
 
 #### `scripts/test-build.sh`
@@ -689,7 +756,7 @@ cd mobile && flutter test && cd ..
 echo "Testing AI service..."
 cd ai && python -m pytest tests/ && cd ..
 
-echo "✅ All tests passed!"
+echo "�? All tests passed!"
 ```
 
 ## 🚨 Troubleshooting

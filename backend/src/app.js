@@ -29,6 +29,9 @@ app.use('/api/cloud', require('./api/cloud'));
 app.use('/api/auto-adjustment', require('./api/auto_adjustment'));
 app.use('/api/education', require('./api/education'));
 
+// Local storage file serving (only in development/local mode)
+app.use('/storage', require('./api/storage'));
+
 app.get('/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
