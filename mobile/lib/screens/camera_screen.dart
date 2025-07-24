@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
+import '../widgets/white_balance_control.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -15,6 +16,13 @@ class _CameraScreenState extends State<CameraScreen> {
   double _apertureValue = 2.8;
   double _shutterSpeed = 60;
   String _cameraName = 'Unknown Camera';
+  late WhiteBalanceSettings _wbSettings;
+
+  @override
+  void initState() {
+    super.initState();
+    _wbSettings = WhiteBalanceSettings();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -198,7 +206,7 @@ class _CameraScreenState extends State<CameraScreen> {
                   _buildQuickSetting('ISO', _isoValue.toInt().toString()),
                   _buildQuickSetting('f/', _apertureValue.toString()),
                   _buildQuickSetting('1/', _shutterSpeed.toInt().toString()),
-                  _buildQuickSetting('WB', 'Auto'),
+                  _buildQuickSetting('WB', _getWBDisplayText()),
                 ],
               ),
             ),
@@ -364,24 +372,36 @@ class _CameraScreenState extends State<CameraScreen> {
               
               // Controls
               Expanded(
-                child: Column(
-                  children: [
-                    _buildSliderControl('ISO', _isoValue, 100, 6400, (value) {
-                      setState(() {
-                        _isoValue = value;
-                      });
-                    }),
-                    _buildSliderControl('Aperture', _apertureValue, 1.4, 11, (value) {
-                      setState(() {
-                        _apertureValue = value;
-                      });
-                    }),
-                    _buildSliderControl('Shutter', _shutterSpeed, 1, 4000, (value) {
-                      setState(() {
-                        _shutterSpeed = value;
-                      });
-                    }),
-                  ],
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      _buildSliderControl('ISO', _isoValue, 100, 6400, (value) {
+                        setState(() {
+                          _isoValue = value;
+                        });
+                      }),
+                      _buildSliderControl('Aperture', _apertureValue, 1.4, 11, (value) {
+                        setState(() {
+                          _apertureValue = value;
+                        });
+                      }),
+                      _buildSliderControl('Shutter', _shutterSpeed, 1, 4000, (value) {
+                        setState(() {
+                          _shutterSpeed = value;
+                        });
+                      }),
+                      const SizedBox(height: 16),
+                      WhiteBalanceControl(
+                        initialSettings: _wbSettings,
+                        onChanged: (settings) {
+                          setState(() {
+                            _wbSettings = settings;
+                          });
+                        },
+                        isAdvanced: true,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -514,6 +534,27 @@ class _CameraScreenState extends State<CameraScreen> {
     
     // Return random camera for demo (in real app, this comes from SDK)
     return cameras[(DateTime.now().millisecondsSinceEpoch % cameras.length)];
+  }
+
+  String _getWBDisplayText() {
+    switch (_wbSettings.mode) {
+      case WBMode.auto:
+        return 'Auto';
+      case WBMode.daylight:
+        return 'Day';
+      case WBMode.tungsten:
+        return 'Tung';
+      case WBMode.fluorescent:
+        return 'Fluo';
+      case WBMode.cloudy:
+        return 'Cloud';
+      case WBMode.shade:
+        return 'Shade';
+      case WBMode.flash:
+        return 'Flash';
+      case WBMode.custom:
+        return '${(_wbSettings.kelvin / 1000).toStringAsFixed(1)}K';
+    }
   }
 }
 

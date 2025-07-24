@@ -51,9 +51,54 @@ const StylePresetSchema = new mongoose.Schema({
       required: true
     },
     whiteBalance: {
-      type: String,
-      enum: ['auto', 'daylight', 'cloudy', 'tungsten', 'fluorescent', 'flash', 'shade'],
-      default: 'auto'
+      mode: {
+        type: String,
+        enum: ['auto', 'daylight', 'cloudy', 'tungsten', 'fluorescent', 'flash', 'shade', 'custom'],
+        default: 'auto'
+      },
+      kelvin: {
+        type: Number,
+        min: 2000,
+        max: 10000,
+        default: 5500
+      },
+      shift: {
+        magentaGreen: {
+          type: Number,
+          min: -9,
+          max: 9,
+          default: 0
+        },
+        blueAmber: {
+          type: Number,
+          min: -9,
+          max: 9,
+          default: 0
+        }
+      },
+      autoWBBias: {
+        enabled: {
+          type: Boolean,
+          default: false
+        },
+        amber: {
+          type: Number,
+          min: -3,
+          max: 3,
+          default: 0
+        },
+        magenta: {
+          type: Number,
+          min: -3,
+          max: 3,
+          default: 0
+        }
+      },
+      priority: {
+        type: String,
+        enum: ['standard', 'white_priority', 'atmosphere_priority'],
+        default: 'standard'
+      }
     },
     exposureCompensation: {
       type: String,
@@ -251,6 +296,60 @@ StylePresetSchema.methods.canUserAccess = function(userId) {
   }
   
   return false;
+};
+
+// White Balance helper methods
+StylePresetSchema.methods.getEffectiveWBKelvin = function() {
+  const modeKelvinMap = {
+    'tungsten': 3200,
+    'fluorescent': 4000,
+    'daylight': 5500,
+    'flash': 5500,
+    'cloudy': 6500,
+    'shade': 7500
+  };
+
+  if (this.settings.whiteBalance.mode === 'custom') {
+    return this.settings.whiteBalance.kelvin;
+  }
+  
+  return modeKelvinMap[this.settings.whiteBalance.mode] || 5500;
+};
+
+StylePresetSchema.methods.getWBShiftDescription = function() {
+  const { magentaGreen, blueAmber } = this.settings.whiteBalance.shift;
+  
+  if (magentaGreen === 0 && blueAmber === 0) {
+    return 'No shift';
+  }
+  
+  const mgDesc = magentaGreen > 0 ? `M${magentaGreen}` : magentaGreen < 0 ? `G${Math.abs(magentaGreen)}` : '';
+  const baDesc = blueAmber > 0 ? `A${blueAmber}` : blueAmber < 0 ? `B${Math.abs(blueAmber)}` : '';
+  
+  return [mgDesc, baDesc].filter(Boolean).join(', ') || 'No shift';
+};
+
+StylePresetSchema.methods.isWBCompatibleWith = function(cameraModel) {
+  // Different cameras have different WB shift ranges and precision
+  const cameraSpecs = {
+    'canon': { mgRange: [-9, 9], baRange: [-9, 9], precision: 1 },
+    'nikon': { mgRange: [-6, 6], baRange: [-6, 6], precision: 1 },
+    'sony': { mgRange: [-9, 9], baRange: [-9, 9], precision: 1 },
+    'fujifilm': { mgRange: [-9, 9], baRange: [-9, 9], precision: 1 }
+  };
+  
+  const brand = cameraModel.toLowerCase().includes('canon') ? 'canon' :
+               cameraModel.toLowerCase().includes('nikon') ? 'nikon' :
+               cameraModel.toLowerCase().includes('sony') ? 'sony' :
+               cameraModel.toLowerCase().includes('fuji') ? 'fujifilm' : 'canon';
+  
+  const spec = cameraSpecs[brand];
+  const wb = this.settings.whiteBalance;
+  
+  return wb.shift.magentaGreen >= spec.mgRange[0] && 
+         wb.shift.magentaGreen <= spec.mgRange[1] &&
+         wb.shift.blueAmber >= spec.baRange[0] && 
+         wb.shift.blueAmber <= spec.baRange[1];
 };
 
 module.exports = mongoose.model('StylePreset', StylePresetSchema);

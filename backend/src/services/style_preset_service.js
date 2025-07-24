@@ -14,7 +14,20 @@ class StylePresetService {
           iso: 200,
           aperture: 'f/2.8',
           shutterSpeed: '1/160',
-          whiteBalance: 'daylight',
+          whiteBalance: {
+            mode: 'daylight',
+            kelvin: 5500,
+            shift: {
+              magentaGreen: 1,
+              blueAmber: 0
+            },
+            autoWBBias: {
+              enabled: false,
+              amber: 0,
+              magenta: 0
+            },
+            priority: 'standard'
+          },
           exposureCompensation: '+0.3',
           focusMode: 'single',
           meteringMode: 'spot',
@@ -46,7 +59,20 @@ class StylePresetService {
           iso: 100,
           aperture: 'f/8.0',
           shutterSpeed: '1/60',
-          whiteBalance: 'daylight',
+          whiteBalance: {
+            mode: 'daylight',
+            kelvin: 5500,
+            shift: {
+              magentaGreen: 0,
+              blueAmber: 1
+            },
+            autoWBBias: {
+              enabled: false,
+              amber: 0,
+              magenta: 0
+            },
+            priority: 'atmosphere_priority'
+          },
           exposureCompensation: '0.0',
           focusMode: 'hyperfocal',
           meteringMode: 'matrix',
@@ -78,7 +104,20 @@ class StylePresetService {
           iso: 400,
           aperture: 'f/4.0',
           shutterSpeed: '1/125',
-          whiteBalance: 'shade',
+          whiteBalance: {
+            mode: 'shade',
+            kelvin: 7500,
+            shift: {
+              magentaGreen: -1,
+              blueAmber: 3
+            },
+            autoWBBias: {
+              enabled: true,
+              amber: 2,
+              magenta: 0
+            },
+            priority: 'atmosphere_priority'
+          },
           exposureCompensation: '-0.3',
           focusMode: 'single',
           meteringMode: 'center',
@@ -661,6 +700,144 @@ class StylePresetService {
       logger.error('Failed to get username from preset:', error);
       return 'Anonymous';
     }
+  }
+
+  // White Balance Analysis and Recommendations
+  
+  analyzeWBForScene(sceneAnalysis) {
+    const { lighting_condition, color_temperature, scene_type } = sceneAnalysis;
+    
+    const recommendations = {
+      mode: 'auto',
+      kelvin: 5500,
+      shift: { magentaGreen: 0, blueAmber: 0 },
+      autoWBBias: { enabled: false, amber: 0, magenta: 0 },
+      priority: 'standard',
+      confidence: 0.5
+    };
+
+    // Analyze lighting conditions
+    if (lighting_condition === 'tungsten' || color_temperature < 3500) {
+      recommendations.mode = 'tungsten';
+      recommendations.kelvin = Math.max(2800, color_temperature || 3200);
+      recommendations.shift.magentaGreen = 1; // Counter green cast
+      recommendations.confidence = 0.8;
+    } else if (lighting_condition === 'fluorescent') {
+      recommendations.mode = 'fluorescent';
+      recommendations.kelvin = 4000;
+      recommendations.shift.magentaGreen = 2; // Strong magenta for green fluorescent
+      recommendations.confidence = 0.9;
+    } else if (lighting_condition === 'mixed') {
+      recommendations.mode = 'auto';
+      recommendations.autoWBBias.enabled = true;
+      recommendations.autoWBBias.amber = 1;
+      recommendations.confidence = 0.6;
+    } else if (lighting_condition === 'golden_hour') {
+      recommendations.mode = 'shade';
+      recommendations.kelvin = 7000;
+      recommendations.shift.blueAmber = 2; // Enhance warmth
+      recommendations.priority = 'atmosphere_priority';
+      recommendations.confidence = 0.85;
+    } else if (lighting_condition === 'overcast') {
+      recommendations.mode = 'cloudy';
+      recommendations.kelvin = 6500;
+      recommendations.shift.blueAmber = 1; // Slight warmth
+      recommendations.confidence = 0.7;
+    }
+
+    // Scene-specific adjustments
+    if (scene_type === 'portrait') {
+      recommendations.shift.magentaGreen += 1; // Warmer skin tones
+      recommendations.priority = 'white_priority';
+    } else if (scene_type === 'landscape') {
+      recommendations.priority = 'atmosphere_priority';
+    }
+
+    return recommendations;
+  }
+
+  optimizeWBForCamera(wbSettings, cameraModel) {
+    const brand = this.getCameraBrand(cameraModel);
+    const optimized = { ...wbSettings };
+
+    // Brand-specific optimizations
+    switch (brand) {
+      case 'canon':
+        // Canon tends to run warm, adjust accordingly
+        if (optimized.mode === 'daylight') {
+          optimized.shift.blueAmber = Math.max(-2, optimized.shift.blueAmber - 1);
+        }
+        break;
+      
+      case 'nikon':
+        // Nikon has limited shift range (-6 to +6)
+        optimized.shift.magentaGreen = Math.max(-6, Math.min(6, optimized.shift.magentaGreen));
+        optimized.shift.blueAmber = Math.max(-6, Math.min(6, optimized.shift.blueAmber));
+        break;
+      
+      case 'sony':
+        // Sony benefits from slight magenta bias in auto WB
+        if (optimized.mode === 'auto') {
+          optimized.autoWBBias.enabled = true;
+          optimized.autoWBBias.magenta = Math.max(0, optimized.autoWBBias.magenta);
+        }
+        break;
+    }
+
+    return optimized;
+  }
+
+  getCameraBrand(cameraModel) {
+    const model = cameraModel.toLowerCase();
+    if (model.includes('canon')) return 'canon';
+    if (model.includes('nikon')) return 'nikon';
+    if (model.includes('sony')) return 'sony';
+    if (model.includes('fuji')) return 'fujifilm';
+    return 'generic';
+  }
+
+  generateWBShiftPresets(basePreset, variations = 3) {
+    const presets = [];
+    const base = basePreset.settings.whiteBalance;
+    
+    // Create variations with different WB shifts
+    for (let i = 0; i < variations; i++) {
+      const variant = {
+        ...basePreset,
+        name: `${basePreset.name} (WB Variant ${i + 1})`,
+        settings: {
+          ...basePreset.settings,
+          whiteBalance: {
+            ...base,
+            shift: {
+              magentaGreen: base.shift.magentaGreen + (i - 1),
+              blueAmber: base.shift.blueAmber + (i - 1) * 0.5
+            }
+          }
+        }
+      };
+      presets.push(variant);
+    }
+    
+    return presets;
+  }
+
+  validateWBSettings(wbSettings) {
+    const errors = [];
+    
+    if (wbSettings.kelvin < 2000 || wbSettings.kelvin > 10000) {
+      errors.push('Kelvin value must be between 2000K and 10000K');
+    }
+    
+    if (wbSettings.shift.magentaGreen < -9 || wbSettings.shift.magentaGreen > 9) {
+      errors.push('Magenta-Green shift must be between -9 and +9');
+    }
+    
+    if (wbSettings.shift.blueAmber < -9 || wbSettings.shift.blueAmber > 9) {
+      errors.push('Blue-Amber shift must be between -9 and +9');
+    }
+    
+    return errors;
   }
 }
 

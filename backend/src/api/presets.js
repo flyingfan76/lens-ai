@@ -494,6 +494,112 @@ router.post('/:presetId/fork', async (req, res) => {
   }
 });
 
+// Get white balance recommendations based on scene analysis
+router.post('/wb-analysis', async (req, res) => {
+  try {
+    const { sceneAnalysis, cameraModel } = req.body;
+    
+    if (!sceneAnalysis) {
+      return res.status(400).json({
+        success: false,
+        error: 'Scene analysis data required'
+      });
+    }
+    
+    const wbRecommendations = presetService.analyzeWBForScene(sceneAnalysis);
+    
+    // Optimize for specific camera if provided
+    if (cameraModel) {
+      const optimizedWB = presetService.optimizeWBForCamera(wbRecommendations, cameraModel);
+      
+      res.json({
+        success: true,
+        data: {
+          recommendations: optimizedWB,
+          cameraOptimized: true,
+          cameraModel: cameraModel
+        }
+      });
+    } else {
+      res.json({
+        success: true,
+        data: {
+          recommendations: wbRecommendations,
+          cameraOptimized: false
+        }
+      });
+    }
+  } catch (error) {
+    logger.error('Failed to analyze white balance:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to analyze white balance' 
+    });
+  }
+});
+
+// Generate WB shift variations for a preset
+router.post('/:presetId/wb-variations', async (req, res) => {
+  try {
+    const presetId = req.params.presetId;
+    const { variations = 3 } = req.body;
+    
+    const basePreset = await presetService.getPresetById(presetId);
+    if (!basePreset) {
+      return res.status(404).json({
+        success: false,
+        error: 'Preset not found'
+      });
+    }
+    
+    const wbVariations = presetService.generateWBShiftPresets(basePreset, variations);
+    
+    res.json({
+      success: true,
+      data: {
+        basePreset: basePreset,
+        variations: wbVariations
+      }
+    });
+  } catch (error) {
+    logger.error(`Failed to generate WB variations for preset ${req.params.presetId}:`, error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to generate WB variations' 
+    });
+  }
+});
+
+// Validate white balance settings
+router.post('/validate-wb', async (req, res) => {
+  try {
+    const { whiteBalance } = req.body;
+    
+    if (!whiteBalance) {
+      return res.status(400).json({
+        success: false,
+        error: 'White balance settings required'
+      });
+    }
+    
+    const validationErrors = presetService.validateWBSettings(whiteBalance);
+    
+    res.json({
+      success: true,
+      data: {
+        isValid: validationErrors.length === 0,
+        errors: validationErrors
+      }
+    });
+  } catch (error) {
+    logger.error('Failed to validate white balance settings:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to validate white balance settings' 
+    });
+  }
+});
+
 // Initialize built-in presets (admin endpoint)
 router.post('/admin/initialize', async (req, res) => {
   try {
