@@ -27,6 +27,15 @@ const StylePresetSchema = new mongoose.Schema({
     enum: ['built_in', 'user_created', 'community'],
     default: 'built_in'
   },
+  visibility: {
+    type: String,
+    enum: ['public', 'private', 'friends_only'],
+    default: 'public'
+  },
+  isUserGenerated: {
+    type: Boolean,
+    default: false
+  },
   settings: {
     iso: {
       type: mongoose.Schema.Types.Mixed,
@@ -94,7 +103,21 @@ const StylePresetSchema = new mongoose.Schema({
   metadata: {
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
+      ref: 'User',
+      required: function() { return this.isUserGenerated; }
+    },
+    createdByUsername: {
+      type: String,
+      required: function() { return this.isUserGenerated && this.visibility === 'public'; }
+    },
+    originalSettings: {
+      type: Object,
+      default: null
+    },
+    shareCode: {
+      type: String,
+      unique: true,
+      sparse: true
     },
     usageCount: {
       type: Number,
@@ -176,6 +199,58 @@ StylePresetSchema.statics.getFeatured = function() {
     'metadata.featured': true,
     isActive: true
   }).sort({ 'metadata.usageCount': -1 });
+};
+
+StylePresetSchema.statics.getUserPresets = function(userId, includePrivate = false) {
+  const query = {
+    'metadata.createdBy': userId,
+    isActive: true
+  };
+  
+  if (!includePrivate) {
+    query.visibility = { $ne: 'private' };
+  }
+  
+  return this.find(query).sort({ createdAt: -1 });
+};
+
+StylePresetSchema.statics.getPublicPresets = function() {
+  return this.find({
+    visibility: 'public',
+    isUserGenerated: true,
+    isActive: true
+  }).sort({ 'metadata.usageCount': -1 });
+};
+
+StylePresetSchema.statics.findByShareCode = function(shareCode) {
+  return this.findOne({
+    'metadata.shareCode': shareCode,
+    isActive: true
+  });
+};
+
+StylePresetSchema.methods.generateShareCode = function() {
+  if (!this.metadata.shareCode) {
+    this.metadata.shareCode = Math.random().toString(36).substring(2, 12).toUpperCase();
+  }
+  return this.metadata.shareCode;
+};
+
+StylePresetSchema.methods.canUserAccess = function(userId) {
+  // Public presets are accessible to everyone
+  if (this.visibility === 'public') return true;
+  
+  // Private presets only accessible to owner
+  if (this.visibility === 'private') {
+    return this.metadata.createdBy && this.metadata.createdBy.toString() === userId.toString();
+  }
+  
+  // TODO: Implement friends_only logic when friend system is added
+  if (this.visibility === 'friends_only') {
+    return this.metadata.createdBy && this.metadata.createdBy.toString() === userId.toString();
+  }
+  
+  return false;
 };
 
 module.exports = mongoose.model('StylePreset', StylePresetSchema);

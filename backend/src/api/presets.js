@@ -314,6 +314,186 @@ router.get('/stats/overview', async (req, res) => {
   }
 });
 
+// Get user's own presets (private and public)
+router.get('/user/my', async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Authentication required'
+      });
+    }
+
+    const includePrivate = req.query.include_private !== 'false';
+    const presets = await presetService.getUserPresets(userId, includePrivate);
+    
+    res.json({
+      success: true,
+      count: presets.length,
+      data: presets
+    });
+  } catch (error) {
+    logger.error('Failed to get user presets:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to retrieve user presets' 
+    });
+  }
+});
+
+// Get public user-generated presets (community presets)
+router.get('/community', async (req, res) => {
+  try {
+    const filters = {
+      category: req.query.category,
+      limit: parseInt(req.query.limit) || 50,
+      sortBy: req.query.sort_by || 'popularity'
+    };
+
+    const presets = await presetService.getCommunityPresets(filters);
+    
+    res.json({
+      success: true,
+      count: presets.length,
+      data: presets
+    });
+  } catch (error) {
+    logger.error('Failed to get community presets:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to retrieve community presets' 
+    });
+  }
+});
+
+// Get preset by share code
+router.get('/share/:shareCode', async (req, res) => {
+  try {
+    const preset = await presetService.getPresetByShareCode(req.params.shareCode);
+    
+    if (!preset) {
+      return res.status(404).json({
+        success: false,
+        error: 'Preset not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: preset
+    });
+  } catch (error) {
+    logger.error(`Failed to get preset by share code ${req.params.shareCode}:`, error);
+    res.status(404).json({ 
+      success: false,
+      error: 'Preset not found' 
+    });
+  }
+});
+
+// Update preset visibility/privacy
+router.put('/:presetId/visibility', async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const presetId = req.params.presetId;
+    const { visibility } = req.body;
+    
+    if (!['public', 'private', 'friends_only'].includes(visibility)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid visibility option'
+      });
+    }
+
+    // Check if user owns the preset
+    const existingPreset = await presetService.getPresetById(presetId);
+    if (existingPreset.metadata.createdBy && 
+        existingPreset.metadata.createdBy.toString() !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Not authorized to modify this preset'
+      });
+    }
+    
+    const preset = await presetService.updatePresetVisibility(presetId, visibility);
+    
+    res.json({
+      success: true,
+      data: preset
+    });
+  } catch (error) {
+    logger.error(`Failed to update preset visibility ${req.params.presetId}:`, error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to update preset visibility' 
+    });
+  }
+});
+
+// Generate share code for preset
+router.post('/:presetId/share', async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const presetId = req.params.presetId;
+    
+    // Check if user owns the preset
+    const existingPreset = await presetService.getPresetById(presetId);
+    if (existingPreset.metadata.createdBy && 
+        existingPreset.metadata.createdBy.toString() !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Not authorized to share this preset'
+      });
+    }
+    
+    const shareCode = await presetService.generateShareCode(presetId);
+    
+    res.json({
+      success: true,
+      data: {
+        shareCode: shareCode,
+        shareUrl: `${req.protocol}://${req.get('host')}/api/presets/share/${shareCode}`
+      }
+    });
+  } catch (error) {
+    logger.error(`Failed to generate share code for preset ${req.params.presetId}:`, error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to generate share code' 
+    });
+  }
+});
+
+// Fork/copy a preset (create personal copy)
+router.post('/:presetId/fork', async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Authentication required'
+      });
+    }
+
+    const presetId = req.params.presetId;
+    const customization = req.body || {};
+    
+    const forkedPreset = await presetService.forkPreset(userId, presetId, customization);
+    
+    res.status(201).json({
+      success: true,
+      data: forkedPreset
+    });
+  } catch (error) {
+    logger.error(`Failed to fork preset ${req.params.presetId}:`, error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to fork preset' 
+    });
+  }
+});
+
 // Initialize built-in presets (admin endpoint)
 router.post('/admin/initialize', async (req, res) => {
   try {

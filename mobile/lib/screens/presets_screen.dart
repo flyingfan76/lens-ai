@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
+import 'user_presets_screen.dart';
 
 class PresetsScreen extends StatefulWidget {
   const PresetsScreen({super.key});
@@ -64,6 +65,18 @@ class _PresetsScreenState extends State<PresetsScreen> with TickerProviderStateM
       appBar: AppBar(
         title: const Text('Style Presets'),
         actions: [
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const UserPresetsScreen(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.person),
+            tooltip: 'My Presets',
+          ),
           IconButton(
             onPressed: () {},
             icon: const Icon(Icons.search),

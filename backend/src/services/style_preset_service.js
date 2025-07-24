@@ -488,6 +488,180 @@ class StylePresetService {
       throw error;
     }
   }
+
+  // New methods for user-generated presets
+
+  async createUserPreset(userId, presetData) {
+    try {
+      const preset = new StylePreset({
+        ...presetData,
+        id: this.generatePresetId(presetData.name),
+        type: 'user_created',
+        isUserGenerated: true,
+        visibility: presetData.visibility || 'private',
+        metadata: {
+          ...presetData.metadata,
+          createdBy: userId,
+          createdByUsername: presetData.createdByUsername,
+          originalSettings: presetData.settings
+        }
+      });
+
+      await preset.save();
+      logger.info(`User preset created: ${preset.id} by user ${userId}`);
+      return preset;
+    } catch (error) {
+      logger.error('Failed to create user preset:', error);
+      throw error;
+    }
+  }
+
+  async getUserPresets(userId, includePrivate = false) {
+    try {
+      return await StylePreset.getUserPresets(userId, includePrivate);
+    } catch (error) {
+      logger.error('Failed to get user presets:', error);
+      throw error;
+    }
+  }
+
+  async getCommunityPresets(filters = {}) {
+    try {
+      let query = StylePreset.getPublicPresets();
+
+      if (filters.category) {
+        query = query.where('category', filters.category);
+      }
+
+      if (filters.limit) {
+        query = query.limit(filters.limit);
+      }
+
+      // Apply sorting
+      if (filters.sortBy === 'newest') {
+        query = query.sort({ createdAt: -1 });
+      } else if (filters.sortBy === 'rating') {
+        query = query.sort({ 'metadata.rating.average': -1 });
+      }
+      // Default is by popularity (usageCount)
+
+      return await query.exec();
+    } catch (error) {
+      logger.error('Failed to get community presets:', error);
+      throw error;
+    }
+  }
+
+  async getPresetByShareCode(shareCode) {
+    try {
+      return await StylePreset.findByShareCode(shareCode);
+    } catch (error) {
+      logger.error('Failed to get preset by share code:', error);
+      throw error;
+    }
+  }
+
+  async updatePresetVisibility(presetId, visibility) {
+    try {
+      const preset = await StylePreset.findOneAndUpdate(
+        { id: presetId },
+        { 
+          visibility: visibility,
+          // Update username based on visibility
+          'metadata.createdByUsername': visibility === 'public' ? 
+            await this.getUsernameFromPreset(presetId) : undefined
+        },
+        { new: true }
+      );
+
+      if (!preset) {
+        throw new Error('Preset not found');
+      }
+
+      logger.info(`Updated preset ${presetId} visibility to ${visibility}`);
+      return preset;
+    } catch (error) {
+      logger.error('Failed to update preset visibility:', error);
+      throw error;
+    }
+  }
+
+  async generateShareCode(presetId) {
+    try {
+      const preset = await StylePreset.findOne({ id: presetId });
+      if (!preset) {
+        throw new Error('Preset not found');
+      }
+
+      const shareCode = preset.generateShareCode();
+      await preset.save();
+
+      logger.info(`Generated share code ${shareCode} for preset ${presetId}`);
+      return shareCode;
+    } catch (error) {
+      logger.error('Failed to generate share code:', error);
+      throw error;
+    }
+  }
+
+  async forkPreset(userId, presetId, customization = {}) {
+    try {
+      const originalPreset = await this.getPresetById(presetId);
+      if (!originalPreset) {
+        throw new Error('Original preset not found');
+      }
+
+      // Check if user can access the preset
+      if (!originalPreset.canUserAccess(userId)) {
+        throw new Error('Access denied to preset');
+      }
+
+      const forkedPresetData = {
+        name: customization.name || `${originalPreset.name} (Copy)`,
+        description: customization.description || `Forked from ${originalPreset.name}`,
+        category: customization.category || originalPreset.category,
+        settings: { ...originalPreset.settings, ...customization.settings },
+        tags: [...(originalPreset.tags || []), 'forked'],
+        sceneTypes: originalPreset.sceneTypes,
+        lightingConditions: originalPreset.lightingConditions,
+        visibility: 'private', // Always start as private
+        metadata: {
+          originalPresetId: originalPreset.id,
+          originalSettings: originalPreset.settings
+        }
+      };
+
+      const forkedPreset = await this.createUserPreset(userId, forkedPresetData);
+      
+      // Increment usage count of original preset
+      await this.incrementPresetUsage(presetId);
+
+      logger.info(`User ${userId} forked preset ${presetId} as ${forkedPreset.id}`);
+      return forkedPreset;
+    } catch (error) {
+      logger.error('Failed to fork preset:', error);
+      throw error;
+    }
+  }
+
+  generatePresetId(name) {
+    const timestamp = Date.now();
+    const cleanName = name.toLowerCase()
+      .replace(/[^a-z0-9]/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '');
+    return `user_${cleanName}_${timestamp}`;
+  }
+
+  async getUsernameFromPreset(presetId) {
+    try {
+      const preset = await StylePreset.findOne({ id: presetId }).populate('metadata.createdBy', 'username');
+      return preset?.metadata?.createdBy?.username || 'Anonymous';
+    } catch (error) {
+      logger.error('Failed to get username from preset:', error);
+      return 'Anonymous';
+    }
+  }
 }
 
 module.exports = StylePresetService;
