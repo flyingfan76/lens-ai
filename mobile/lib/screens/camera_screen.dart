@@ -14,25 +14,31 @@ class _CameraScreenState extends State<CameraScreen> {
   double _isoValue = 400;
   double _apertureValue = 2.8;
   double _shutterSpeed = 60;
+  String _cameraName = 'Unknown Camera';
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
-        child: Stack(
+        child: Column(
           children: [
-            // Main viewfinder area
-            _buildViewfinder(),
-            
             // Top status bar
             _buildTopBar(),
             
-            // Bottom controls
-            _buildBottomControls(),
+            // Main viewfinder area (takes remaining space)
+            Expanded(
+              child: Stack(
+                children: [
+                  _buildViewfinder(),
+                  // Advanced controls panel (slides up from bottom)
+                  if (_showAdvancedControls) _buildAdvancedControls(),
+                ],
+              ),
+            ),
             
-            // Advanced controls panel (slides up from bottom)
-            if (_showAdvancedControls) _buildAdvancedControls(),
+            // Bottom controls (fixed at bottom)
+            _buildBottomControls(),
           ],
         ),
       ),
@@ -40,19 +46,18 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Widget _buildViewfinder() {
-    return Positioned.fill(
-      child: Container(
-        margin: const EdgeInsets.only(top: 60, bottom: 150),
-        decoration: BoxDecoration(
-          color: Colors.grey[900],
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: _isConnected ? AppColors.success : AppColors.textSecondaryDark,
-            width: 2,
-          ),
+    return Container(
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[900],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: _isConnected ? AppColors.success : AppColors.textSecondaryDark,
+          width: 2,
         ),
-        child: Stack(
-          children: [
+      ),
+      child: Stack(
+        children: [
             // Viewfinder placeholder
             Center(
               child: Column(
@@ -75,9 +80,13 @@ class _CameraScreenState extends State<CameraScreen> {
                   if (!_isConnected) ...[
                     const SizedBox(height: 8),
                     ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         setState(() {
                           _isConnected = !_isConnected;
+                          // Simulate getting camera name from SDK
+                          if (_isConnected) {
+                            _cameraName = _getConnectedCameraName();
+                          }
                         });
                       },
                       style: ElevatedButton.styleFrom(
@@ -98,19 +107,14 @@ class _CameraScreenState extends State<CameraScreen> {
             if (_isConnected) _buildAISuggestions(),
           ],
         ),
-      ),
     );
   }
 
   Widget _buildTopBar() {
-    return Positioned(
-      top: 0,
-      left: 0,
-      right: 0,
-      child: Container(
-        height: 60,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
+    return Container(
+      height: 60,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
           children: [
             // Connection status
             Container(
@@ -132,7 +136,7 @@ class _CameraScreenState extends State<CameraScreen> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    _isConnected ? 'Canon EOS R5' : 'Disconnected',
+                    _isConnected ? _cameraName : 'Disconnected',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,
@@ -160,34 +164,35 @@ class _CameraScreenState extends State<CameraScreen> {
             ),
           ],
         ),
-      ),
     );
   }
 
   Widget _buildBottomControls() {
-    return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: Container(
-        height: 150,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.transparent,
-              Colors.black.withOpacity(0.8),
-              Colors.black,
-            ],
-          ),
+    return Container(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 8,
+        bottom: MediaQuery.of(context).padding.bottom + 8,
+      ),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.transparent,
+            Colors.black.withOpacity(0.8),
+            Colors.black,
+          ],
         ),
-        child: Column(
-          children: [
-            // Quick settings row
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Row(
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Quick settings row
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _buildQuickSetting('ISO', _isoValue.toInt().toString()),
@@ -199,7 +204,8 @@ class _CameraScreenState extends State<CameraScreen> {
             ),
             
             // Main control row
-            Expanded(
+            Container(
+              height: 90,
               child: Row(
                 children: [
                   // Last photo thumbnail
@@ -277,7 +283,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 });
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -301,7 +307,6 @@ class _CameraScreenState extends State<CameraScreen> {
             ),
           ],
         ),
-      ),
     );
   }
 
@@ -335,7 +340,9 @@ class _CameraScreenState extends State<CameraScreen> {
       left: 0,
       right: 0,
       child: Container(
-        height: 200,
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.4,
+        ),
         decoration: BoxDecoration(
           color: Colors.black.withOpacity(0.95),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -485,6 +492,28 @@ class _CameraScreenState extends State<CameraScreen> {
         duration: const Duration(seconds: 1),
       ),
     );
+  }
+
+  String _getConnectedCameraName() {
+    // TODO: Replace with actual camera SDK call
+    // This would typically call something like:
+    // - Canon SDK: getCameraModel()
+    // - Nikon SDK: getDeviceName() 
+    // - Sony SDK: getModelName()
+    
+    // Simulate different camera brands for demo
+    final cameras = [
+      'Canon EOS R5',
+      'Canon EOS R6 Mark II',
+      'Nikon D850',
+      'Nikon Z9',
+      'Sony α7R V',
+      'Sony α7 IV',
+      'Fujifilm X-T5',
+    ];
+    
+    // Return random camera for demo (in real app, this comes from SDK)
+    return cameras[(DateTime.now().millisecondsSinceEpoch % cameras.length)];
   }
 }
 
