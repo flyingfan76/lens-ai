@@ -1,60 +1,81 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:camera_companion/core/providers/app_provider.dart';
-import 'package:camera_companion/core/providers/camera_provider.dart';
-import 'package:camera_companion/core/providers/ai_provider.dart';
-import 'package:camera_companion/core/theme/app_theme.dart';
-import 'package:camera_companion/features/home/screens/home_screen.dart';
-import 'package:camera_companion/features/auth/screens/login_screen.dart';
-import 'package:camera_companion/core/services/auth_service.dart';
 
 void main() {
-  runApp(const CameraCompanionApp());
+  runApp(const LensAIApp());
 }
 
-class CameraCompanionApp extends StatelessWidget {
-  const CameraCompanionApp({super.key});
+class LensAIApp extends StatelessWidget {
+  const LensAIApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => AppProvider()),
-        ChangeNotifierProvider(create: (_) => CameraProvider()),
-        ChangeNotifierProvider(create: (_) => AIProvider()),
-      ],
-      child: MaterialApp(
-        title: 'Camera Companion',
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: ThemeMode.system,
-        home: const AuthWrapper(),
-        debugShowCheckedModeBanner: false,
+    return MaterialApp(
+      title: 'Lens AI',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
       ),
+      home: const MyHomePage(title: 'Lens AI - Camera Control Assistant'),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
 
-class AuthWrapper extends StatelessWidget {
-  const AuthWrapper({super.key});
+class MyHomePage extends StatefulWidget {
+  const MyHomePage({super.key, required this.title});
+
+  final String title;
+
+  @override
+  State<MyHomePage> createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  int _counter = 0;
+
+  void _incrementCounter() {
+    setState(() {
+      _counter++;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: AuthService().isLoggedIn(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-        
-        if (snapshot.data == true) {
-          return const HomeScreen();
-        } else {
-          return const LoginScreen();
-        }
-      },
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: Text(widget.title),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            const Text(
+              'Welcome to Lens AI',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'AI-powered mobile camera control and photography assistant',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 40),
+            const Text(
+              'Development counter:',
+            ),
+            Text(
+              '$_counter',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _incrementCounter,
+        tooltip: 'Increment',
+        child: const Icon(Icons.add),
+      ),
     );
   }
 }

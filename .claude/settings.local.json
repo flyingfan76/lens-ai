@@ -28,7 +28,10 @@
       "Bash(npm run clean)",
       "Bash(npm run build:*)",
       "Bash(npm run configure)",
-      "Bash(clang++:*)"
+      "Bash(clang++:*)",
+      "Bash(npm run dev)",
+      "Bash(flutter run:*)",
+      "Bash(flutter create:*)"
     ],
     "deny": []
   }

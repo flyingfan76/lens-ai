@@ -223,13 +223,59 @@ cd ../nikon && npm install && npm run build
 ```
 
 #### 3. Initialize Database
+
+**Option A: Local MongoDB Installation (Recommended for Development)**
 ```bash
-# Start MongoDB (via Docker or local)
+# Install MongoDB using Homebrew
+brew tap mongodb/brew
+brew install mongodb-community@7.0
+
+# Start MongoDB service
+brew services start mongodb/brew/mongodb-community@7.0
+
+# Verify MongoDB is running
+mongosh --eval "db.adminCommand('ismaster')"
+```
+
+**Option B: Docker MongoDB (Alternative)**
+```bash
+# Start MongoDB with other services via Docker
 make docker-up
+```
+
+**Initialize Database Content:**
+```bash
+# Navigate to backend directory
+cd backend
 
 # Initialize presets and education content
 npm run init-presets
 npm run init-education
+```
+
+**Verify Database Setup:**
+```bash
+# Connect to MongoDB and check databases
+mongosh
+> show dbs
+> use lens_ai
+> show collections
+> exit
+```
+
+**MongoDB Management Commands:**
+```bash
+# Stop MongoDB service
+brew services stop mongodb/brew/mongodb-community@7.0
+
+# Restart MongoDB service
+brew services restart mongodb/brew/mongodb-community@7.0
+
+# Check MongoDB service status
+brew services list | grep mongodb
+
+# MongoDB log location
+tail -f /opt/homebrew/var/log/mongodb/mongo.log
 ```
 
 #### 4. Start Development Server
@@ -818,7 +864,27 @@ rm -rf build/
 flutter build apk --debug
 ```
 
-#### 3. Python/AI Service Issues
+#### 3. MongoDB Issues
+```bash
+# Problem: MongoDB connection refused
+# Solution: Start MongoDB service
+brew services start mongodb/brew/mongodb-community@7.0
+
+# Problem: Port 27017 already in use
+# Solution: Check what's using the port
+lsof -i :27017
+# Kill process if needed: kill -9 <PID>
+
+# Problem: MongoDB not found after installation
+# Solution: Link MongoDB properly
+brew link mongodb-community@7.0
+
+# Problem: Permission denied errors
+# Solution: Fix MongoDB data directory permissions
+sudo chown -R $(whoami) /opt/homebrew/var/mongodb
+```
+
+#### 4. Python/AI Service Issues
 ```bash
 # Problem: CUDA not available
 # Solution: Install CPU-only PyTorch
