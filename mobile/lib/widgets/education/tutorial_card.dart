@@ -64,7 +64,7 @@ class TutorialCard extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.star,
                             size: 12,
                             color: Colors.orange.shade700,
@@ -97,7 +97,7 @@ class TutorialCard extends StatelessWidget {
                 // Tutorial Info Row
                 Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.access_time,
                       size: 16,
                       color: Colors.grey.shade600,
@@ -105,12 +105,12 @@ class TutorialCard extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text(
                       '${tutorial.estimatedDuration} min',
-                      style: Theme.of(context).textTheme.caption?.copyWith(
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Colors.grey.shade600,
                       ),
                     ),
                     const SizedBox(width: 16),
-                    Icon(
+                    const Icon(
                       Icons.play_lesson,
                       size: 16,
                       color: Colors.grey.shade600,
@@ -118,13 +118,13 @@ class TutorialCard extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text(
                       '${tutorial.steps.length} steps',
-                      style: Theme.of(context).textTheme.caption?.copyWith(
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Colors.grey.shade600,
                       ),
                     ),
                     const Spacer(),
                     if (tutorial.metadata.averageRating > 0) ...[
-                      Icon(
+                      const Icon(
                         Icons.star,
                         size: 16,
                         color: Colors.amber,
@@ -132,7 +132,7 @@ class TutorialCard extends StatelessWidget {
                       const SizedBox(width: 2),
                       Text(
                         tutorial.metadata.averageRating.toStringAsFixed(1),
-                        style: Theme.of(context).textTheme.caption?.copyWith(
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Colors.grey.shade600,
                         ),
                       ),
@@ -148,7 +148,7 @@ class TutorialCard extends StatelessWidget {
   }
 
   Widget _buildDifficultyChip(BuildContext context) {
-    Color chipColor;
+    MaterialColor chipColor;
     switch (tutorial.difficulty.toLowerCase()) {
       case 'beginner':
         chipColor = Colors.green;
@@ -166,9 +166,9 @@ class TutorialCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: chipColor.withOpacity(0.1),
+        color: chipColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: chipColor.withOpacity(0.3)),
+        border: Border.all(color: chipColor.withValues(alpha: 0.3)),
       ),
       child: Text(
         tutorial.difficulty.toUpperCase(),
@@ -185,9 +185,9 @@ class TutorialCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.1),
+        color: Colors.blue.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+        border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
       ),
       child: Text(
         tutorial.category.replaceAll('_', ' ').toUpperCase(),

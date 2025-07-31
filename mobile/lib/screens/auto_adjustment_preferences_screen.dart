@@ -6,9 +6,9 @@ class AutoAdjustmentPreferencesScreen extends StatefulWidget {
   final String? userId;
 
   const AutoAdjustmentPreferencesScreen({
-    Key? key,
+    super.key,
     this.userId,
-  }) : super(key: key);
+  });
 
   @override
   State<AutoAdjustmentPreferencesScreen> createState() => _AutoAdjustmentPreferencesScreenState();

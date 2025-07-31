@@ -34,8 +34,8 @@ class _MainDashboardState extends State<MainDashboard> {
           boxShadow: [
             BoxShadow(
               color: Theme.of(context).brightness == Brightness.light
-                  ? Colors.black.withOpacity(0.1)
-                  : Colors.black.withOpacity(0.3),
+                  ? Colors.black.withValues(alpha: 0.1)
+                  : Colors.black.withValues(alpha: 0.3),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),

@@ -58,7 +58,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                         _selectedFilter = filter;
                       });
                     },
-                    selectedColor: AppColors.primary.withOpacity(0.2),
+                    selectedColor: AppColors.primary.withValues(alpha: 0.2),
                     checkmarkColor: AppColors.primary,
                   ),
                 );
@@ -146,7 +146,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                   const Positioned(
                     bottom: 4,
                     right: 4,
-                    child: Icon(
+                    child: const Icon(
                       Icons.favorite,
                       color: Colors.red,
                       size: 16,
@@ -237,7 +237,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                       value: 'share',
                       child: Row(
                         children: [
-                          Icon(Icons.share),
+                          const Icon(Icons.share),
                           SizedBox(width: 8),
                           Text('Share'),
                         ],
@@ -247,7 +247,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                       value: 'favorite',
                       child: Row(
                         children: [
-                          Icon(Icons.favorite_border),
+                          const Icon(Icons.favorite_border),
                           SizedBox(width: 8),
                           Text('Add to Favorites'),
                         ],
@@ -257,7 +257,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                       value: 'delete',
                       child: Row(
                         children: [
-                          Icon(Icons.delete, color: Colors.red),
+                          const Icon(Icons.delete, color: Colors.red),
                           SizedBox(width: 8),
                           Text('Delete', style: TextStyle(color: Colors.red)),
                         ],

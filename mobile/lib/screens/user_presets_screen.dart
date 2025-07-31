@@ -232,7 +232,7 @@ class _UserPresetsScreenState extends State<UserPresetsScreen>
                         Text(
                           preset.description,
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
+                            color: Colors.white.withValues(alpha: 0.7),
                             fontSize: 14,
                           ),
                         ),
@@ -249,7 +249,7 @@ class _UserPresetsScreenState extends State<UserPresetsScreen>
                           value: 'edit',
                           child: Row(
                             children: [
-                              Icon(Icons.edit, color: Colors.white, size: 20),
+                              const Icon(Icons.edit, color: Colors.white, size: 20),
                               SizedBox(width: 8),
                               Text('Edit', style: TextStyle(color: Colors.white)),
                             ],
@@ -259,7 +259,7 @@ class _UserPresetsScreenState extends State<UserPresetsScreen>
                           value: 'share',
                           child: Row(
                             children: [
-                              Icon(Icons.share, color: Colors.white, size: 20),
+                              const Icon(Icons.share, color: Colors.white, size: 20),
                               SizedBox(width: 8),
                               Text('Share', style: TextStyle(color: Colors.white)),
                             ],
@@ -269,7 +269,7 @@ class _UserPresetsScreenState extends State<UserPresetsScreen>
                           value: 'visibility',
                           child: Row(
                             children: [
-                              Icon(Icons.visibility, color: Colors.white, size: 20),
+                              const Icon(Icons.visibility, color: Colors.white, size: 20),
                               SizedBox(width: 8),
                               Text('Privacy', style: TextStyle(color: Colors.white)),
                             ],
@@ -279,7 +279,7 @@ class _UserPresetsScreenState extends State<UserPresetsScreen>
                           value: 'delete',
                           child: Row(
                             children: [
-                              Icon(Icons.delete, color: Colors.red, size: 20),
+                              const Icon(Icons.delete, color: Colors.red, size: 20),
                               SizedBox(width: 8),
                               Text('Delete', style: TextStyle(color: Colors.red)),
                             ],
@@ -309,23 +309,23 @@ class _UserPresetsScreenState extends State<UserPresetsScreen>
                   ),
                   const Spacer(),
                   if (showOwnership) ...[
-                    Icon(Icons.person, color: Colors.white54, size: 16),
+                    const Icon(Icons.person, color: Colors.white54, size: 16),
                     const SizedBox(width: 4),
                     Text(
                       preset.createdByUsername,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
+                        color: Colors.white.withValues(alpha: 0.6),
                         fontSize: 12,
                       ),
                     ),
                     const SizedBox(width: 12),
                   ],
-                  Icon(Icons.favorite, color: Colors.white54, size: 16),
+                  const Icon(Icons.favorite, color: Colors.white54, size: 16),
                   const SizedBox(width: 4),
                   Text(
                     preset.usageCount.toString(),
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.6),
+                      color: Colors.white.withValues(alpha: 0.6),
                       fontSize: 12,
                     ),
                   ),
@@ -346,9 +346,9 @@ class _UserPresetsScreenState extends State<UserPresetsScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -382,13 +382,13 @@ class _UserPresetsScreenState extends State<UserPresetsScreen>
           Icon(
             icon,
             size: 80,
-            color: Colors.white.withOpacity(0.3),
+            color: Colors.white.withValues(alpha: 0.3),
           ),
           const SizedBox(height: 16),
           Text(
             title,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withValues(alpha: 0.8),
               fontSize: 20,
               fontWeight: FontWeight.w600,
             ),
@@ -397,7 +397,7 @@ class _UserPresetsScreenState extends State<UserPresetsScreen>
           Text(
             subtitle,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.5),
+              color: Colors.white.withValues(alpha: 0.5),
               fontSize: 14,
             ),
             textAlign: TextAlign.center,
@@ -522,7 +522,7 @@ class _UserPresetsScreenState extends State<UserPresetsScreen>
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Preset is now ${visibility}'),
+        content: Text('Preset is now $visibility'),
         backgroundColor: AppColors.success,
       ),
     );
@@ -788,21 +788,21 @@ class PresetDetailsSheet extends StatelessWidget {
           Text(
             preset.description,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha: 0.7),
               fontSize: 16,
             ),
           ),
           const SizedBox(height: 16),
           Row(
             children: [
-              Icon(Icons.person, color: Colors.white54, size: 20),
+              const Icon(Icons.person, color: Colors.white54, size: 20),
               const SizedBox(width: 8),
               Text(
                 'Created by ${preset.createdByUsername}',
                 style: const TextStyle(color: Colors.white60),
               ),
               const Spacer(),
-              Icon(Icons.favorite, color: Colors.white54, size: 20),
+              const Icon(Icons.favorite, color: Colors.white54, size: 20),
               const SizedBox(width: 4),
               Text(
                 '${preset.usageCount} uses',

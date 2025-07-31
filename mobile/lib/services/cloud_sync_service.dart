@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -325,7 +326,7 @@ class CloudSyncService {
 
       return true;
     } catch (e) {
-      print('Error checking auto-sync: $e');
+      debugPrint('Error checking auto-sync: $e');
       return false;
     }
   }
@@ -383,7 +384,7 @@ class CloudSyncService {
 
   Future<bool> _isConnectedToWiFi() async {
     final connectivityResult = await _connectivity.checkConnectivity();
-    return connectivityResult.contains(ConnectivityResult.wifi);
+    return connectivityResult == ConnectivityResult.wifi;
   }
 
   Future<String> _getAuthToken() async {
@@ -396,12 +397,12 @@ class CloudSyncService {
   Future<void> scheduleBackgroundSync() async {
     // Implementation would use platform-specific background task scheduling
     // This is a placeholder for the actual background sync setup
-    print('Background sync scheduled');
+    debugPrint('Background sync scheduled');
   }
 
   Future<void> cancelBackgroundSync() async {
     // Implementation would cancel platform-specific background tasks
-    print('Background sync cancelled');
+    debugPrint('Background sync cancelled');
   }
 
   // Batch operations for efficiency
@@ -435,7 +436,7 @@ class CloudSyncService {
         final pollInterval = status.isSyncing ? 5 : 30;
         await Future.delayed(Duration(seconds: pollInterval));
       } catch (e) {
-        print('Error watching sync status: $e');
+        debugPrint('Error watching sync status: $e');
         await Future.delayed(const Duration(seconds: 30));
       }
     }
@@ -456,7 +457,7 @@ class CloudSyncService {
       final status = await getSyncStatus();
       return status.storageUsage.isNearQuota;
     } catch (e) {
-      print('Error checking storage quota: $e');
+      debugPrint('Error checking storage quota: $e');
       return false;
     }
   }
@@ -466,7 +467,7 @@ class CloudSyncService {
       final status = await getSyncStatus();
       return status.storageUsage.isOverQuota;
     } catch (e) {
-      print('Error checking storage quota: $e');
+      debugPrint('Error checking storage quota: $e');
       return false;
     }
   }

@@ -6,7 +6,7 @@ import '../services/camera_service.dart';
 class CameraProvider with ChangeNotifier {
   CameraController? _controller;
   List<CameraDescription> _cameras = [];
-  bool _isInitialized = false;
+  final bool _isInitialized = false;
   bool _isConnected = false;
   String _connectionStatus = 'Disconnected';
   
@@ -54,21 +54,6 @@ class CameraProvider with ChangeNotifier {
     }
   }
 
-  Future<void> _initializeController(CameraDescription camera) async {
-    try {
-      _controller = CameraController(
-        camera,
-        ResolutionPreset.high,
-        enableAudio: false,
-      );
-      
-      await _controller!.initialize();
-      _isInitialized = true;
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Error initializing camera controller: $e');
-    }
-  }
 
   Future<void> discoverExternalCameras() async {
     try {

@@ -7,10 +7,10 @@ class SyncStatusWidget extends StatefulWidget {
   final VoidCallback? onTap;
 
   const SyncStatusWidget({
-    Key? key,
+    super.key,
     this.showDetails = false,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   State<SyncStatusWidget> createState() => _SyncStatusWidgetState();
@@ -129,7 +129,7 @@ class _SyncStatusWidgetState extends State<SyncStatusWidget> {
       padding: const EdgeInsets.all(16),
       child: const Row(
         children: [
-          Icon(Icons.cloud_off, color: Colors.grey, size: 16),
+          const Icon(Icons.cloud_off, color: Colors.grey, size: 16),
           SizedBox(width: 12),
           Text('Sync not available', style: TextStyle(color: Colors.grey)),
         ],
@@ -164,7 +164,7 @@ class _SyncStatusWidgetState extends State<SyncStatusWidget> {
                     const SizedBox(height: 4),
                     LinearProgressIndicator(
                       value: status.syncProgress / 100,
-                      backgroundColor: theme.colorScheme.outline.withOpacity(0.2),
+                      backgroundColor: theme.colorScheme.outline.withValues(alpha: 0.2),
                     ),
                   ],
                   if (status.hasConflicts) ...[
@@ -238,7 +238,7 @@ class _SyncStatusWidgetState extends State<SyncStatusWidget> {
               const SizedBox(height: 16),
               LinearProgressIndicator(
                 value: status.syncProgress / 100,
-                backgroundColor: theme.colorScheme.outline.withOpacity(0.2),
+                backgroundColor: theme.colorScheme.outline.withValues(alpha: 0.2),
               ),
               const SizedBox(height: 8),
               Text(
@@ -295,14 +295,14 @@ class _SyncStatusWidgetState extends State<SyncStatusWidget> {
     }
 
     if (status.hasConflicts) {
-      return Icon(
+      return const Icon(
         Icons.warning,
         color: Colors.orange,
         size: 20,
       );
     }
 
-    return Icon(
+    return const Icon(
       Icons.cloud_done,
       color: Colors.green,
       size: 20,
@@ -371,7 +371,7 @@ class _SyncStatusWidgetState extends State<SyncStatusWidget> {
                 Expanded(
                   child: LinearProgressIndicator(
                     value: itemStatus.progress,
-                    backgroundColor: theme.colorScheme.outline.withOpacity(0.2),
+                    backgroundColor: theme.colorScheme.outline.withValues(alpha: 0.2),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -406,7 +406,7 @@ class _SyncStatusWidgetState extends State<SyncStatusWidget> {
             Expanded(
               child: LinearProgressIndicator(
                 value: storage.usagePercent,
-                backgroundColor: theme.colorScheme.outline.withOpacity(0.2),
+                backgroundColor: theme.colorScheme.outline.withValues(alpha: 0.2),
                 color: storage.isNearQuota 
                     ? (storage.isOverQuota ? theme.colorScheme.error : Colors.orange)
                     : theme.colorScheme.primary,
@@ -444,7 +444,7 @@ class _SyncStatusWidgetState extends State<SyncStatusWidget> {
       children: [
         Row(
           children: [
-            Icon(
+            const Icon(
               Icons.warning,
               color: Colors.orange,
               size: 16,

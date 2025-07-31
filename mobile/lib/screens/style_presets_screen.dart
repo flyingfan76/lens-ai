@@ -4,7 +4,7 @@ import '../services/style_preset_service.dart';
 import '../widgets/style_preset_card.dart';
 
 class StylePresetsScreen extends StatefulWidget {
-  const StylePresetsScreen({Key? key}) : super(key: key);
+  const StylePresetsScreen({super.key});
 
   @override
   State<StylePresetsScreen> createState() => _StylePresetsScreenState();
@@ -178,8 +178,8 @@ class _StylePresetsScreenState extends State<StylePresetsScreen>
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showCreatePresetDialog,
-        child: const Icon(Icons.add),
         tooltip: 'Create Preset',
+        child: const Icon(Icons.add),
       ),
     );
   }

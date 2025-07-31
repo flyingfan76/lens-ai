@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/style_preset.dart';
 
@@ -252,7 +253,7 @@ class StylePresetService {
       }
     } catch (e) {
       // Don't throw error for usage tracking failures
-      print('Warning: Failed to record preset usage: $e');
+      debugPrint('Warning: Failed to record preset usage: $e');
     }
   }
 

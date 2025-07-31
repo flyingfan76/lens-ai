@@ -141,7 +141,7 @@ class _SplashScreenState extends State<SplashScreen>
                   builder: (context, child) {
                     return Transform.scale(
                       scale: _lensScale.value,
-                      child: Container(
+                      child: SizedBox(
                         width: lensSize,
                         height: lensSize,
                         child: Stack(
@@ -164,7 +164,7 @@ class _SplashScreenState extends State<SplashScreen>
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.3),
+                                    color: Colors.black.withValues(alpha: 0.3),
                                     blurRadius: 20,
                                     spreadRadius: 5,
                                   ),
@@ -182,9 +182,9 @@ class _SplashScreenState extends State<SplashScreen>
                                   center: const Alignment(-0.3, -0.3),
                                   radius: 1.2,
                                   colors: [
-                                    Colors.white.withOpacity(0.1),
+                                    Colors.white.withValues(alpha: 0.1),
                                     Colors.transparent,
-                                    Colors.black.withOpacity(0.2),
+                                    Colors.black.withValues(alpha: 0.2),
                                   ],
                                 ),
                               ),
@@ -197,7 +197,7 @@ class _SplashScreenState extends State<SplashScreen>
                                 return Opacity(
                                   opacity: _worldOpacity.value,
                                   child: ClipOval(
-                                    child: Container(
+                                    child: SizedBox(
                                       width: lensSize * 0.75,
                                       height: lensSize * 0.75,
                                       child: const WorldView(),
@@ -220,8 +220,8 @@ class _SplashScreenState extends State<SplashScreen>
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                     colors: [
-                                      Colors.white.withOpacity(0.4),
-                                      Colors.white.withOpacity(0.1),
+                                      Colors.white.withValues(alpha: 0.4),
+                                      Colors.white.withValues(alpha: 0.1),
                                     ],
                                   ),
                                 ),
@@ -255,7 +255,7 @@ class _SplashScreenState extends State<SplashScreen>
                                 letterSpacing: 2,
                                 shadows: [
                                   Shadow(
-                                    color: AppColors.primary.withOpacity(0.5),
+                                    color: AppColors.primary.withValues(alpha: 0.5),
                                     blurRadius: 10,
                                     offset: const Offset(0, 2),
                                   ),
@@ -267,7 +267,7 @@ class _SplashScreenState extends State<SplashScreen>
                               'Capture the World Through AI',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: Colors.white.withOpacity(0.8),
+                                color: Colors.white.withValues(alpha: 0.8),
                                 letterSpacing: 1,
                               ),
                             ),
@@ -299,7 +299,7 @@ class _SplashScreenState extends State<SplashScreen>
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
                           valueColor: AlwaysStoppedAnimation<Color>(
-                            AppColors.primary.withOpacity(0.7),
+                            AppColors.primary.withValues(alpha: 0.7),
                           ),
                         ),
                       ),
@@ -307,7 +307,7 @@ class _SplashScreenState extends State<SplashScreen>
                       Text(
                         'Loading...',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.6),
+                          color: Colors.white.withValues(alpha: 0.6),
                           fontSize: 14,
                         ),
                       ),
@@ -400,17 +400,17 @@ class _WorldViewState extends State<WorldView>
                 Positioned(
                   top: 15,
                   right: 30,
-                  child: _buildCloud(25, Colors.white.withOpacity(0.6)),
+                  child: _buildCloud(25, Colors.white.withValues(alpha: 0.6)),
                 ),
                 Positioned(
                   top: 45,
                   left: 25,
-                  child: _buildCloud(20, Colors.white.withOpacity(0.4)),
+                  child: _buildCloud(20, Colors.white.withValues(alpha: 0.4)),
                 ),
                 Positioned(
                   bottom: 50,
                   right: 10,
-                  child: _buildCloud(22, Colors.white.withOpacity(0.5)),
+                  child: _buildCloud(22, Colors.white.withValues(alpha: 0.5)),
                 ),
               ],
             ),
@@ -429,7 +429,7 @@ class _WorldViewState extends State<WorldView>
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 3,
             offset: const Offset(1, 1),
           ),

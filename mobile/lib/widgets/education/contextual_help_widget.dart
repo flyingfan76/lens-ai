@@ -56,9 +56,9 @@ class _ContextualHelpWidgetState extends State<ContextualHelpWidget> {
         commonIssues: widget.commonIssues,
       );
       
-      final allSuggestions = response.contextualHelp
-          .expand((help) => help.suggestions)
-          .toList();
+      final allSuggestions = response.tips.map((tip) => 
+          HelpSuggestion(id: tip, suggestion: tip, title: tip)
+      ).toList();
       
       // Sort by priority
       allSuggestions.sort((a, b) {
@@ -108,7 +108,7 @@ class _ContextualHelpWidgetState extends State<ContextualHelpWidget> {
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.lightbulb_outline,
                       color: Colors.amber.shade600,
                     ),
@@ -194,7 +194,7 @@ class _ContextualHelpWidgetState extends State<ContextualHelpWidget> {
     }
 
     return CircleAvatar(
-      backgroundColor: color.withOpacity(0.1),
+      backgroundColor: color.withValues(alpha: 0.1),
       child: Icon(iconData, color: color, size: 20),
     );
   }
@@ -288,7 +288,7 @@ class _ContextualHelpWidgetState extends State<ContextualHelpWidget> {
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            Icon(Icons.lightbulb, color: Colors.amber.shade600),
+            Icon(Icons.lightbulb, color: Colors.red.shade300),
             const SizedBox(width: 8),
             Expanded(child: Text(suggestion.title)),
           ],

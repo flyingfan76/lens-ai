@@ -149,15 +149,15 @@ class _PresetsScreenState extends State<PresetsScreen> with TickerProviderStateM
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppColors.primary.withOpacity(0.7),
-                  AppColors.accent.withOpacity(0.7),
+                  AppColors.primary.withValues(alpha: 0.7),
+                  AppColors.accent.withValues(alpha: 0.7),
                 ],
               ),
             ),
             child: Stack(
               children: [
                 const Center(
-                  child: Icon(
+                  child: const Icon(
                     Icons.photo_camera,
                     size: 50,
                     color: Colors.white,
@@ -176,7 +176,7 @@ class _PresetsScreenState extends State<PresetsScreen> with TickerProviderStateM
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.auto_awesome, color: Colors.white, size: 12),
+                          const Icon(Icons.auto_awesome, color: Colors.white, size: 12),
                           SizedBox(width: 4),
                           Text(
                             'AI',
@@ -298,7 +298,7 @@ class _PresetsScreenState extends State<PresetsScreen> with TickerProviderStateM
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('This will change your camera settings to:'),
+            const Text('This will change your camera settings to:'),
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(12),
@@ -344,15 +344,15 @@ class _PresetsScreenState extends State<PresetsScreen> with TickerProviderStateM
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
-              decoration: const InputDecoration(
+            const TextField(
+              decoration: InputDecoration(
                 labelText: 'Preset Name',
                 border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 16),
-            TextField(
-              decoration: const InputDecoration(
+            const TextField(
+              decoration: InputDecoration(
                 labelText: 'Description',
                 border: OutlineInputBorder(),
               ),

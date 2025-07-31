@@ -72,12 +72,12 @@ class _AISuggestionCardState extends State<AISuggestionCard>
             gradient: _getGradientForType(widget.suggestion.type),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: _getColorForType(widget.suggestion.type).withOpacity(0.3),
+              color: _getColorForType(widget.suggestion.type).withValues(alpha: 0.3),
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withValues(alpha: 0.2),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -113,7 +113,7 @@ class _AISuggestionCardState extends State<AISuggestionCard>
                 Text(
                   widget.suggestion.message,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                     fontSize: 12,
                   ),
                   maxLines: 1,
@@ -162,7 +162,7 @@ class _AISuggestionCardState extends State<AISuggestionCard>
                     Text(
                       _getTypeLabel(widget.suggestion.type),
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),
@@ -177,7 +177,7 @@ class _AISuggestionCardState extends State<AISuggestionCard>
           Text(
             widget.suggestion.message,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
               fontSize: 14,
               height: 1.4,
             ),
@@ -194,14 +194,14 @@ class _AISuggestionCardState extends State<AISuggestionCard>
                 children: [
                   Icon(
                     _isExpanded ? Icons.expand_less : Icons.expand_more,
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                     size: 16,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     'Why?',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(alpha: 0.7),
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),
@@ -215,13 +215,13 @@ class _AISuggestionCardState extends State<AISuggestionCard>
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 widget.suggestion.explanation!,
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.withValues(alpha: 0.8),
                   fontSize: 13,
                   height: 1.3,
                 ),
@@ -249,7 +249,7 @@ class _AISuggestionCardState extends State<AISuggestionCard>
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Icon(
@@ -264,7 +264,7 @@ class _AISuggestionCardState extends State<AISuggestionCard>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: Colors.white.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
@@ -333,7 +333,7 @@ class _AISuggestionCardState extends State<AISuggestionCard>
         padding: const EdgeInsets.all(4),
         child: Icon(
           Icons.close,
-          color: Colors.white.withOpacity(0.7),
+          color: Colors.white.withValues(alpha: 0.7),
           size: 16,
         ),
       ),
@@ -351,9 +351,9 @@ class _AISuggestionCardState extends State<AISuggestionCard>
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
       colors: [
-        primaryColor.withOpacity(0.8),
-        primaryColor.withOpacity(0.6),
-        primaryColor.withOpacity(0.4),
+        primaryColor.withValues(alpha: 0.8),
+        primaryColor.withValues(alpha: 0.6),
+        primaryColor.withValues(alpha: 0.4),
       ],
     );
   }

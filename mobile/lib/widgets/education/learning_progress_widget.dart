@@ -135,7 +135,7 @@ class LearningProgressWidget extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.emoji_events,
                       color: Colors.amber.shade700,
                       size: 20,
@@ -195,7 +195,7 @@ class LearningProgressWidget extends StatelessWidget {
         ),
         Text(
           label,
-          style: Theme.of(context).textTheme.caption?.copyWith(
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: Colors.grey.shade600,
           ),
           textAlign: TextAlign.center,
@@ -214,7 +214,7 @@ class LearningProgressWidget extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
+          const Icon(
             Icons.local_fire_department,
             size: 16,
             color: Colors.orange.shade700,

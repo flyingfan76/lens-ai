@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/ai_suggestion.dart';
 import '../core/config/api_config.dart';
@@ -60,7 +61,7 @@ class AIService {
         throw Exception('Failed to apply settings: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error applying camera settings: $e');
+      debugPrint('Error applying camera settings: $e');
       return false;
     }
   }
@@ -81,7 +82,7 @@ class AIService {
         throw Exception('Failed to get camera settings: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error getting camera settings: $e');
+      debugPrint('Error getting camera settings: $e');
       return null;
     }
   }
@@ -102,7 +103,7 @@ class AIService {
         throw Exception('Failed to get camera info: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error getting camera info: $e');
+      debugPrint('Error getting camera info: $e');
       return null;
     }
   }
@@ -123,7 +124,7 @@ class AIService {
         throw Exception('Failed to connect to camera: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error connecting to camera: $e');
+      debugPrint('Error connecting to camera: $e');
       return false;
     }
   }
@@ -144,7 +145,7 @@ class AIService {
         throw Exception('Failed to capture photo: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error capturing photo: $e');
+      debugPrint('Error capturing photo: $e');
       return null;
     }
   }

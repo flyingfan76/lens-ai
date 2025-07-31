@@ -207,14 +207,14 @@ class _WhiteBalanceControlState extends State<WhiteBalanceControl> {
             Text(
               '2000K',
               style: TextStyle(
-                color: Colors.orange.withOpacity(0.7),
+                color: Colors.orange.withValues(alpha: 0.7),
                 fontSize: 12,
               ),
             ),
             Text(
               '10000K',
               style: TextStyle(
-                color: Colors.blue.withOpacity(0.7),
+                color: Colors.blue.withValues(alpha: 0.7),
                 fontSize: 12,
               ),
             ),
@@ -296,7 +296,7 @@ class _WhiteBalanceControlState extends State<WhiteBalanceControl> {
               decoration: BoxDecoration(
                 color: value == 0
                     ? Colors.grey[700]
-                    : (value > 0 ? positiveColor : negativeColor).withOpacity(0.2),
+                    : (value > 0 ? positiveColor : negativeColor).withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -415,14 +415,14 @@ class _WhiteBalanceControlState extends State<WhiteBalanceControl> {
                   color: isActive ? color : Colors.transparent,
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: isActive ? color : color.withOpacity(0.3),
+                    color: isActive ? color : color.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Center(
                   child: Text(
                     biasValue == 0 ? '0' : '${biasValue > 0 ? '+' : ''}$biasValue',
                     style: TextStyle(
-                      color: isActive ? Colors.white : color.withOpacity(0.7),
+                      color: isActive ? Colors.white : color.withValues(alpha: 0.7),
                       fontSize: 8,
                       fontWeight: FontWeight.w500,
                     ),
@@ -464,7 +464,7 @@ class _WhiteBalanceControlState extends State<WhiteBalanceControl> {
                   margin: const EdgeInsets.symmetric(horizontal: 4),
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppColors.primary.withOpacity(0.2) : Colors.transparent,
+                    color: isSelected ? AppColors.primary.withValues(alpha: 0.2) : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: isSelected ? AppColors.primary : Colors.white30,

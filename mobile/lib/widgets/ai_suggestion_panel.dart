@@ -115,15 +115,15 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
               maxHeight: MediaQuery.of(context).size.height * 0.6,
             ),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.9),
+              color: Colors.black.withValues(alpha: 0.9),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: AppColors.accent.withOpacity(0.3),
+                color: AppColors.accent.withValues(alpha: 0.3),
                 width: 1,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.5),
+                  color: Colors.black.withValues(alpha: 0.5),
                   blurRadius: 20,
                   offset: const Offset(0, 10),
                 ),
@@ -155,8 +155,8 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.accent.withOpacity(0.8),
-            AppColors.accent.withOpacity(0.4),
+            AppColors.accent.withValues(alpha: 0.8),
+            AppColors.accent.withValues(alpha: 0.4),
           ],
         ),
         borderRadius: const BorderRadius.only(
@@ -166,7 +166,7 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
       ),
       child: Row(
         children: [
-          Icon(
+          const Icon(
             Icons.auto_awesome,
             color: Colors.white,
             size: 24,
@@ -188,7 +188,7 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
                   Text(
                     '${_suggestions.length} recommendations',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                       fontSize: 12,
                     ),
                   ),
@@ -197,7 +197,7 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
           ),
           IconButton(
             onPressed: _refreshSuggestions,
-            icon: Icon(
+            icon: const Icon(
               Icons.refresh,
               color: Colors.white,
               size: 20,
@@ -205,7 +205,7 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
           ),
           IconButton(
             onPressed: () => widget.onVisibilityChanged?.call(false),
-            icon: Icon(
+            icon: const Icon(
               Icons.close,
               color: Colors.white,
               size: 20,
@@ -233,7 +233,7 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
           Text(
             _isAnalyzing ? 'Analyzing scene...' : 'Loading suggestions...',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withValues(alpha: 0.8),
               fontSize: 14,
             ),
           ),
@@ -249,14 +249,14 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
         children: [
           Icon(
             Icons.lightbulb_outline,
-            color: Colors.white.withOpacity(0.5),
+            color: Colors.white.withValues(alpha: 0.5),
             size: 48,
           ),
           const SizedBox(height: 16),
           Text(
             'No suggestions available',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withValues(alpha: 0.8),
               fontSize: 16,
               fontWeight: FontWeight.w500,
             ),
@@ -265,7 +265,7 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
           Text(
             'Tap the AI button to analyze the current scene',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.6),
+              color: Colors.white.withValues(alpha: 0.6),
               fontSize: 14,
             ),
             textAlign: TextAlign.center,
@@ -314,13 +314,13 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
                     end: Alignment.bottomRight,
                     colors: [
                       AppColors.accent,
-                      AppColors.accent.withOpacity(0.8),
+                      AppColors.accent.withValues(alpha: 0.8),
                     ],
                   ),
                   borderRadius: BorderRadius.circular(28),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.accent.withOpacity(0.4),
+                      color: AppColors.accent.withValues(alpha: 0.4),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -456,7 +456,7 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
       ),
       subtitle: Text(
         subtitle,
-        style: TextStyle(color: Colors.white.withOpacity(0.7)),
+        style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
       ),
       trailing: Switch(
         value: value,

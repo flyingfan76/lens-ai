@@ -7,7 +7,7 @@ import '../widgets/education/comparison_card.dart';
 import '../widgets/education/learning_progress_widget.dart';
 
 class EducationScreen extends StatefulWidget {
-  const EducationScreen({Key? key}) : super(key: key);
+  const EducationScreen({super.key});
 
   @override
   State<EducationScreen> createState() => _EducationScreenState();
@@ -86,10 +86,10 @@ class _EducationScreenState extends State<EducationScreen>
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(icon: Icon(Icons.home), text: 'Home'),
-            Tab(icon: Icon(Icons.school), text: 'Tutorials'),
-            Tab(icon: Icon(Icons.compare), text: 'Examples'),
-            Tab(icon: Icon(Icons.book), text: 'Glossary'),
+            Tab(icon: const Icon(Icons.home), text: 'Home'),
+            Tab(icon: const Icon(Icons.school), text: 'Tutorials'),
+            Tab(icon: const Icon(Icons.compare), text: 'Examples'),
+            Tab(icon: const Icon(Icons.book), text: 'Glossary'),
           ],
         ),
       ),
@@ -269,7 +269,7 @@ class _EducationScreenState extends State<EducationScreen>
 class TutorialsTabView extends StatefulWidget {
   final EducationService educationService;
 
-  const TutorialsTabView({Key? key, required this.educationService}) : super(key: key);
+  const TutorialsTabView({super.key, required this.educationService});
 
   @override
   State<TutorialsTabView> createState() => _TutorialsTabViewState();
@@ -313,9 +313,11 @@ class _TutorialsTabViewState extends State<TutorialsTabView> {
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading tutorials: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading tutorials: $e')),
+        );
+      }
     }
   }
 
@@ -404,7 +406,7 @@ class _TutorialsTabViewState extends State<TutorialsTabView> {
 class ExamplesTabView extends StatefulWidget {
   final EducationService educationService;
 
-  const ExamplesTabView({Key? key, required this.educationService}) : super(key: key);
+  const ExamplesTabView({super.key, required this.educationService});
 
   @override
   State<ExamplesTabView> createState() => _ExamplesTabViewState();
@@ -446,9 +448,11 @@ class _ExamplesTabViewState extends State<ExamplesTabView> {
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading comparisons: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading comparisons: $e')),
+        );
+      }
     }
   }
 
