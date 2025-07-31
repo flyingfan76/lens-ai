@@ -21,7 +21,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use('/api/auth', require('./api/auth'));
-app.use('/api/images', require('./api/images'));
+// app.use('/api/images', require('./api/images')); // TODO: Create images API
 app.use('/api/camera', require('./api/camera'));
 app.use('/api/ai', require('./api/ai'));
 app.use('/api/presets', require('./api/presets'));
@@ -54,6 +54,14 @@ server.listen(PORT, () => {
 
 // Make WebSocket service available to camera routes
 app.locals.webSocketService = webSocketService;
+
+// Set up camera manager to WebSocket service integration
+const cameraRouter = require('./api/camera');
+if (cameraRouter.cameraManager) {
+  cameraRouter.cameraManager.on('liveViewFrame', (frameData) => {
+    webSocketService.onLiveViewFrame(frameData.data);
+  });
+}
 
 // Graceful shutdown
 process.on('SIGTERM', () => {

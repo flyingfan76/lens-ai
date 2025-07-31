@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Live View Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #video { max-width: 800px; height: auto; border: 2px solid #ccc; }
+        #status { margin: 10px 0; padding: 10px; background: #f0f0f0; }
+        .connected { background: #d4edda !important; }
+        .error { background: #f8d7da !important; }
+        button { margin: 5px; padding: 10px 20px; }
+    </style>
+</head>
+<body>
+    <h1>Lens AI Live View Test</h1>
+    
+    <div id="status">Disconnected</div>
+    
+    <div>
+        <button onclick="connectCamera()">Connect Camera</button>
+        <button onclick="startLiveView()">Start Live View</button>
+        <button onclick="stopLiveView()">Stop Live View</button>
+        <button onclick="connectWebSocket()">Connect WebSocket</button>
+    </div>
+    
+    <canvas id="video" width="800" height="600"></canvas>
+    
+    <div id="logs"></div>
+
+    <script>
+        let ws = null;
+        let cameraId = null;
+        let canvas = document.getElementById('video');
+        let ctx = canvas.getContext('2d');
+        
+        function log(message) {
+            const logs = document.getElementById('logs');
+            logs.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
+            logs.scrollTop = logs.scrollHeight;
+            console.log(message);
+        }
+        
+        function updateStatus(message, className = '') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = className;
+        }
+        
+        async function connectCamera() {
+            try {
+                // Discover cameras first
+                const discoverResponse = await fetch('http://localhost:3000/api/camera/discover');
+                const discoverData = await discoverResponse.json();
+                
+                if (discoverData.cameras && discoverData.cameras.length > 0) {
+                    cameraId = discoverData.cameras[0].id;
+                    log(`Found camera: ${discoverData.cameras[0].model} (${cameraId})`);
+                    
+                    // Connect to the first camera
+                    const connectResponse = await fetch('http://localhost:3000/api/camera/connect', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ cameraId: cameraId })
+                    });
+                    
+                    const connectData = await connectResponse.json();
+                    if (connectData.success) {
+                        updateStatus(`Connected to ${connectData.cameraInfo.model}`, 'connected');
+                        log('Camera connected successfully');
+                    } else {
+                        throw new Error('Connection failed');
+                    }
+                } else {
+                    throw new Error('No cameras found');
+                }
+            } catch (error) {
+                updateStatus('Connection failed', 'error');
+                log('Error: ' + error.message);
+            }
+        }
+        
+        async function startLiveView() {
+            if (!cameraId) {
+                log('No camera connected. Connect camera first.');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`http://localhost:3000/api/camera/liveview/start?cameraId=${cameraId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    log(`Live view started. Stream URL: ${data.streamUrl}`);
+                    connectWebSocket();
+                } else {
+                    throw new Error('Live view start failed');
+                }
+            } catch (error) {
+                log('Error starting live view: ' + error.message);
+            }
+        }
+        
+        async function stopLiveView() {
+            if (!cameraId) return;
+            
+            try {
+                const response = await fetch(`http://localhost:3000/api/camera/liveview/stop?cameraId=${cameraId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    log('Live view stopped');
+                }
+            } catch (error) {
+                log('Error stopping live view: ' + error.message);
+            }
+            
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+        
+        function connectWebSocket() {
+            if (ws) {
+                ws.close();
+            }
+            
+            // Use the correct WebSocket URL - check the backend port and path
+            ws = new WebSocket('ws://localhost:3000/liveview');
+            
+            ws.onopen = function() {
+                log('WebSocket connected');
+                updateStatus('WebSocket connected', 'connected');
+            };
+            
+            ws.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.type === 'frame' && data.data) {
+                        // Convert base64 to image and draw on canvas
+                        const img = new Image();
+                        img.onload = function() {
+                            canvas.width = img.width;
+                            canvas.height = img.height;
+                            ctx.drawImage(img, 0, 0);
+                        };
+                        img.src = 'data:image/jpeg;base64,' + data.data;
+                        
+                        log(`Frame received: ${data.frameNumber} at ${new Date(data.timestamp).toLocaleTimeString()}`);
+                    } else {
+                        log('WebSocket message: ' + JSON.stringify(data));
+                    }
+                } catch (error) {
+                    log('WebSocket data error: ' + error.message);
+                }
+            };
+            
+            ws.onerror = function(error) {
+                log('WebSocket error: ' + error);
+                updateStatus('WebSocket error', 'error');
+            };
+            
+            ws.onclose = function() {
+                log('WebSocket disconnected');
+                updateStatus('WebSocket disconnected');
+                ws = null;
+            };
+        }
+        
+        // Auto-connect on page load for testing
+        window.onload = function() {
+            log('Page loaded. Ready to test live view.');
+        };
+    </script>
+</body>
+</html>

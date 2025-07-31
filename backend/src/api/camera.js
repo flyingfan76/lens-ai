@@ -6,13 +6,7 @@ const router = express.Router();
 const cameraManager = new CameraManager();
 
 // Set up Camera Manager event handlers for WebSocket integration
-cameraManager.on('liveViewFrame', (frameData) => {
-  // Forward live view frames to WebSocket clients
-  const webSocketService = router.locals?.webSocketService;
-  if (webSocketService) {
-    webSocketService.onLiveViewFrame(frameData.data);
-  }
-});
+// We'll set up the WebSocket service connection after router is attached to app
 
 cameraManager.on('cameraConnected', (data) => {
   logger.info(`Camera connected: ${data.brand} ${data.camera.model}`);
@@ -52,6 +46,12 @@ router.get('/discover', async (req, res) => {
         firmwareVersion: camera.firmwareVersion,
         batteryLevel: camera.batteryLevel,
         isConnected: camera.isConnected,
+        connectionType: camera.connectionType,
+        modelInfo: camera.modelInfo,
+        detectionMethod: camera.detectionMethod,
+        autoConfig: camera.autoConfig,
+        connectionQuality: camera.connectionQuality,
+        compatibilityScore: camera.compatibilityScore,
         capabilities: camera.capabilities || {
           liveView: true,
           remoteCapture: true,
@@ -225,6 +225,12 @@ router.get('/liveview/start', async (req, res) => {
     
     const result = await cameraManager.startLiveView(cameraId);
     
+    // Notify WebSocket service that live view has started
+    const webSocketService = res.app.locals.webSocketService;
+    if (webSocketService) {
+      webSocketService.startLiveViewStream();
+    }
+    
     res.json({
       success: true,
       cameraId: result.cameraId,
@@ -244,6 +250,12 @@ router.get('/liveview/stop', async (req, res) => {
     logger.info('Stopping live view', { cameraId });
     
     const result = await cameraManager.stopLiveView(cameraId);
+    
+    // Notify WebSocket service that live view has stopped
+    const webSocketService = res.app.locals.webSocketService;
+    if (webSocketService) {
+      webSocketService.stopLiveViewStream();
+    }
     
     res.json({
       success: true,
@@ -307,4 +319,6 @@ function validateCameraSettings(settings) {
   return validated;
 }
 
+// Export both router and camera manager for WebSocket integration
+router.cameraManager = cameraManager;
 module.exports = router;

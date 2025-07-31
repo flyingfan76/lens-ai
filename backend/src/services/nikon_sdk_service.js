@@ -553,9 +553,19 @@ class NikonSDKService extends EventEmitter {
     try {
       logger.info('Starting Nikon live view...');
       
+      // Check if live view is already active
+      if (this.liveViewSession && this.liveViewSession.active) {
+        logger.info('Nikon live view already active');
+        return {
+          success: true,
+          streamUrl: 'ws://localhost:3001/liveview',
+          resolution: '1920x1280',
+          fps: 30
+        };
+      }
+      
       // Start live view on Nikon camera
-      await this.simulateSDKCall('NkMAID_SetCapInfo', 'kNkMAIDCapability_LiveViewMode', 1);
-      await this.simulateSDKCall('NkMAID_SetCapInfo', 'kNkMAIDCapability_LiveViewProhibit', 0);
+      await this.simulateSDKCall('NkMAID_SetCapInfo', this.PROPERTY_MAPPINGS.LIVE_VIEW_MODE, 1);
       
       this.liveViewSession = {
         active: true,
@@ -576,6 +586,23 @@ class NikonSDKService extends EventEmitter {
       };
     } catch (error) {
       logger.error('Failed to start Nikon live view:', error);
+      // Don't throw error in simulation mode, return success with warning
+      if (!this.nikonSDK) {
+        logger.warn('Live view started in simulation mode');
+        this.liveViewSession = {
+          active: true,
+          startTime: Date.now(),
+          frameCount: 0
+        };
+        this.startLiveViewLoop();
+        return {
+          success: true,
+          streamUrl: 'ws://localhost:3001/liveview',
+          resolution: '1920x1280',
+          fps: 30,
+          simulation: true
+        };
+      }
       throw error;
     }
   }
@@ -811,9 +838,15 @@ class NikonSDKService extends EventEmitter {
       'kNkMAIDCapability_Aperture': 4.0,
       'kNkMAIDCapability_ShutterSpeed': '1/125',
       'kNkMAIDCapability_WBMode': 'auto',
-      'kNkMAIDCapability_BatteryPack': 90
+      'kNkMAIDCapability_BatteryPack': 90,
+      [this.PROPERTY_MAPPINGS.LIVE_VIEW_MODE]: 0, // Live view off by default
+      [this.PROPERTY_MAPPINGS.ISO]: 400,
+      [this.PROPERTY_MAPPINGS.APERTURE]: 4.0,
+      [this.PROPERTY_MAPPINGS.SHUTTER_SPEED]: '1/125',
+      [this.PROPERTY_MAPPINGS.WHITE_BALANCE]: 'auto',
+      [this.PROPERTY_MAPPINGS.BATTERY_LEVEL]: 90
     };
-    return simulatedValues[capabilityId] || null;
+    return simulatedValues[capabilityId] !== undefined ? simulatedValues[capabilityId] : null;
   }
 
   async terminate() {

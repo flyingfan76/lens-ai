@@ -457,6 +457,17 @@ class SonySDKService extends EventEmitter {
     try {
       logger.info('Starting Sony live view...');
       
+      // Check if live view is already active
+      if (this.liveViewSession && this.liveViewSession.active) {
+        logger.info('Sony live view already active');
+        return {
+          success: true,
+          streamUrl: 'ws://localhost:3001/liveview',
+          resolution: '1920x1080',
+          fps: 30
+        };
+      }
+      
       if (this.sonySDK) {
         // Use real Sony SDK
         const result = await new Promise((resolve, reject) => {
@@ -497,6 +508,23 @@ class SonySDKService extends EventEmitter {
       };
     } catch (error) {
       logger.error('Failed to start Sony live view:', error);
+      // Don't throw error in simulation mode, return success with warning
+      if (!this.sonySDK) {
+        logger.warn('Sony live view started in simulation mode');
+        this.liveViewSession = {
+          active: true,
+          startTime: Date.now(),
+          frameCount: 0
+        };
+        this.startLiveViewLoop();
+        return {
+          success: true,
+          streamUrl: 'ws://localhost:3001/liveview',
+          resolution: '1920x1080',
+          fps: 30,
+          simulation: true
+        };
+      }
       throw error;
     }
   }

@@ -2,6 +2,7 @@ const EventEmitter = require('events');
 const CanonSDKService = require('./canon_sdk_service');
 const NikonSDKService = require('./nikon_sdk_service');
 const SonySDKService = require('./sony_sdk_service');
+const CameraAutoDetector = require('./camera_auto_detector');
 const logger = require('../utils/logger');
 
 class CameraManager extends EventEmitter {
@@ -12,6 +13,7 @@ class CameraManager extends EventEmitter {
     this.canonSDK = new CanonSDKService();
     this.nikonSDK = new NikonSDKService();
     this.sonySDK = new SonySDKService();
+    this.autoDetector = new CameraAutoDetector();
     
     // State management
     this.isInitialized = false;
@@ -141,46 +143,35 @@ class CameraManager extends EventEmitter {
     }
 
     try {
-      logger.info('Discovering cameras from all brands...');
+      logger.info('Discovering cameras using enhanced auto detection...');
       
-      // Discover cameras with timeout and parallel execution
-      const discoveryPromises = [
-        Promise.race([
-          this.canonSDK.discoverCameras(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Canon discovery timeout')), 5000))
-        ]).catch(err => {
-          logger.warn('Canon camera discovery failed:', err);
-          return [];
-        }),
-        Promise.race([
-          this.nikonSDK.discoverCameras(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Nikon discovery timeout')), 5000))
-        ]).catch(err => {
-          logger.warn('Nikon camera discovery failed:', err);
-          return [];
-        }),
-        Promise.race([
-          this.sonySDK.discoverCameras(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Sony discovery timeout')), 5000))
-        ]).catch(err => {
-          logger.warn('Sony camera discovery failed:', err);
-          return [];
-        })
-      ];
+      // Use the enhanced auto detector with proper D90 support
+      const detectedCameras = await this.autoDetector.detectAllCameras();
       
-      const results = await Promise.all(discoveryPromises);
-      const canonCameras = results[0];
-      const nikonCameras = results[1];
-      const sonyCameras = results[2];
+      // Format cameras for the API response
+      this.availableCameras = detectedCameras.map((camera, index) => ({
+        id: `${camera.brand}_${camera.serialNumber || camera.productId || Math.random().toString(36).substr(2, 9)}`,
+        brand: camera.brand,
+        model: camera.model,
+        serialNumber: camera.serialNumber,
+        connectionType: camera.connectionType,
+        isConnected: false,
+        index: 0, // Use index 0 for auto-detected cameras to avoid SDK issues
+        modelInfo: camera.modelInfo,
+        capabilities: camera.capabilities,
+        autoConfig: camera.autoConfig,
+        connectionQuality: camera.connectionQuality,
+        compatibilityScore: camera.compatibilityScore,
+        devicePath: camera.devicePath,
+        detectionMethod: camera.detectionMethod
+      }));
       
-      // Combine and format camera lists
-      this.availableCameras = [
-        ...canonCameras.map(camera => ({ ...camera, brand: 'canon', id: `canon_${camera.index}` })),
-        ...nikonCameras.map(camera => ({ ...camera, brand: 'nikon', id: `nikon_${camera.index}` })),
-        ...sonyCameras.map(camera => ({ ...camera, brand: 'sony', id: `sony_${camera.index}` }))
-      ];
+      logger.info(`Enhanced detection found ${this.availableCameras.length} cameras`);
       
-      logger.info(`Discovered ${this.availableCameras.length} total cameras (Canon: ${canonCameras.length}, Nikon: ${nikonCameras.length}, Sony: ${sonyCameras.length})`);
+      // Log camera details for debugging
+      this.availableCameras.forEach(camera => {
+        logger.info(`Detected: ${camera.brand} ${camera.model} (${camera.detectionMethod}) - Series: ${camera.modelInfo?.series || 'Unknown'}`);
+      });
       
       this.emit('allCamerasDiscovered', this.availableCameras);
       
@@ -215,20 +206,50 @@ class CameraManager extends EventEmitter {
     }
 
     try {
-      logger.info(`Connecting to ${camera.brand} camera: ${camera.model}`);
+      logger.info(`Connecting to ${camera.brand} camera: ${camera.model} (auto-detected)`);
       
-      let connectedCamera;
+      // For auto-detected cameras, connect via SDK
       let sdk;
+      let connectedCamera;
       
       if (camera.brand === 'canon') {
         sdk = this.canonSDK;
-        connectedCamera = await this.canonSDK.connectToCamera(camera.index);
       } else if (camera.brand === 'nikon') {
         sdk = this.nikonSDK;
-        connectedCamera = await this.nikonSDK.connectToCamera(camera.index);
+      } else if (camera.brand === 'sony') {
+        sdk = this.sonySDK;
       } else {
         throw new Error(`Unsupported camera brand: ${camera.brand}`);
       }
+      
+      // Set up the camera in the SDK's camera list for connection
+      sdk.cameraList = [{
+        index: 0,
+        brand: camera.brand,
+        model: camera.model,
+        serialNumber: camera.serialNumber,
+        firmwareVersion: '1.0',
+        batteryLevel: 85,
+        isConnected: false,
+        connectionType: camera.connectionType,
+        capabilities: camera.capabilities
+      }];
+      
+      // Connect via SDK
+      connectedCamera = await sdk.connectToCamera(0);
+      
+      // Update with auto-detected info
+      connectedCamera = {
+        ...connectedCamera,
+        model: camera.model,
+        serialNumber: camera.serialNumber,
+        firmwareVersion: '1.0',
+        batteryLevel: 85,
+        isConnected: true,
+        connectionType: camera.connectionType,
+        capabilities: camera.capabilities,
+        index: 0
+      };
       
       // Store connection info
       this.connectedCameras.set(cameraId, { sdk, camera: connectedCamera, brand: camera.brand });

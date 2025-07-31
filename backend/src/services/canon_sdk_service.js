@@ -594,7 +594,18 @@ class CanonSDKService extends EventEmitter {
     }
 
     try {
-      logger.info('Starting live view...');
+      logger.info('Starting Canon live view...');
+      
+      // Check if live view is already active
+      if (this.liveViewSession && this.liveViewSession.active) {
+        logger.info('Canon live view already active');
+        return {
+          success: true,
+          streamUrl: 'ws://localhost:3001/liveview',
+          resolution: '1920x1080',
+          fps: 30
+        };
+      }
       
       // Start live view on camera
       await this.simulateSDKCall('EdsSetPropertyData', 'kEdsPropID_Evf_OutputDevice', 'kEdsEvfOutputDevice_PC');
@@ -608,7 +619,7 @@ class CanonSDKService extends EventEmitter {
       // Start live view frame capture loop
       this.startLiveViewLoop();
       
-      logger.info('Live view started successfully');
+      logger.info('Canon live view started successfully');
       this.emit('liveViewStarted');
       
       return {
@@ -618,7 +629,24 @@ class CanonSDKService extends EventEmitter {
         fps: 30
       };
     } catch (error) {
-      logger.error('Failed to start live view:', error);
+      logger.error('Failed to start Canon live view:', error);
+      // Don't throw error in simulation mode, return success with warning
+      if (!this.canonNative) {
+        logger.warn('Canon live view started in simulation mode');
+        this.liveViewSession = {
+          active: true,
+          startTime: Date.now(),
+          frameCount: 0
+        };
+        this.startLiveViewLoop();
+        return {
+          success: true,
+          streamUrl: 'ws://localhost:3001/liveview',
+          resolution: '1920x1080',
+          fps: 30,
+          simulation: true
+        };
+      }
       throw error;
     }
   }
