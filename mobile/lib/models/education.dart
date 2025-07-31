@@ -50,24 +50,26 @@ class Tutorial {
   }
 }
 
-// Basic Comparison Model
+// Enhanced Comparison Model for widget compatibility
 class Comparison {
   final String id;
   final String title;
   final String description;
-  final String beforeImageUrl;
-  final String afterImageUrl;
-  final List<String> keyChanges;
+  final ComparisonImage beforeImage;
+  final ComparisonImage afterImage;
+  final List<KeyChange> keyChanges;
   final String lesson;
+  final String difficulty;
 
   Comparison({
     required this.id,
     required this.title,
     required this.description,
-    required this.beforeImageUrl,
-    required this.afterImageUrl,
+    required this.beforeImage,
+    required this.afterImage,
     this.keyChanges = const [],
     required this.lesson,
+    this.difficulty = 'beginner',
   });
 
   factory Comparison.fromJson(Map<String, dynamic> json) {
@@ -75,10 +77,13 @@ class Comparison {
       id: json['id'] ?? '',
       title: json['title'] ?? '',
       description: json['description'] ?? '',
-      beforeImageUrl: json['beforeImageUrl'] ?? '',
-      afterImageUrl: json['afterImageUrl'] ?? '',
-      keyChanges: List<String>.from(json['keyChanges'] ?? []),
+      beforeImage: ComparisonImage.fromJson(json['beforeImage'] ?? {}),
+      afterImage: ComparisonImage.fromJson(json['afterImage'] ?? {}),
+      keyChanges: (json['keyChanges'] as List?)
+          ?.map((e) => KeyChange.fromJson(e))
+          .toList() ?? [],
       lesson: json['lesson'] ?? '',
+      difficulty: json['difficulty'] ?? 'beginner',
     );
   }
 
@@ -87,10 +92,106 @@ class Comparison {
       'id': id,
       'title': title,
       'description': description,
-      'beforeImageUrl': beforeImageUrl,
-      'afterImageUrl': afterImageUrl,
-      'keyChanges': keyChanges,
+      'beforeImage': beforeImage.toJson(),
+      'afterImage': afterImage.toJson(),
+      'keyChanges': keyChanges.map((e) => e.toJson()).toList(),
       'lesson': lesson,
+      'difficulty': difficulty,
+    };
+  }
+}
+
+// Comparison Image Model
+class ComparisonImage {
+  final String url;
+  final CameraSettings settings;
+  final String caption;
+
+  ComparisonImage({
+    required this.url,
+    required this.settings,
+    this.caption = '',
+  });
+
+  factory ComparisonImage.fromJson(Map<String, dynamic> json) {
+    return ComparisonImage(
+      url: json['url'] ?? '',
+      settings: CameraSettings.fromJson(json['settings'] ?? {}),
+      caption: json['caption'] ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'url': url,
+      'settings': settings.toJson(),
+      'caption': caption,
+    };
+  }
+}
+
+// Camera Settings Model
+class CameraSettings {
+  final int? iso;
+  final String? aperture;
+  final String? shutterSpeed;
+  final String? whiteBalance;
+  final String? focusMode;
+
+  CameraSettings({
+    this.iso,
+    this.aperture,
+    this.shutterSpeed,
+    this.whiteBalance,
+    this.focusMode,
+  });
+
+  factory CameraSettings.fromJson(Map<String, dynamic> json) {
+    return CameraSettings(
+      iso: json['iso'],
+      aperture: json['aperture'],
+      shutterSpeed: json['shutterSpeed'],
+      whiteBalance: json['whiteBalance'],
+      focusMode: json['focusMode'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'iso': iso,
+      'aperture': aperture,
+      'shutterSpeed': shutterSpeed,
+      'whiteBalance': whiteBalance,
+      'focusMode': focusMode,
+    };
+  }
+}
+
+// Key Change Model  
+class KeyChange {
+  final String parameter;
+  final String change;
+  final String explanation;
+
+  KeyChange({
+    required this.parameter,
+    required this.change,
+    required this.explanation,
+  });
+
+  factory KeyChange.fromJson(Map<String, dynamic> json) {
+    return KeyChange(
+      parameter: json['parameter'] ?? '',
+      change: json['change'] ?? '',
+      explanation: json['explanation'] ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'parameter': parameter,
+      'change': change,
+      'explanation': explanation,
     };
   }
 }
