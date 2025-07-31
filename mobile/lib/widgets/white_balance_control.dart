@@ -83,7 +83,7 @@ class _WhiteBalanceControlState extends State<WhiteBalanceControl> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.2),
+            color: AppColors.primary.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Text(
@@ -186,7 +186,7 @@ class _WhiteBalanceControlState extends State<WhiteBalanceControl> {
             activeTrackColor: _getKelvinColor(_settings.kelvin),
             inactiveTrackColor: Colors.white24,
             thumbColor: _getKelvinColor(_settings.kelvin),
-            overlayColor: _getKelvinColor(_settings.kelvin).withOpacity(0.2),
+            overlayColor: _getKelvinColor(_settings.kelvin).withValues(alpha: 0.2),
           ),
           child: Slider(
             value: _settings.kelvin,
@@ -515,7 +515,7 @@ class _WhiteBalanceControlState extends State<WhiteBalanceControl> {
     setState(() {
       _settings.mode = mode;
       if (mode != WBMode.custom) {
-        _settings.kelvin = _getModeKelvin(mode);
+        _settings.kelvin = _getModeKelvin(mode).toDouble();
       }
     });
     widget.onChanged(_settings);

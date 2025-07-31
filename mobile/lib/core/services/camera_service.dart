@@ -19,7 +19,7 @@ class CameraService {
   
   // Caching
   final Map<String, CacheEntry> _cache = {};
-  static const Duration _cacheExpiry = Duration(minutes: 5);
+  static const Duration _cacheExpiry = Duration(seconds: 5); // Reduced for debugging
   
   // HTTP client with connection pooling
   late final http.Client _httpClient;

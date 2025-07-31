@@ -34,6 +34,7 @@ class CameraAutoDetector extends EventEmitter {
           { pattern: /Z(\d+)/, series: 'Z', type: 'mirrorless', level: 'pro' },
           { pattern: /D850/, series: 'D850', type: 'dslr', level: 'pro' },
           { pattern: /D780/, series: 'D780', type: 'dslr', level: 'prosumer' },
+          { pattern: /(?:DSC )?D90/, series: 'D90', type: 'dslr', level: 'enthusiast' },
           { pattern: /D(\d{3,4})/, series: 'D-series', type: 'dslr', level: 'enthusiast' }
         ],
         sony: [
@@ -271,23 +272,34 @@ class CameraAutoDetector extends EventEmitter {
       
       process.on('close', () => {
         try {
-          // Parse XML data (simplified)
-          const vendorMatches = xmlData.match(/vendor_id.*?0x([0-9a-f]{4})/gi) || [];
-          const productMatches = xmlData.match(/product_id.*?0x([0-9a-f]{4})/gi) || [];
-          const nameMatches = xmlData.match(/<string>([^<]*Camera[^<]*)<\/string>/gi) || [];
+          // Parse XML data using proper XML structure
+          // Look for device blocks with vendor_id and product_id
+          const deviceBlocks = xmlData.split('<dict>').filter(block => 
+            block.includes('vendor_id') && block.includes('product_id')
+          );
           
-          for (let i = 0; i < Math.min(vendorMatches.length, productMatches.length); i++) {
-            const vendorId = vendorMatches[i].match(/0x([0-9a-f]{4})/i)?.[1];
-            const productId = productMatches[i].match(/0x([0-9a-f]{4})/i)?.[1];
-            const name = nameMatches[i]?.replace(/<\/?string>/g, '') || 'Unknown Device';
+          for (const block of deviceBlocks) {
+            const vendorMatch = block.match(/<key>vendor_id<\/key>\s*<string>0x([0-9a-f]{4})/i);
+            const productMatch = block.match(/<key>product_id<\/key>\s*<string>0x([0-9a-f]{4})/i);
+            const nameMatch = block.match(/<key>_name<\/key>\s*<string>([^<]+)<\/string>/i);
+            const serialMatch = block.match(/<key>serial_num<\/key>\s*<string>([^<]+)<\/string>/i);
             
-            if (vendorId && productId) {
-              devices.push({
-                vendorId: vendorId.toLowerCase(),
-                productId: productId.toLowerCase(),
-                product: name,
-                path: `/dev/usb_${vendorId}_${productId}`
-              });
+            if (vendorMatch && productMatch) {
+              const vendorId = vendorMatch[1].toLowerCase();
+              const productId = productMatch[1].toLowerCase();
+              const name = nameMatch ? nameMatch[1] : 'Unknown Device';
+              const serial = serialMatch ? serialMatch[1] : null;
+              
+              // Check if this is a known camera vendor
+              if (this.cameraDatabase.usbIds[vendorId]) {
+                devices.push({
+                  vendorId: vendorId,
+                  productId: productId,
+                  product: name,
+                  serial: serial,
+                  path: `/dev/usb_${vendorId}_${productId}`
+                });
+              }
             }
           }
         } catch (error) {
@@ -353,21 +365,8 @@ class CameraAutoDetector extends EventEmitter {
     try {
       const cameras = [];
       
-      // Mock mDNS discovery - in real implementation would use bonjour/mdns library
-      const mockDiscovery = [
-        {
-          name: 'Canon EOS R5._canon-eos._tcp.local',
-          addresses: ['192.168.1.100'],
-          port: 8080,
-          brand: 'canon'
-        },
-        {
-          name: 'FUJIFILM X-T4._fujifilm-camera._tcp.local',
-          addresses: ['192.168.1.101'],
-          port: 55740,
-          brand: 'fujifilm'
-        }
-      ];
+      // Mock mDNS discovery disabled - only show real hardware
+      const mockDiscovery = [];
       
       for (const service of mockDiscovery) {
         const brandInfo = Object.values(this.cameraDatabase.usbIds).find(b => b.name === service.brand);

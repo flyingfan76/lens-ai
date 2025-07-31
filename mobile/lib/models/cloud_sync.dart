@@ -1,4 +1,5 @@
-import 'dart:convert';
+
+import 'dart:math' show pow;
 
 class CloudSyncStatus {
   final String syncStatus;
@@ -392,7 +393,7 @@ class PhotoDimensions {
   }
 
   double get aspectRatio => height != 0 ? width / height : 1.0;
-  String get displaySize => '${width}x${height}';
+  String get displaySize => '${width}x$height';
 }
 
 class ExifData {
@@ -475,4 +476,3 @@ extension StringExtension on String {
 }
 
 // Helper for pow function
-import 'dart:math' show pow;

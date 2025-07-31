@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:camera/camera.dart';
-import 'package:camera_companion/core/services/camera_service.dart';
+import '../services/camera_service.dart';
 
 class CameraProvider with ChangeNotifier {
   CameraController? _controller;
@@ -46,10 +46,9 @@ class CameraProvider with ChangeNotifier {
 
   Future<void> initializeCameras() async {
     try {
-      _cameras = await availableCameras();
-      if (_cameras.isNotEmpty) {
-        await _initializeController(_cameras.first);
-      }
+      // Skip device cameras for web - focus on external cameras
+      _cameras = [];
+      debugPrint('Camera provider initialized for external camera support');
     } catch (e) {
       debugPrint('Error initializing cameras: $e');
     }
@@ -73,7 +72,11 @@ class CameraProvider with ChangeNotifier {
 
   Future<void> discoverExternalCameras() async {
     try {
-      _availableCameras = await _cameraService.discoverCameras();
+      // Clear any existing cache first
+      _cameraService.clearCache();
+      // Force refresh to bypass cache and get real-time data
+      _availableCameras = await _cameraService.discoverCameras(forceRefresh: true);
+      debugPrint('Discovered ${_availableCameras.length} cameras: ${_availableCameras.map((c) => c['model']).join(', ')}');
       notifyListeners();
     } catch (e) {
       debugPrint('Camera discovery failed: $e');
@@ -163,6 +166,36 @@ class CameraProvider with ChangeNotifier {
     _connectionStatus = 'Disconnected';
     notifyListeners();
   }
+  
+  Future<Map<String, dynamic>> startLiveView() async {
+    if (!_isConnected || _activeCameraId == null) {
+      throw Exception('No camera connected');
+    }
+    
+    try {
+      final result = await _cameraService.startLiveView(cameraId: _activeCameraId);
+      debugPrint('Live view started: ${result['streamUrl']}');
+      return result;
+    } catch (e) {
+      debugPrint('Failed to start live view: $e');
+      rethrow;
+    }
+  }
+  
+  Future<bool> stopLiveView() async {
+    if (!_isConnected || _activeCameraId == null) {
+      return false;
+    }
+    
+    try {
+      await _cameraService.stopLiveView(cameraId: _activeCameraId);
+      debugPrint('Live view stopped');
+      return true;
+    } catch (e) {
+      debugPrint('Failed to stop live view: $e');
+      return false;
+    }
+  }
 
   void updateISO(double value) {
     _iso = value;
@@ -234,27 +267,6 @@ class CameraProvider with ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>> startLiveView() async {
-    if (!_isConnected || _activeCameraId == null) {
-      throw Exception('No camera connected');
-    }
-
-    try {
-      return await _cameraService.startLiveView(cameraId: _activeCameraId);
-    } catch (e) {
-      debugPrint('Failed to start live view: $e');
-      rethrow;
-    }
-  }
-
-  Future<bool> stopLiveView() async {
-    try {
-      return await _cameraService.stopLiveView(cameraId: _activeCameraId);
-    } catch (e) {
-      debugPrint('Failed to stop live view: $e');
-      return false;
-    }
-  }
 
   List<String> getAvailableBrands() {
     final brands = <String>{};
