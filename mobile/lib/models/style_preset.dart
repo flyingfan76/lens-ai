@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 class StylePreset {
   final String id;
   final String name;
@@ -296,7 +294,7 @@ class PresetRating {
 
   String get displayRating {
     if (!hasRatings) return 'No ratings';
-    return '${average.toStringAsFixed(1)} (${count} rating${count == 1 ? '' : 's'})';
+    return '${average.toStringAsFixed(1)} ($count rating${count == 1 ? '' : 's'})';
   }
 }
 

@@ -4,7 +4,6 @@ import '../widgets/white_balance_control.dart';
 import '../widgets/ai_suggestion_panel.dart';
 import '../services/ai_service.dart';
 import '../core/providers/camera_provider.dart';
-import '../core/services/camera_service.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -17,7 +16,7 @@ class CameraScreen extends StatefulWidget {
 }
 
 class _CameraScreenState extends State<CameraScreen> {
-  bool _isConnected = false;
+  final bool _isConnected = false;
   bool _showAdvancedControls = false;
   bool _showAISuggestions = false;
   double _isoValue = 400;
@@ -55,12 +54,12 @@ class _CameraScreenState extends State<CameraScreen> {
         _availableCameras = _cameraProvider.availableCameras;
         if (_availableCameras.isNotEmpty) {
           _cameraName = _availableCameras.first['model'] ?? 'Unknown Camera';
-          print('DEBUG: Camera name set to: $_cameraName');
-          print('DEBUG: Full camera data: ${_availableCameras.first}');
+          debugPrint('DEBUG: Camera name set to: $_cameraName');
+          debugPrint('DEBUG: Full camera data: ${_availableCameras.first}');
         }
       });
     } catch (e) {
-      print('Camera discovery failed: $e');
+      debugPrint('Camera discovery failed: $e');
     } finally {
       setState(() {
         _isDiscovering = false;
@@ -74,7 +73,7 @@ class _CameraScreenState extends State<CameraScreen> {
     final cameraId = _availableCameras.first['id'];
     final cameraModel = _availableCameras.first['model'];
     
-    print('DEBUG: Connecting to camera: $cameraId ($cameraModel)');
+    debugPrint('DEBUG: Connecting to camera: $cameraId ($cameraModel)');
     
     try {
       await _cameraProvider.connectToExternalCamera(cameraId: cameraId);
@@ -83,9 +82,9 @@ class _CameraScreenState extends State<CameraScreen> {
           _cameraName = cameraModel; // Use the actual detected model
         }
       });
-      print('DEBUG: Successfully connected to: $cameraModel');
+      debugPrint('DEBUG: Successfully connected to: $cameraModel');
     } catch (e) {
-      print('Connection failed: $e');
+      debugPrint('Connection failed: $e');
     }
   }
   
@@ -94,7 +93,7 @@ class _CameraScreenState extends State<CameraScreen> {
       final result = await _cameraProvider.startLiveView();
       final streamUrl = result['streamUrl'] as String;
       
-      print('Live view started: $streamUrl');
+      debugPrint('Live view started: $streamUrl');
       
       // Connect to WebSocket for live view frames
       _connectToLiveViewStream(streamUrl);
@@ -103,7 +102,7 @@ class _CameraScreenState extends State<CameraScreen> {
         _isLiveViewActive = true;
       });
     } catch (e) {
-      print('Failed to start live view: $e');
+      debugPrint('Failed to start live view: $e');
     }
   }
   
@@ -117,9 +116,9 @@ class _CameraScreenState extends State<CameraScreen> {
             // Handle JSON message (e.g., status updates)
             try {
               final message = json.decode(data);
-              print('WebSocket message: $message');
+              debugPrint('WebSocket message: $message');
             } catch (e) {
-              print('Failed to parse WebSocket message: $e');
+              debugPrint('Failed to parse WebSocket message: $e');
             }
           } else if (data is List<int>) {
             // Handle binary frame data
@@ -129,20 +128,20 @@ class _CameraScreenState extends State<CameraScreen> {
           }
         },
         onError: (error) {
-          print('WebSocket error: $error');
+          debugPrint('WebSocket error: $error');
           setState(() {
             _isLiveViewActive = false;
           });
         },
         onDone: () {
-          print('WebSocket connection closed');
+          debugPrint('WebSocket connection closed');
           setState(() {
             _isLiveViewActive = false;
           });
         },
       );
     } catch (e) {
-      print('Failed to connect to live view stream: $e');
+      debugPrint('Failed to connect to live view stream: $e');
     }
   }
   
@@ -154,9 +153,9 @@ class _CameraScreenState extends State<CameraScreen> {
         _isLiveViewActive = false;
         _currentFrame = null;
       });
-      print('Live view stopped');
+      debugPrint('Live view stopped');
     } catch (e) {
-      print('Failed to stop live view: $e');
+      debugPrint('Failed to stop live view: $e');
     }
   }
 
@@ -305,7 +304,7 @@ class _CameraScreenState extends State<CameraScreen> {
                     Expanded(
                       child: Text(
                         _availableCameras.isNotEmpty 
-                            ? '${_availableCameras.length} Camera(s): ${_cameraName}'
+                            ? '${_availableCameras.length} Camera(s): $_cameraName'
                             : _isDiscovering ? 'Discovering...' : 'No Cameras',
                         style: const TextStyle(
                           color: Colors.white,
@@ -371,7 +370,7 @@ class _CameraScreenState extends State<CameraScreen> {
           end: Alignment.bottomCenter,
           colors: [
             Colors.transparent,
-            Colors.black.withOpacity(0.8),
+            Colors.black.withValues(alpha: 0.8),
             Colors.black,
           ],
         ),
@@ -394,7 +393,7 @@ class _CameraScreenState extends State<CameraScreen> {
             ),
             
             // Main control row
-            Container(
+            SizedBox(
               height: 90,
               child: Row(
                 children: [
@@ -534,7 +533,7 @@ class _CameraScreenState extends State<CameraScreen> {
           maxHeight: MediaQuery.of(context).size.height * 0.4,
         ),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.95),
+          color: Colors.black.withValues(alpha: 0.95),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Padding(
@@ -652,29 +651,33 @@ class _CameraScreenState extends State<CameraScreen> {
         // Capture photo via SDK
         final result = await _aiService.capturePhoto();
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result != null ? 'Photo captured!' : 'Capture failed'),
-            backgroundColor: result != null ? AppColors.success : AppColors.error,
-            duration: const Duration(seconds: 1),
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result != null ? 'Photo captured!' : 'Capture failed'),
+              backgroundColor: result != null ? AppColors.success : AppColors.error,
+              duration: const Duration(seconds: 1),
+            ),
+          );
+        }
       } catch (error) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Capture error: $error'),
-            backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Capture error: $error'),
+              backgroundColor: AppColors.error,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
       }
     } else {
       // Simulate photo capture when not connected
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Photo captured! (Simulated)'),
+        const SnackBar(
+          content: Text('Photo captured! (Simulated)'),
           backgroundColor: AppColors.success,
-          duration: const Duration(seconds: 1),
+          duration: Duration(seconds: 1),
         ),
       );
     }
@@ -750,7 +753,7 @@ class GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.3)
+      ..color = Colors.white.withValues(alpha: 0.3)
       ..strokeWidth = 0.5;
 
     // Vertical lines
