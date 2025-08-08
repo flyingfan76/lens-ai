@@ -87,7 +87,8 @@
       "Bash(-F:*)",
       "Bash(sed:*)",
       "Bash(/dev/null:*)",
-      "Bash(dart analyze:*)"
+      "Bash(dart analyze:*)",
+      "Bash(git push:*)"
     ],
     "deny": []
   }
