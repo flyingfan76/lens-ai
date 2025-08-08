@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
+import '../core/utils/responsive_utils.dart';
+import 'settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -20,139 +22,189 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: const Text('Profile'),
         actions: [
           IconButton(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
+                ),
+              );
+            },
             icon: const Icon(Icons.settings),
           ),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // User Profile Section
-            _buildProfileHeader(),
-            
-            const SizedBox(height: 24),
-            
-            // Statistics Cards
-            _buildStatsSection(),
-            
-            const SizedBox(height: 24),
-            
-            // Settings Sections
-            _buildSettingsSection('Camera Settings', [
-              _buildSettingsTile(
-                icon: Icons.camera_alt,
-                title: 'Connected Cameras',
-                subtitle: '2 cameras paired',
-                onTap: () => _showConnectedCameras(),
-              ),
-              _buildSwitchTile(
-                icon: Icons.bluetooth,
-                title: 'Auto-connect',
-                subtitle: 'Automatically connect to nearby cameras',
-                value: _autoConnect,
-                onChanged: (value) {
-                  setState(() {
-                    _autoConnect = value;
-                  });
-                },
-              ),
-            ]),
-            
-            const SizedBox(height: 16),
-            
-            _buildSettingsSection('AI & Assistance', [
-              _buildSwitchTile(
-                icon: Icons.auto_awesome,
-                title: 'AI Suggestions',
-                subtitle: 'Get real-time photography tips',
-                value: _aiSuggestions,
-                onChanged: (value) {
-                  setState(() {
-                    _aiSuggestions = value;
-                  });
-                },
-              ),
-              _buildSettingsTile(
-                icon: Icons.school,
-                title: 'Learning Center',
-                subtitle: 'Photography tutorials and tips',
-                onTap: () {},
-              ),
-            ]),
-            
-            const SizedBox(height: 16),
-            
-            _buildSettingsSection('App Preferences', [
-              _buildSwitchTile(
-                icon: Icons.dark_mode,
-                title: 'Dark Mode',
-                subtitle: 'Use dark theme',
-                value: _isDarkMode,
-                onChanged: (value) {
-                  setState(() {
-                    _isDarkMode = value;
-                  });
-                },
-              ),
-              _buildSettingsTile(
-                icon: Icons.notifications,
-                title: 'Notifications',
-                subtitle: 'Manage app notifications',
-                onTap: () {},
-              ),
-              _buildSettingsTile(
-                icon: Icons.cloud_sync,
-                title: 'Cloud Sync',
-                subtitle: 'Backup and sync photos',
-                onTap: () {},
-              ),
-            ]),
-            
-            const SizedBox(height: 16),
-            
-            _buildSettingsSection('Support', [
-              _buildSettingsTile(
-                icon: Icons.help_outline,
-                title: 'Help & FAQ',
-                subtitle: 'Get help with Lens AI',
-                onTap: () {},
-              ),
-              _buildSettingsTile(
-                icon: Icons.feedback,
-                title: 'Send Feedback',
-                subtitle: 'Help us improve the app',
-                onTap: () {},
-              ),
-              _buildSettingsTile(
-                icon: Icons.info_outline,
-                title: 'About',
-                subtitle: 'Version 1.0.0',
-                onTap: () => _showAboutDialog(),
-              ),
-            ]),
-            
-            const SizedBox(height: 32),
-            
-            // Sign Out Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {},
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.error,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: const Text(
-                  'Sign Out',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
-            ),
-          ],
-        ),
+        padding: ResponsiveUtils.getResponsivePadding(context),
+        child: _buildResponsiveLayout(),
       ),
+    );
+  }
+
+  Widget _buildResponsiveLayout() {
+    final config = ResponsiveUtils.getLayoutConfig(context);
+    
+    // Use side-by-side layout for landscape tablets
+    if (config.isLandscape && config.isTablet) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Left column - Profile and stats
+          Expanded(
+            flex: 1,
+            child: Column(
+              children: [
+                _buildProfileHeader(),
+                const SizedBox(height: 24),
+                _buildStatsSection(),
+              ],
+            ),
+          ),
+          const SizedBox(width: 24),
+          // Right column - Settings
+          Expanded(
+            flex: 2,
+            child: _buildSettingsColumn(),
+          ),
+        ],
+      );
+    }
+    
+    // Default single column layout
+    return Column(
+      children: [
+        // User Profile Section
+        _buildProfileHeader(),
+        
+        const SizedBox(height: 24),
+        
+        // Statistics Cards
+        _buildStatsSection(),
+        
+        const SizedBox(height: 24),
+        
+        // Settings sections
+        _buildSettingsColumn(),
+      ],
+    );
+  }
+
+  Widget _buildSettingsColumn() {
+    return Column(
+      children: [
+            
+        // Settings Sections
+        _buildSettingsSection('Camera Settings', [
+          _buildSettingsTile(
+            icon: Icons.camera_alt,
+            title: 'Connected Cameras',
+            subtitle: '2 cameras paired',
+            onTap: () => _showConnectedCameras(),
+          ),
+          _buildSwitchTile(
+            icon: Icons.bluetooth,
+            title: 'Auto-connect',
+            subtitle: 'Automatically connect to nearby cameras',
+            value: _autoConnect,
+            onChanged: (value) {
+              setState(() {
+                _autoConnect = value;
+              });
+            },
+          ),
+        ]),
+        
+        const SizedBox(height: 16),
+        
+        _buildSettingsSection('AI & Assistance', [
+          _buildSwitchTile(
+            icon: Icons.auto_awesome,
+            title: 'AI Suggestions',
+            subtitle: 'Get real-time photography tips',
+            value: _aiSuggestions,
+            onChanged: (value) {
+              setState(() {
+                _aiSuggestions = value;
+              });
+            },
+          ),
+          _buildSettingsTile(
+            icon: Icons.school,
+            title: 'Learning Center',
+            subtitle: 'Photography tutorials and tips',
+            onTap: () {},
+          ),
+        ]),
+        
+        const SizedBox(height: 16),
+        
+        _buildSettingsSection('App Preferences', [
+          _buildSwitchTile(
+            icon: Icons.dark_mode,
+            title: 'Dark Mode',
+            subtitle: 'Use dark theme',
+            value: _isDarkMode,
+            onChanged: (value) {
+              setState(() {
+                _isDarkMode = value;
+              });
+            },
+          ),
+          _buildSettingsTile(
+            icon: Icons.notifications,
+            title: 'Notifications',
+            subtitle: 'Manage app notifications',
+            onTap: () {},
+          ),
+          _buildSettingsTile(
+            icon: Icons.cloud_sync,
+            title: 'Cloud Sync',
+            subtitle: 'Backup and sync photos',
+            onTap: () {},
+          ),
+        ]),
+        
+        const SizedBox(height: 16),
+        
+        _buildSettingsSection('Support', [
+          _buildSettingsTile(
+            icon: Icons.help_outline,
+            title: 'Help & FAQ',
+            subtitle: 'Get help with Lens AI',
+            onTap: () {},
+          ),
+          _buildSettingsTile(
+            icon: Icons.feedback,
+            title: 'Send Feedback',
+            subtitle: 'Help us improve the app',
+            onTap: () {},
+          ),
+          _buildSettingsTile(
+            icon: Icons.info_outline,
+            title: 'About',
+            subtitle: 'Version 1.0.0',
+            onTap: () => _showAboutDialog(),
+          ),
+        ]),
+        
+        const SizedBox(height: 32),
+        
+        // Sign Out Button
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () {},
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+            child: const Text(
+              'Sign Out',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -255,12 +307,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildStatsSection() {
+    final config = ResponsiveUtils.getLayoutConfig(context);
+    final spacing = ResponsiveUtils.getResponsiveSpacing(context, portraitSpacing: 12, landscapeSpacing: 16);
+    
+    // Stack stats vertically on narrow landscape screens
+    if (config.isLandscape && !config.isTablet) {
+      return Column(
+        children: [
+          _buildStatCard('Photos Taken', '1,247', Icons.photo_camera),
+          SizedBox(height: spacing),
+          _buildStatCard('AI Improvements', '342', Icons.auto_awesome),
+          SizedBox(height: spacing),
+          _buildStatCard('Presets Used', '28', Icons.palette),
+        ],
+      );
+    }
+    
     return Row(
       children: [
         Expanded(child: _buildStatCard('Photos Taken', '1,247', Icons.photo_camera)),
-        const SizedBox(width: 12),
+        SizedBox(width: spacing),
         Expanded(child: _buildStatCard('AI Improvements', '342', Icons.auto_awesome)),
-        const SizedBox(width: 12),
+        SizedBox(width: spacing),
         Expanded(child: _buildStatCard('Presets Used', '28', Icons.palette)),
       ],
     );

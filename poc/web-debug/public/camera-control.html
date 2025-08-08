@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lens AI - Camera Control Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #4a5568;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #48bb78;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 2rem;
+            padding: 2rem;
+            min-height: calc(100vh - 90px);
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .card h3 {
+            margin-bottom: 1rem;
+            color: #2d3748;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .camera-card {
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .camera-card:hover {
+            border-color: #4299e1;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(66, 153, 225, 0.2);
+        }
+
+        .camera-card.selected {
+            border-color: #48bb78;
+            background: rgba(72, 187, 120, 0.05);
+        }
+
+        .camera-card.connected {
+            border-color: #48bb78;
+            background: rgba(72, 187, 120, 0.1);
+        }
+
+        .camera-brand {
+            font-size: 0.8rem;
+            color: #718096;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .camera-model {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+
+        .camera-info {
+            font-size: 0.85rem;
+            color: #4a5568;
+            line-height: 1.4;
+        }
+
+        .camera-status {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+
+        .status-detected {
+            background: #fed7d7;
+            color: #c53030;
+        }
+
+        .status-connected {
+            background: #c6f6d5;
+            color: #25543e;
+        }
+
+        .controls {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4299e1, #3182ce);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #48bb78, #38a169);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f56565, #e53e3e);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .content-area {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 1.5rem;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #718096;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .camera-settings {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .setting-group {
+            background: rgba(247, 250, 252, 0.8);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .setting-label {
+            font-size: 0.85rem;
+            color: #4a5568;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .setting-value {
+            font-size: 1.1rem;
+            color: #2d3748;
+            font-weight: 500;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4299e1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .message {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .message.success {
+            background: #c6f6d5;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
+        }
+
+        .message.error {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #feb2b2;
+        }
+
+        .liveview-container {
+            background: #000;
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+            min-height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #718096;
+        }
+
+        .capture-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .capture-detail {
+            background: rgba(247, 250, 252, 0.8);
+            padding: 0.75rem;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .capture-detail-label {
+            font-size: 0.75rem;
+            color: #718096;
+            margin-bottom: 0.25rem;
+        }
+
+        .capture-detail-value {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar {
+                flex-direction: row;
+                overflow-x: auto;
+            }
+            
+            .card {
+                min-width: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📷 Lens AI Camera Control</h1>
+        <div class="status-indicator">
+            <div class="status-dot" id="connectionStatus"></div>
+            <span id="connectionText">Backend Connected</span>
+            <div style="margin-left: 1rem; font-size: 0.8rem; opacity: 0.8;">
+                Updated: <span id="pageLoadTime"></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="sidebar">
+            <div class="card">
+                <h3>🔍 Detected Cameras</h3>
+                <div class="controls">
+                    <button class="btn btn-primary" onclick="discoverCameras()">
+                        <span id="discoverBtn">Discover Cameras</span>
+                    </button>
+                </div>
+                <div id="camerasList">
+                    <div style="text-align: center; color: #718096; padding: 2rem;">
+                        <div class="loading"></div>
+                        <p style="margin-top: 1rem;">Discovering cameras...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>📊 Camera Statistics</h3>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalCameras">0</div>
+                        <div class="stat-label">Total Detected</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="connectedCameras">0</div>
+                        <div class="stat-label">Connected</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-area">
+            <div id="messagesArea"></div>
+
+            <div class="card">
+                <h3>🎮 Camera Controls</h3>
+                <div class="controls">
+                    <button class="btn btn-success" id="connectBtn" onclick="connectCamera()" disabled>
+                        Connect Camera
+                    </button>
+                    <button class="btn btn-primary" id="liveViewBtn" onclick="toggleLiveView()" disabled>
+                        Start Live View
+                    </button>
+                    <button class="btn btn-primary" id="captureBtn" onclick="capturePhoto()" disabled>
+                        Capture Photo
+                    </button>
+                    <button class="btn btn-danger" id="disconnectBtn" onclick="disconnectCamera()" disabled>
+                        Disconnect
+                    </button>
+                </div>
+            </div>
+
+            <div class="card" id="settingsCard" style="display: none;">
+                <h3>⚙️ Camera Settings</h3>
+                <div class="camera-settings" id="cameraSettings">
+                    <!-- Settings will be populated here -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>📺 Live View</h3>
+                <div class="liveview-container" id="liveViewContainer">
+                    Live view will appear here when started
+                </div>
+            </div>
+
+            <div class="card" id="captureCard" style="display: none;">
+                <h3>📸 Last Capture</h3>
+                <div id="captureInfo">
+                    <!-- Capture info will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let cameras = [];
+        let selectedCamera = null;
+        let connectedCamera = null;
+        let liveViewActive = false;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('pageLoadTime').textContent = new Date().toLocaleString();
+            checkBackendConnection();
+            discoverCameras();
+        });
+
+        async function checkBackendConnection() {
+            try {
+                const response = await fetch('http://localhost:3000/health');
+                const data = await response.json();
+                updateConnectionStatus(true);
+                showMessage('Backend connection established', 'success');
+            } catch (error) {
+                updateConnectionStatus(false);
+                showMessage('Backend connection failed. Please ensure the backend server is running on port 3000.', 'error');
+            }
+        }
+
+        function updateConnectionStatus(connected) {
+            const statusDot = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('connectionText');
+            
+            if (connected) {
+                statusDot.style.background = '#48bb78';
+                statusText.textContent = 'Backend Connected';
+            } else {
+                statusDot.style.background = '#f56565';
+                statusText.textContent = 'Backend Disconnected';
+            }
+        }
+
+        async function discoverCameras() {
+            const discoverBtn = document.getElementById('discoverBtn');
+            const originalText = discoverBtn.textContent;
+            
+            discoverBtn.innerHTML = '<div class="loading"></div>';
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/camera/discover');
+                const data = await response.json();
+                
+                if (data.success) {
+                    cameras = data.cameras;
+                    displayCameras();
+                    updateStats();
+                    showMessage(`Discovered ${cameras.length} camera(s)`, 'success');
+                } else {
+                    showMessage('Failed to discover cameras', 'error');
+                }
+            } catch (error) {
+                console.error('Discovery error:', error);
+                showMessage('Error discovering cameras: ' + error.message, 'error');
+            } finally {
+                discoverBtn.textContent = originalText;
+            }
+        }
+
+        function displayCameras() {
+            const container = document.getElementById('camerasList');
+            
+            if (cameras.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; color: #718096; padding: 2rem;">
+                        <p>No cameras detected</p>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem;">
+                            Make sure your camera is connected via USB and powered on.
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = '';
+            cameras.forEach(camera => {
+                const cameraCard = document.createElement('div');
+                cameraCard.className = `camera-card ${camera.isConnected ? 'connected' : ''}`;
+                cameraCard.onclick = () => selectCamera(camera);
+                
+                cameraCard.innerHTML = `
+                    <div class="camera-brand">${camera.brandDisplay || camera.brand}</div>
+                    <div class="camera-model">${camera.model}</div>
+                    <div class="camera-info">
+                        Serial: ${camera.serialNumber}<br>
+                        Connection: ${camera.connectionType.toUpperCase()}<br>
+                        Compatibility: ${(camera.compatibilityScore * 100).toFixed(0)}%
+                    </div>
+                    <div class="camera-status ${camera.isConnected ? 'status-connected' : 'status-detected'}">
+                        ${camera.isConnected ? 'Connected' : 'Detected'}
+                    </div>
+                `;
+                
+                container.appendChild(cameraCard);
+            });
+        }
+
+        function selectCamera(camera) {
+            selectedCamera = camera;
+            
+            // Update visual selection
+            document.querySelectorAll('.camera-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            event.currentTarget.classList.add('selected');
+            
+            // Enable/disable controls
+            document.getElementById('connectBtn').disabled = camera.isConnected;
+            document.getElementById('disconnectBtn').disabled = !camera.isConnected;
+            document.getElementById('liveViewBtn').disabled = !camera.isConnected;
+            document.getElementById('captureBtn').disabled = !camera.isConnected;
+            
+            if (camera.isConnected) {
+                connectedCamera = camera;
+                loadCameraSettings();
+            }
+            
+            showMessage(`Selected ${camera.brand} ${camera.model}`, 'success');
+        }
+
+        async function connectCamera() {
+            if (!selectedCamera) {
+                showMessage('Please select a camera first', 'error');
+                return;
+            }
+
+            const connectBtn = document.getElementById('connectBtn');
+            connectBtn.disabled = true;
+            connectBtn.textContent = 'Connecting...';
+
+            try {
+                const response = await fetch('http://localhost:3000/api/camera/connect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cameraId: selectedCamera.id })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    connectedCamera = { ...selectedCamera, ...data.cameraInfo };
+                    selectedCamera.isConnected = true;
+                    
+                    // Update UI
+                    displayCameras();
+                    updateStats();
+                    loadCameraSettings();
+                    
+                    // Enable controls
+                    document.getElementById('liveViewBtn').disabled = false;
+                    document.getElementById('captureBtn').disabled = false;
+                    document.getElementById('disconnectBtn').disabled = false;
+                    
+                    showMessage(`Connected to ${connectedCamera.brand} ${connectedCamera.model}`, 'success');
+                } else {
+                    showMessage('Failed to connect to camera', 'error');
+                }
+            } catch (error) {
+                console.error('Connection error:', error);
+                showMessage('Error connecting to camera: ' + error.message, 'error');
+            } finally {
+                connectBtn.disabled = false;
+                connectBtn.textContent = 'Connect Camera';
+            }
+        }
+
+        async function loadCameraSettings() {
+            if (!connectedCamera) return;
+
+            try {
+                const response = await fetch(`http://localhost:3000/api/camera/settings?cameraId=${connectedCamera.id}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayCameraSettings(data.settings);
+                    document.getElementById('settingsCard').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Settings error:', error);
+            }
+        }
+
+        function displayCameraSettings(settings) {
+            const container = document.getElementById('cameraSettings');
+            
+            const settingsToShow = {
+                'ISO': settings.iso,
+                'Aperture': settings.aperture,
+                'Shutter Speed': settings.shutter_speed,
+                'White Balance': settings.white_balance,
+                'Image Quality': settings.imageQuality,
+                'Battery Level': settings.battery_level + '%',
+                'Focus Mode': settings.focusMode,
+                'Metering Mode': settings.meteringMode
+            };
+
+            container.innerHTML = '';
+            Object.entries(settingsToShow).forEach(([label, value]) => {
+                if (value !== null && value !== undefined) {
+                    const settingDiv = document.createElement('div');
+                    settingDiv.className = 'setting-group';
+                    settingDiv.innerHTML = `
+                        <div class="setting-label">${label}</div>
+                        <div class="setting-value">${value}</div>
+                    `;
+                    container.appendChild(settingDiv);
+                }
+            });
+        }
+
+        let liveViewSocket = null;
+
+        async function toggleLiveView() {
+            if (!connectedCamera) return;
+
+            const liveViewBtn = document.getElementById('liveViewBtn');
+            const container = document.getElementById('liveViewContainer');
+
+            try {
+                if (liveViewActive) {
+                    // Stop live view
+                    const response = await fetch(`http://localhost:3000/api/camera/liveview/stop?cameraId=${connectedCamera.id}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        liveViewActive = false;
+                        liveViewBtn.textContent = 'Start Live View';
+                        
+                        // Close WebSocket connection
+                        if (liveViewSocket) {
+                            liveViewSocket.close();
+                            liveViewSocket = null;
+                        }
+                        
+                        container.innerHTML = '<div style="color: #718096;">Live view stopped</div>';
+                        showMessage('Live view stopped', 'success');
+                    }
+                } else {
+                    // Start live view
+                    const response = await fetch(`http://localhost:3000/api/camera/liveview/start?cameraId=${connectedCamera.id}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        liveViewActive = true;
+                        liveViewBtn.textContent = 'Stop Live View';
+                        
+                        // Create video element for live view
+                        container.innerHTML = `
+                            <div style="position: relative; width: 100%; height: 100%;">
+                                <canvas id="liveViewCanvas" style="width: 100%; height: 100%; max-height: 400px; object-fit: contain; background: #000;"></canvas>
+                                <div id="liveViewStatus" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 5px 10px; border-radius: 5px; font-size: 0.8rem;">
+                                    Connecting to live view...
+                                </div>
+                                <div style="position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 5px 10px; border-radius: 5px; font-size: 0.75rem;">
+                                    ${data.resolution || 'Unknown'} @ ${data.fps || 'Unknown'} FPS
+                                </div>
+                            </div>
+                        `;
+                        
+                        // Connect to WebSocket for live view stream
+                        connectToLiveViewStream(data.streamUrl);
+                        showMessage('Live view starting...', 'success');
+                    }
+                }
+            } catch (error) {
+                console.error('Live view error:', error);
+                showMessage('Error toggling live view: ' + error.message, 'error');
+            }
+        }
+
+        function connectToLiveViewStream(streamUrl) {
+            try {
+                // Extract WebSocket URL (remove http/https and replace with ws/wss)
+                const wsUrl = streamUrl.replace('http://', 'ws://').replace('https://', 'wss://');
+                
+                liveViewSocket = new WebSocket(wsUrl);
+                
+                liveViewSocket.onopen = function(event) {
+                    console.log('Live view WebSocket connected');
+                    document.getElementById('liveViewStatus').textContent = '🔴 Live View Active';
+                    showMessage('Live view connected', 'success');
+                };
+                
+                liveViewSocket.onmessage = function(event) {
+                    try {
+                        if (event.data instanceof Blob) {
+                            // Handle binary frame data (legacy)
+                            displayLiveViewFrame(event.data);
+                        } else {
+                            // Handle JSON messages
+                            const data = JSON.parse(event.data);
+                            
+                            if (data.type === 'liveViewFrame') {
+                                displayLiveViewFrameData(data);
+                            } else {
+                                console.log('Live view message:', data);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error processing live view frame:', error);
+                    }
+                };
+                
+                liveViewSocket.onerror = function(error) {
+                    console.error('Live view WebSocket error:', error);
+                    showMessage('Live view connection error', 'error');
+                    document.getElementById('liveViewStatus').textContent = '❌ Connection Error';
+                };
+                
+                liveViewSocket.onclose = function(event) {
+                    console.log('Live view WebSocket closed');
+                    if (liveViewActive) {
+                        document.getElementById('liveViewStatus').textContent = '⚠️ Connection Lost';
+                        showMessage('Live view connection lost', 'error');
+                    }
+                };
+                
+            } catch (error) {
+                console.error('Error connecting to live view stream:', error);
+                showMessage('Failed to connect to live view stream', 'error');
+            }
+        }
+
+        function displayLiveViewFrameData(frameData) {
+            const canvas = document.getElementById('liveViewCanvas');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            
+            if (frameData.frameType === 'svg') {
+                // Handle SVG frame data
+                const svgData = atob(frameData.data); // Decode base64
+                const svgDataUri = 'data:image/svg+xml;base64,' + frameData.data;
+                
+                const img = new Image();
+                img.onload = function() {
+                    // Set canvas size
+                    const containerWidth = canvas.offsetParent.offsetWidth - 40; // Account for padding
+                    const aspectRatio = frameData.width / frameData.height;
+                    const containerHeight = Math.min(400, containerWidth / aspectRatio);
+                    
+                    canvas.width = frameData.width;
+                    canvas.height = frameData.height;
+                    canvas.style.width = containerWidth + 'px';
+                    canvas.style.height = containerHeight + 'px';
+                    
+                    // Draw the SVG
+                    ctx.drawImage(img, 0, 0);
+                    
+                    // Update status
+                    const statusEl = document.getElementById('liveViewStatus');
+                    if (statusEl) {
+                        statusEl.textContent = `🔴 Live View Active - Frame ${frameData.frameNumber}`;
+                    }
+                };
+                
+                img.onerror = function() {
+                    console.error('Error loading SVG live view frame');
+                };
+                
+                img.src = svgDataUri;
+            } else {
+                // Handle legacy binary frame data
+                displayLiveViewFrame(new Blob([atob(frameData.data)]));
+            }
+        }
+
+        function displayLiveViewFrame(frameBlob) {
+            const canvas = document.getElementById('liveViewCanvas');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            
+            img.onload = function() {
+                // Set canvas size to match image aspect ratio
+                const aspectRatio = img.width / img.height;
+                const containerWidth = canvas.offsetWidth;
+                const containerHeight = Math.min(400, containerWidth / aspectRatio);
+                
+                canvas.width = img.width;
+                canvas.height = img.height;
+                canvas.style.width = containerWidth + 'px';
+                canvas.style.height = containerHeight + 'px';
+                
+                // Draw the frame
+                ctx.drawImage(img, 0, 0);
+                
+                // Update status
+                document.getElementById('liveViewStatus').textContent = '🔴 Live View Active';
+            };
+            
+            img.onerror = function() {
+                console.error('Error loading live view frame');
+            };
+            
+            // Convert blob to image URL
+            img.src = URL.createObjectURL(frameBlob);
+        }
+
+        async function capturePhoto() {
+            if (!connectedCamera) return;
+
+            const captureBtn = document.getElementById('captureBtn');
+            captureBtn.disabled = true;
+            captureBtn.textContent = 'Capturing...';
+
+            try {
+                const response = await fetch('http://localhost:3000/api/camera/capture', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cameraId: connectedCamera.id })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayCaptureInfo(data);
+                    showMessage(`Photo captured: ${data.filename}`, 'success');
+                } else {
+                    showMessage('Failed to capture photo', 'error');
+                }
+            } catch (error) {
+                console.error('Capture error:', error);
+                showMessage('Error capturing photo: ' + error.message, 'error');
+            } finally {
+                captureBtn.disabled = false;
+                captureBtn.textContent = 'Capture Photo';
+            }
+        }
+
+        function displayCaptureInfo(captureData) {
+            const container = document.getElementById('captureInfo');
+            const metadata = captureData.metadata;
+            
+            container.innerHTML = `
+                <div class="capture-info">
+                    <div class="capture-detail">
+                        <div class="capture-detail-label">Filename</div>
+                        <div class="capture-detail-value">${captureData.filename}</div>
+                    </div>
+                    <div class="capture-detail">
+                        <div class="capture-detail-label">Format</div>
+                        <div class="capture-detail-value">${metadata.format}</div>
+                    </div>
+                    <div class="capture-detail">
+                        <div class="capture-detail-label">Size</div>
+                        <div class="capture-detail-value">${metadata.fileSize}</div>
+                    </div>
+                    <div class="capture-detail">
+                        <div class="capture-detail-label">Dimensions</div>
+                        <div class="capture-detail-value">${metadata.dimensions}</div>
+                    </div>
+                    <div class="capture-detail">
+                        <div class="capture-detail-label">Timestamp</div>
+                        <div class="capture-detail-value">${new Date(metadata.timestamp).toLocaleString()}</div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('captureCard').style.display = 'block';
+        }
+
+        async function disconnectCamera() {
+            if (!connectedCamera) return;
+
+            try {
+                const response = await fetch('http://localhost:3000/api/camera/disconnect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cameraId: connectedCamera.id })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Reset state
+                    if (selectedCamera) {
+                        selectedCamera.isConnected = false;
+                    }
+                    connectedCamera = null;
+                    liveViewActive = false;
+                    
+                    // Update UI
+                    displayCameras();
+                    updateStats();
+                    document.getElementById('settingsCard').style.display = 'none';
+                    document.getElementById('captureCard').style.display = 'none';
+                    document.getElementById('liveViewContainer').textContent = 'Live view will appear here when started';
+                    
+                    // Disable controls
+                    document.getElementById('connectBtn').disabled = false;
+                    document.getElementById('liveViewBtn').disabled = true;
+                    document.getElementById('liveViewBtn').textContent = 'Start Live View';
+                    document.getElementById('captureBtn').disabled = true;
+                    document.getElementById('disconnectBtn').disabled = true;
+                    
+                    showMessage('Camera disconnected', 'success');
+                }
+            } catch (error) {
+                console.error('Disconnect error:', error);
+                showMessage('Error disconnecting camera: ' + error.message, 'error');
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('totalCameras').textContent = cameras.length;
+            document.getElementById('connectedCameras').textContent = cameras.filter(c => c.isConnected).length;
+        }
+
+        function showMessage(message, type) {
+            const container = document.getElementById('messagesArea');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.textContent = message;
+            
+            container.appendChild(messageDiv);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.parentNode.removeChild(messageDiv);
+                }
+            }, 5000);
+            
+            // Scroll to show message
+            messageDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>

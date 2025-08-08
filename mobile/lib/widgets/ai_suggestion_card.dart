@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 import '../models/ai_suggestion.dart';
+import '../core/utils/disposal_mixin.dart';
 
 class AISuggestionCard extends StatefulWidget {
   final AISuggestion suggestion;
@@ -21,7 +22,7 @@ class AISuggestionCard extends StatefulWidget {
 }
 
 class _AISuggestionCardState extends State<AISuggestionCard>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, DisposalMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -30,9 +31,8 @@ class _AISuggestionCardState extends State<AISuggestionCard>
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
+    _animationController = createAnimationController(
       duration: const Duration(milliseconds: 300),
-      vsync: this,
     );
     
     _fadeAnimation = Tween<double>(
@@ -56,7 +56,7 @@ class _AISuggestionCardState extends State<AISuggestionCard>
 
   @override
   void dispose() {
-    _animationController.dispose();
+    // DisposalMixin will handle animation controller
     super.dispose();
   }
 
@@ -392,6 +392,7 @@ class _AISuggestionCardState extends State<AISuggestionCard>
     if (suggestion.icon != null) {
       // Map string icons to IconData
       switch (suggestion.icon) {
+        // Basic camera settings
         case 'iso':
           return Icons.iso;
         case 'aperture':
@@ -400,16 +401,60 @@ class _AISuggestionCardState extends State<AISuggestionCard>
           return Icons.shutter_speed;
         case 'wb_sunny':
           return Icons.wb_sunny;
-        case 'grid_on':
-          return Icons.grid_on;
-        case 'landscape':
-          return Icons.landscape;
-        case 'zoom_in':
-          return Icons.zoom_in;
         case 'wb_shade':
           return Icons.wb_shade;
+        
+        // Advanced camera settings
+        case 'flash_on':
+          return Icons.flash_on;
+        case 'flash_off':
+          return Icons.flash_off;
         case 'center_focus_strong':
           return Icons.center_focus_strong;
+        case 'zoom_in':
+          return Icons.zoom_in;
+        case 'zoom_out':
+          return Icons.zoom_out;
+        case 'videocam_off':
+          return Icons.videocam_off;
+        case 'exposure':
+          return Icons.exposure;
+        case 'hdr_on':
+          return Icons.hdr_on;
+        case 'hdr_off':
+          return Icons.hdr_off;
+        case 'portrait':
+          return Icons.portrait;
+        case 'landscape':
+          return Icons.landscape;
+        case 'auto_fix_high':
+          return Icons.auto_fix_high;
+        case 'settings_brightness':
+          return Icons.settings_brightness;
+        case 'contrast':
+          return Icons.contrast;
+        case 'palette':
+          return Icons.palette;
+        case 'photo_size_select_large':
+          return Icons.photo_size_select_large;
+        case 'aspect_ratio':
+          return Icons.aspect_ratio;
+        case 'timer':
+          return Icons.timer;
+        case 'burst_mode':
+          return Icons.burst_mode;
+        case 'lock':
+          return Icons.lock;
+        case 'lock_open':
+          return Icons.lock_open;
+        
+        // Composition
+        case 'grid_on':
+          return Icons.grid_on;
+        case 'crop':
+          return Icons.crop;
+        
+        // Other
         case 'cloud':
           return Icons.cloud;
         case 'brightness_low':

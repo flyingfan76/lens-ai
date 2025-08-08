@@ -8,11 +8,15 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:lens_ai/main.dart';
+import 'package:lens_ai/core/state/state_manager.dart';
 
 void main() {
   testWidgets('Lens AI app smoke test', (WidgetTester tester) async {
+    // Create a state manager instance for testing
+    final stateManager = await StateManager.initialize();
+    
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const LensAIApp());
+    await tester.pumpWidget(LensAIApp(stateManager: stateManager));
 
     // Verify that the splash screen loads
     expect(find.text('Lens AI'), findsOneWidget);

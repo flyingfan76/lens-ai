@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lens AI - Debug Dashboard</title>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #27ae60;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            height: calc(100vh - 70px);
+        }
+
+        .sidebar {
+            background: white;
+            border-right: 1px solid #e0e0e0;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .content-area {
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .section {
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .section h3 {
+            margin-bottom: 1rem;
+            color: #2c3e50;
+            font-size: 1.1rem;
+        }
+
+        .device-card {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .device-card.online {
+            border-left: 4px solid #27ae60;
+        }
+
+        .device-card.offline {
+            border-left: 4px solid #e74c3c;
+            opacity: 0.7;
+        }
+
+        .device-name {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .device-info {
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #e0e0e0;
+            margin-bottom: 1rem;
+        }
+
+        .tab {
+            padding: 0.75rem 1rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: #666;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab.active {
+            color: #2c3e50;
+            border-bottom-color: #3498db;
+        }
+
+        .tab:hover {
+            background: #f8f9fa;
+        }
+
+        .log-container {
+            height: 400px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 0.5rem;
+        }
+
+        .log-entry {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.25rem 0;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 0.85rem;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-time {
+            color: #666;
+            min-width: 80px;
+            font-family: monospace;
+        }
+
+        .log-device {
+            color: #3498db;
+            min-width: 100px;
+        }
+
+        .log-message {
+            flex: 1;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .metric-card {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-label {
+            color: #666;
+            font-size: 0.85rem;
+        }
+
+        .controls {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .performance-chart {
+            height: 200px;
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔍 Lens AI Debug Dashboard</h1>
+        <div class="status-indicator">
+            <div class="status-dot" id="connectionStatus"></div>
+            <span id="connectionText">Connected</span>
+            <div style="margin-left: 1rem; font-size: 0.8rem; opacity: 0.8;">
+                Updated: <span id="pageLoadTime"></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="sidebar">
+            <div class="section">
+                <h3>📱 Connected Devices</h3>
+                <div id="devicesList">
+                    <div class="device-info" style="text-align: center; color: #666;">
+                        No devices connected
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>📊 Statistics</h3>
+                <div class="metric-grid">
+                    <div class="metric-card">
+                        <div class="metric-value" id="statsDevices">0</div>
+                        <div class="metric-label">Devices</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="statsEvents">0</div>
+                        <div class="metric-label">Events</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-area">
+            <div class="controls">
+                <button class="btn btn-primary" onclick="refreshData()">🔄 Refresh</button>
+                <button class="btn btn-danger" onclick="clearLogs('all')">🗑️ Clear All</button>
+            </div>
+
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('camera')">📷 Camera Events</button>
+                <button class="tab" onclick="showTab('ai')">🧠 AI Processing</button>
+                <button class="tab" onclick="showTab('performance')">⚡ Performance</button>
+            </div>
+
+            <div id="cameraTab" class="tab-content">
+                <div class="section">
+                    <h3>Camera Events</h3>
+                    <div class="log-container" id="cameraLogs">
+                        <div class="log-entry">
+                            <div class="log-message" style="text-align: center; color: #666; padding: 1rem;">
+                                No camera events yet
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="aiTab" class="tab-content hidden">
+                <div class="section">
+                    <h3>AI Processing Logs</h3>
+                    <div class="log-container" id="aiLogs">
+                        <div class="log-entry">
+                            <div class="log-message" style="text-align: center; color: #666; padding: 1rem;">
+                                No AI processing logs yet
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="performanceTab" class="tab-content hidden">
+                <div class="section">
+                    <h3>Performance Metrics</h3>
+                    <div class="performance-chart">
+                        Performance visualization would go here
+                    </div>
+                    <div class="log-container" id="performanceLogs">
+                        <div class="log-entry">
+                            <div class="log-message" style="text-align: center; color: #666; padding: 1rem;">
+                                No performance metrics yet
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Socket.IO connection
+        const socket = io();
+        
+        let debugState = {
+            devices: new Map(),
+            cameraEvents: [],
+            aiLogs: [],
+            performanceMetrics: []
+        };
+
+        // Connection status
+        socket.on('connect', () => {
+            updateConnectionStatus(true);
+        });
+
+        socket.on('disconnect', () => {
+            updateConnectionStatus(false);
+        });
+
+        function updateConnectionStatus(connected) {
+            const statusDot = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('connectionText');
+            
+            if (connected) {
+                statusDot.style.background = '#27ae60';
+                statusText.textContent = 'Connected';
+            } else {
+                statusDot.style.background = '#e74c3c';
+                statusText.textContent = 'Disconnected';
+            }
+        }
+
+        // Event handlers
+        socket.on('debug-state', (state) => {
+            debugState.devices.clear();
+            state.connectedDevices.forEach(device => {
+                debugState.devices.set(device.id, device);
+            });
+            debugState.cameraEvents = state.cameraEvents || [];
+            debugState.aiLogs = state.aiProcessingLogs || [];
+            debugState.performanceMetrics = state.performanceMetrics || [];
+            
+            updateUI();
+        });
+
+        socket.on('device-connected', (data) => {
+            debugState.devices.set(data.deviceId, {
+                id: data.deviceId,
+                info: data.deviceInfo,
+                connectedAt: data.connectedAt,
+                lastSeen: data.connectedAt,
+                status: 'online'
+            });
+            updateDevicesList();
+            updateStats();
+        });
+
+        socket.on('device-disconnected', (data) => {
+            debugState.devices.delete(data.deviceId);
+            updateDevicesList();
+            updateStats();
+        });
+
+        socket.on('camera-event', (event) => {
+            debugState.cameraEvents.unshift(event);
+            if (debugState.cameraEvents.length > 100) {
+                debugState.cameraEvents = debugState.cameraEvents.slice(0, 100);
+            }
+            updateCameraLogs();
+            updateStats();
+        });
+
+        socket.on('ai-processing-log', (log) => {
+            debugState.aiLogs.unshift(log);
+            if (debugState.aiLogs.length > 100) {
+                debugState.aiLogs = debugState.aiLogs.slice(0, 100);
+            }
+            updateAILogs();
+        });
+
+        socket.on('performance-metric', (metric) => {
+            debugState.performanceMetrics.unshift(metric);
+            if (debugState.performanceMetrics.length > 200) {
+                debugState.performanceMetrics = debugState.performanceMetrics.slice(0, 200);
+            }
+            updatePerformanceLogs();
+        });
+
+        // UI Update functions
+        function updateUI() {
+            updateDevicesList();
+            updateCameraLogs();
+            updateAILogs();
+            updatePerformanceLogs();
+            updateStats();
+        }
+
+        function updateDevicesList() {
+            const container = document.getElementById('devicesList');
+            
+            if (debugState.devices.size === 0) {
+                container.innerHTML = '<div class="device-info" style="text-align: center; color: #666;">No devices connected</div>';
+                return;
+            }
+
+            container.innerHTML = '';
+            debugState.devices.forEach(device => {
+                const deviceCard = document.createElement('div');
+                deviceCard.className = `device-card ${device.status || 'online'}`;
+                deviceCard.innerHTML = `
+                    <div class="device-name">${device.info?.model || device.id}</div>
+                    <div class="device-info">
+                        ${device.info?.platform || 'Unknown'} • 
+                        ${device.info?.version || 'Unknown'}
+                    </div>
+                    <div class="device-info">
+                        Connected: ${new Date(device.connectedAt).toLocaleTimeString()}
+                    </div>
+                `;
+                container.appendChild(deviceCard);
+            });
+        }
+
+        function updateCameraLogs() {
+            const container = document.getElementById('cameraLogs');
+            
+            if (debugState.cameraEvents.length === 0) {
+                container.innerHTML = '<div class="log-entry"><div class="log-message" style="text-align: center; color: #666; padding: 1rem;">No camera events yet</div></div>';
+                return;
+            }
+
+            container.innerHTML = '';
+            debugState.cameraEvents.slice(0, 50).forEach(event => {
+                const logEntry = document.createElement('div');
+                logEntry.className = 'log-entry';
+                logEntry.innerHTML = `
+                    <div class="log-time">${new Date(event.timestamp).toLocaleTimeString()}</div>
+                    <div class="log-device">${event.deviceId.slice(0, 8)}...</div>
+                    <div class="log-message">${event.event}: ${JSON.stringify(event.data || {})}</div>
+                `;
+                container.appendChild(logEntry);
+            });
+        }
+
+        function updateAILogs() {
+            const container = document.getElementById('aiLogs');
+            
+            if (debugState.aiLogs.length === 0) {
+                container.innerHTML = '<div class="log-entry"><div class="log-message" style="text-align: center; color: #666; padding: 1rem;">No AI processing logs yet</div></div>';
+                return;
+            }
+
+            container.innerHTML = '';
+            debugState.aiLogs.slice(0, 50).forEach(log => {
+                const logEntry = document.createElement('div');
+                logEntry.className = 'log-entry';
+                logEntry.innerHTML = `
+                    <div class="log-time">${new Date(log.timestamp).toLocaleTimeString()}</div>
+                    <div class="log-device">${log.deviceId.slice(0, 8)}...</div>
+                    <div class="log-message">
+                        ${log.operation} (${log.duration}ms) - 
+                        Confidence: ${log.confidence?.toFixed(2) || 'N/A'} - 
+                        Suggestions: ${log.suggestions?.length || 0}
+                        ${log.error ? `<span style="color: #e74c3c;">Error: ${log.error}</span>` : ''}
+                    </div>
+                `;
+                container.appendChild(logEntry);
+            });
+        }
+
+        function updatePerformanceLogs() {
+            const container = document.getElementById('performanceLogs');
+            
+            if (debugState.performanceMetrics.length === 0) {
+                container.innerHTML = '<div class="log-entry"><div class="log-message" style="text-align: center; color: #666; padding: 1rem;">No performance metrics yet</div></div>';
+                return;
+            }
+
+            container.innerHTML = '';
+            debugState.performanceMetrics.slice(0, 50).forEach(metric => {
+                const logEntry = document.createElement('div');
+                logEntry.className = 'log-entry';
+                logEntry.innerHTML = `
+                    <div class="log-time">${new Date(metric.timestamp).toLocaleTimeString()}</div>
+                    <div class="log-device">${metric.deviceId.slice(0, 8)}...</div>
+                    <div class="log-message">${metric.metric}: ${metric.value} ${metric.unit || ''}</div>
+                `;
+                container.appendChild(logEntry);
+            });
+        }
+
+        function updateStats() {
+            document.getElementById('statsDevices').textContent = debugState.devices.size;
+            document.getElementById('statsEvents').textContent = debugState.cameraEvents.length;
+        }
+
+        // Tab management
+        function showTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Show/hide tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+            document.getElementById(tabName + 'Tab').classList.remove('hidden');
+        }
+
+        // Control functions
+        function refreshData() {
+            fetch('/api/debug/state')
+                .then(response => response.json())
+                .then(state => {
+                    debugState.devices.clear();
+                    state.connectedDevices.forEach(device => {
+                        debugState.devices.set(device.id, device);
+                    });
+                    debugState.cameraEvents = state.cameraEvents || [];
+                    debugState.aiLogs = state.aiProcessingLogs || [];
+                    debugState.performanceMetrics = state.performanceMetrics || [];
+                    
+                    updateUI();
+                })
+                .catch(error => console.error('Failed to refresh data:', error));
+        }
+
+        function clearLogs(type) {
+            if (confirm(`Are you sure you want to clear ${type === 'all' ? 'all logs' : type}?`)) {
+                fetch('/api/debug/clear', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type })
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        refreshData();
+                    }
+                })
+                .catch(error => console.error('Failed to clear logs:', error));
+            }
+        }
+
+        // Initialize
+        document.getElementById('pageLoadTime').textContent = new Date().toLocaleString();
+        refreshData();
+    </script>
+</body>
+</html>

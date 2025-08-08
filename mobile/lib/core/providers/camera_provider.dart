@@ -1,298 +1,96 @@
-import 'dart:async';
-import 'package:flutter/foundation.dart';
-import 'package:camera/camera.dart';
-import '../services/camera_service.dart';
+import 'package:flutter/material.dart';
+import 'package:camera/camera.dart' as camera;
+import '../utils/lens_exceptions.dart';
 
-class CameraProvider with ChangeNotifier {
-  CameraController? _controller;
-  List<CameraDescription> _cameras = [];
-  final bool _isInitialized = false;
-  bool _isConnected = false;
-  String _connectionStatus = 'Disconnected';
+/// Abstract interface for camera providers
+/// 
+/// This defines the core camera operations that all camera providers must implement.
+/// Focused on hardware control and core camera functionality only.
+abstract class CameraProvider {
+  // Connection state
+  bool get isInitialized;
+  bool get isConnected;
+  String get connectionStatus;
   
-  // Multi-brand camera integration
-  final CameraService _cameraService = CameraService();
-  List<Map<String, dynamic>> _availableCameras = [];
-  Map<String, dynamic>? _connectedCameraInfo;
-  String? _activeCameraId;
-  String? _activeCameraBrand;
+  // Available cameras
+  List<camera.CameraDescription> get cameras;
+  List<Map<String, dynamic>> get availableCameras;
+  camera.CameraDescription? get currentCamera;
   
-  // HTTP request batching
-  final Map<String, dynamic> _pendingSettingsUpdates = {};
-  Timer? _batchTimer;
-  static const Duration _batchDelay = Duration(milliseconds: 300);
+  // Core hardware settings (read-only, actual values)
+  double get iso;
+  double get aperture;
+  double get shutterSpeed;
+  String get whiteBalance;
+  double get focusDistance;
+  bool get isFlashEnabled;
+  double get zoomLevel;
+  double get maxZoomLevel;
+  double get minZoomLevel;
   
-  // Camera settings
-  double _iso = 400;
-  String _aperture = 'f/4.0';
-  String _shutterSpeed = '1/125';
-  String _whiteBalance = 'auto';
+  // Error handling
+  bool get hasError;
+  LensException? get lastError;
   
-  // Getters
-  CameraController? get controller => _controller;
-  List<CameraDescription> get cameras => _cameras;
-  List<Map<String, dynamic>> get availableCameras => _availableCameras;
-  Map<String, dynamic>? get connectedCameraInfo => _connectedCameraInfo;
-  String? get activeCameraId => _activeCameraId;
-  String? get activeCameraBrand => _activeCameraBrand;
-  bool get isInitialized => _isInitialized;
-  bool get isConnected => _isConnected;
-  String get connectionStatus => _connectionStatus;
+  /// Initialize camera system
+  Future<void> initializeCameras();
   
-  double get iso => _iso;
-  String get aperture => _aperture;
-  String get shutterSpeed => _shutterSpeed;
-  String get whiteBalance => _whiteBalance;
-
-  Future<void> initializeCameras() async {
-    try {
-      // Skip device cameras for web - focus on external cameras
-      _cameras = [];
-      debugPrint('Camera provider initialized for external camera support');
-    } catch (e) {
-      debugPrint('Error initializing cameras: $e');
-    }
-  }
-
-
-  Future<void> discoverExternalCameras() async {
-    try {
-      // Clear any existing cache first
-      _cameraService.clearCache();
-      // Force refresh to bypass cache and get real-time data
-      _availableCameras = await _cameraService.discoverCameras(forceRefresh: true);
-      debugPrint('Discovered ${_availableCameras.length} cameras: ${_availableCameras.map((c) => c['model']).join(', ')}');
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Camera discovery failed: $e');
-    }
-  }
-
-  Future<void> connectToExternalCamera({required String cameraId}) async {
-    _connectionStatus = 'Connecting...';
-    notifyListeners();
-    
-    try {
-      final result = await _cameraService.connectToCamera(cameraId: cameraId);
-      
-      if (result['success'] == true) {
-        _isConnected = true;
-        _connectedCameraInfo = result['cameraInfo'];
-        _activeCameraId = cameraId;
-        _activeCameraBrand = result['cameraInfo']['brand'];
-        
-        final brand = _activeCameraBrand?.toUpperCase() ?? 'CAMERA';
-        final model = _connectedCameraInfo?['model'] ?? 'Unknown';
-        _connectionStatus = 'Connected to $brand $model';
-        
-        // Load current camera settings
-        await _loadCameraSettings();
-      } else {
-        throw Exception('Connection failed');
-      }
-    } catch (e) {
-      _isConnected = false;
-      _connectionStatus = 'Connection failed: $e';
-      debugPrint('Camera connection error: $e');
-    }
-    
-    notifyListeners();
-  }
-
-  Future<void> setActiveCamera(String cameraId) async {
-    try {
-      final success = await _cameraService.setActiveCamera(cameraId);
-      if (success) {
-        _activeCameraId = cameraId;
-        
-        // Find camera info from available cameras
-        final camera = _availableCameras.firstWhere(
-          (cam) => cam['id'] == cameraId,
-          orElse: () => {},
-        );
-        
-        if (camera.isNotEmpty) {
-          _activeCameraBrand = camera['brand'];
-          notifyListeners();
-        }
-      }
-    } catch (e) {
-      debugPrint('Set active camera error: $e');
-    }
-  }
-
-  Future<void> _loadCameraSettings() async {
-    try {
-      final result = await _cameraService.getCameraSettings(cameraId: _activeCameraId);
-      final settings = result['settings'] ?? {};
-      
-      _iso = (settings['iso'] ?? 400).toDouble();
-      _aperture = settings['aperture'] ?? 'f/4.0';
-      _shutterSpeed = settings['shutter_speed'] ?? '1/125';
-      _whiteBalance = settings['white_balance'] ?? 'auto';
-      
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Failed to load camera settings: $e');
-    }
-  }
-
-  Future<void> disconnectCamera({String? cameraId}) async {
-    try {
-      await _cameraService.disconnectCamera(cameraId: cameraId ?? _activeCameraId);
-    } catch (e) {
-      debugPrint('Disconnect error: $e');
-    }
-    
-    _isConnected = false;
-    _connectedCameraInfo = null;
-    _activeCameraId = null;
-    _activeCameraBrand = null;
-    _connectionStatus = 'Disconnected';
-    notifyListeners();
-  }
+  /// Discover available cameras
+  Future<List<Map<String, dynamic>>> discoverCameras({bool forceRefresh = false});
   
-  Future<Map<String, dynamic>> startLiveView() async {
-    if (!_isConnected || _activeCameraId == null) {
-      throw Exception('No camera connected');
-    }
-    
-    try {
-      final result = await _cameraService.startLiveView(cameraId: _activeCameraId);
-      debugPrint('Live view started: ${result['streamUrl']}');
-      return result;
-    } catch (e) {
-      debugPrint('Failed to start live view: $e');
-      rethrow;
-    }
-  }
+  /// Connect to a specific camera
+  Future<void> connectToCamera({required String cameraId});
   
-  Future<bool> stopLiveView() async {
-    if (!_isConnected || _activeCameraId == null) {
-      return false;
-    }
-    
-    try {
-      await _cameraService.stopLiveView(cameraId: _activeCameraId);
-      debugPrint('Live view stopped');
-      return true;
-    } catch (e) {
-      debugPrint('Failed to stop live view: $e');
-      return false;
-    }
-  }
-
-  void updateISO(double value) {
-    _iso = value;
-    _queueSettingUpdate('iso', value.toInt());
-    notifyListeners();
-  }
-
-  void updateAperture(String value) {
-    _aperture = value;
-    _queueSettingUpdate('aperture', value);
-    notifyListeners();
-  }
-
-  void updateShutterSpeed(String value) {
-    _shutterSpeed = value;
-    _queueSettingUpdate('shutter_speed', value);
-    notifyListeners();
-  }
-
-  void updateWhiteBalance(String value) {
-    _whiteBalance = value;
-    _queueSettingUpdate('white_balance', value);
-    notifyListeners();
-  }
+  /// Switch between available cameras
+  Future<void> switchCamera();
   
-  void _queueSettingUpdate(String key, dynamic value) {
-    _pendingSettingsUpdates[key] = value;
-    
-    // Cancel existing timer and start a new one
-    _batchTimer?.cancel();
-    _batchTimer = Timer(_batchDelay, _flushPendingUpdates);
-  }
+  /// Disconnect from current camera
+  Future<void> disconnectCamera({String? cameraId});
   
-  Future<void> _flushPendingUpdates() async {
-    if (_pendingSettingsUpdates.isEmpty || _activeCameraId == null) {
-      return;
-    }
-    
-    final updates = Map<String, dynamic>.from(_pendingSettingsUpdates);
-    _pendingSettingsUpdates.clear();
-    
-    try {
-      await _cameraService.updateCameraSettings(
-        updates,
-        cameraId: _activeCameraId
-      );
-      debugPrint('Batched settings update: ${updates.keys.join(', ')}');
-    } catch (e) {
-      debugPrint('Failed to update camera settings: $e');
-      // Optionally restore values on failure
-    }
-  }
-
-  Future<void> captureImage() async {
-    if (!_isConnected || _activeCameraId == null) {
-      debugPrint('No camera connected for capture');
-      return;
-    }
-
-    try {
-      final result = await _cameraService.captureImage(
-        settings: getCurrentSettings(),
-        cameraId: _activeCameraId,
-      );
-      debugPrint('Image captured: ${result['filename']} (${result['brand']})');
-      // TODO: Handle captured image result
-    } catch (e) {
-      debugPrint('Capture failed: $e');
-    }
-  }
-
-
-  List<String> getAvailableBrands() {
-    final brands = <String>{};
-    for (final camera in _availableCameras) {
-      if (camera['brand'] != null) {
-        brands.add(camera['brand']);
-      }
-    }
-    return brands.toList()..sort();
-  }
-
-  List<Map<String, dynamic>> getCamerasByBrand(String brand) {
-    return _availableCameras.where((camera) => camera['brand'] == brand).toList();
-  }
-
-  String getBrandDisplayName(String brand) {
-    switch (brand.toLowerCase()) {
-      case 'canon':
-        return 'Canon';
-      case 'nikon':
-        return 'Nikon';
-      case 'sony':
-        return 'Sony';
-      default:
-        return brand.toUpperCase();
-    }
-  }
-
-  Map<String, dynamic> getCurrentSettings() {
-    return {
-      'iso': _iso,
-      'aperture': _aperture,
-      'shutterSpeed': _shutterSpeed,
-      'whiteBalance': _whiteBalance,
-    };
-  }
-
-  @override
-  void dispose() {
-    _batchTimer?.cancel();
-    _controller?.dispose();
-    super.dispose();
-  }
+  /// Camera preview widget
+  Widget? getCameraPreview();
+  
+  /// Start live view/preview
+  Future<Map<String, dynamic>> startLiveView();
+  
+  /// Stop live view/preview
+  Future<bool> stopLiveView();
+  
+  /// Capture image
+  Future<camera.XFile> captureImage();
+  
+  // Hardware control methods
+  
+  /// Update ISO setting
+  void updateISO(double value);
+  
+  /// Update aperture setting
+  void updateAperture(double value);
+  
+  /// Update shutter speed setting
+  void updateShutterSpeed(double value);
+  
+  /// Update white balance setting
+  void updateWhiteBalance(String value);
+  
+  /// Set zoom level
+  Future<void> setZoomLevel(double zoom);
+  
+  /// Set flash mode
+  Future<void> setFlashMode(bool enabled);
+  
+  /// Set focus point
+  Future<void> setFocusPoint(Offset point);
+  
+  /// Set exposure point
+  Future<void> setExposurePoint(Offset point);
+  
+  /// Apply AI-recommended settings
+  Future<bool> applyAISettings(Map<String, dynamic> settings);
+  
+  /// Get current camera settings
+  Map<String, dynamic> getCurrentSettings();
+  
+  /// Dispose resources
+  void dispose();
 }

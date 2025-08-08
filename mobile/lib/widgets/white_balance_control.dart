@@ -30,35 +30,41 @@ class _WhiteBalanceControlState extends State<WhiteBalanceControl> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[900],
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildHeader(),
-          const SizedBox(height: 16),
-          _buildModeSelector(),
-          if (_settings.mode == WBMode.custom) ...[
-            const SizedBox(height: 16),
-            _buildKelvinSlider(),
-          ],
-          if (_showAdvanced) ...[
-            const SizedBox(height: 16),
-            _buildShiftControls(),
-            const SizedBox(height: 16),
-            _buildAutoWBBias(),
-            const SizedBox(height: 16),
-            _buildPrioritySelector(),
-          ],
-          const SizedBox(height: 12),
-          _buildToggleAdvanced(),
-        ],
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Container(
+          width: constraints.maxWidth,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.grey[900],
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildHeader(),
+              const SizedBox(height: 16),
+              _buildModeSelector(),
+              if (_settings.mode == WBMode.custom) ...[
+                const SizedBox(height: 16),
+                _buildKelvinSlider(),
+              ],
+              if (_showAdvanced) ...[
+                const SizedBox(height: 16),
+                _buildShiftControls(),
+                const SizedBox(height: 16),
+                _buildAutoWBBias(),
+                const SizedBox(height: 16),
+                _buildPrioritySelector(),
+              ],
+              const SizedBox(height: 12),
+              _buildToggleAdvanced(),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -71,15 +77,18 @@ class _WhiteBalanceControlState extends State<WhiteBalanceControl> {
           size: 24,
         ),
         const SizedBox(width: 12),
-        const Text(
-          'White Balance',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
+        const Flexible(
+          child: Text(
+            'White Balance',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
-        const Spacer(),
+        const SizedBox(width: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
@@ -112,44 +121,56 @@ class _WhiteBalanceControlState extends State<WhiteBalanceControl> {
           ),
         ),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: WBMode.values.map((mode) {
-            final isSelected = _settings.mode == mode;
-            return GestureDetector(
-              onTap: () => _updateMode(mode),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isSelected ? AppColors.primary : Colors.white30,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            return Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: WBMode.values.map((mode) {
+                final isSelected = _settings.mode == mode;
+                return ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: constraints.maxWidth * 0.45, // Max 45% of available width
                   ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      _getModeIcon(mode),
-                      color: isSelected ? Colors.white : Colors.white70,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _getModeLabel(mode),
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : Colors.white70,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                  child: GestureDetector(
+                    onTap: () => _updateMode(mode),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppColors.primary : Colors.transparent,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isSelected ? AppColors.primary : Colors.white30,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _getModeIcon(mode),
+                            color: isSelected ? Colors.white : Colors.white70,
+                            size: 14,
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              _getModeLabel(mode),
+                              style: TextStyle(
+                                color: isSelected ? Colors.white : Colors.white70,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              }).toList(),
             );
-          }).toList(),
+          },
         ),
       ],
     );
@@ -461,8 +482,8 @@ class _WhiteBalanceControlState extends State<WhiteBalanceControl> {
                   widget.onChanged(_settings);
                 },
                 child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
                   decoration: BoxDecoration(
                     color: isSelected ? AppColors.primary.withValues(alpha: 0.2) : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
@@ -474,10 +495,12 @@ class _WhiteBalanceControlState extends State<WhiteBalanceControl> {
                     _getPriorityLabel(priority),
                     style: TextStyle(
                       color: isSelected ? AppColors.primary : Colors.white70,
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.w500,
                     ),
                     textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                 ),
               ),

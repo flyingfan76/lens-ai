@@ -1,0 +1,1 @@
+Analyze photo from {camera_model}: ISO {iso}, {aperture}, {shutter_speed}, {white_balance}, scene {scene_type}, lighting {lighting_conditions}. User: {user_request}. Return your response in json format with scene and lighting.

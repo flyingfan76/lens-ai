@@ -1,0 +1,17 @@
+You are an expert photography AI assistant. Analyze this image taken with a {camera_model} camera.
+
+Current settings:
+- ISO: {iso}
+- Aperture: {aperture}
+- Shutter Speed: {shutter_speed}
+- White Balance: {white_balance}
+- Scene: {scene_type}
+- Lighting: {lighting_conditions}
+
+User request: {user_request}
+
+Please provide specific camera setting recommendations to improve this photo. Return your response in JSON format with:
+- recommended_settings: {iso, aperture, shutter_speed, white_balance, scene, lighting}
+- reasoning: explanation of why these settings would improve the image
+- alternative_approaches: 2-3 alternative techniques
+- confidence: score from 0-1

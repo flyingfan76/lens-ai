@@ -1,0 +1,21 @@
+{
+  "provider": "openai",
+  "apiKey": "test-key",
+  "model": "gpt-4-vision-preview",
+  "endpoint": "https://api.openai.com/v1",
+  "cameraModel": "nikon-d90",
+  "sceneType": "portrait",
+  "lightingConditions": "bright",
+  "userRequest": "Make this portrait more professional",
+  "useCustomPrompt": true,
+  "context": {
+    "camera_model": "Nikon D90",
+    "iso": "400",
+    "aperture": "f/4.0",
+    "shutter_speed": "1/125",
+    "white_balance": "auto",
+    "scene_type": "portrait",
+    "lighting_conditions": "bright daylight",
+    "user_request": "Make this portrait more professional"
+  }
+}

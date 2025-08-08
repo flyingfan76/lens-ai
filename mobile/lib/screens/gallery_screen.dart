@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
+import '../core/utils/responsive_utils.dart';
 
 class GalleryScreen extends StatefulWidget {
   const GalleryScreen({super.key});
@@ -75,16 +76,20 @@ class _GalleryScreenState extends State<GalleryScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: () {},
         backgroundColor: AppColors.primary,
+        heroTag: "gallery_fab",
         child: const Icon(Icons.cloud_upload, color: Colors.white),
       ),
     );
   }
 
   Widget _buildGridView() {
+    final config = ResponsiveUtils.getLayoutConfig(context);
+    final crossAxisCount = config.isLandscape ? (config.isTablet ? 4 : 3) : 2;
+    
     return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
+      padding: ResponsiveUtils.getResponsivePadding(context),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,
         childAspectRatio: 1,
@@ -162,7 +167,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
   Widget _buildListView() {
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: ResponsiveUtils.getResponsivePadding(context),
       itemCount: 12,
       itemBuilder: (context, index) {
         return Card(

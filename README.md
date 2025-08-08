@@ -15,13 +15,19 @@ To democratize professional photography by creating an intuitive mobile interfac
 
 ## 🚀 **What We're Building**
 
-- **Multi-Brand Camera Support**: Seamless integration with Canon, Nikon, Sony, Fujifilm, Olympus, and Panasonic DSLRs
-- **Real-Time Live View**: WebSocket-powered streaming with professional grid overlays and <150ms latency
-- **AI-Powered Scene Analysis**: Advanced computer vision + NeRF-based 3D scene understanding
-- **Cross-Platform Mobile App**: Flutter-based app with professional camera controls and intuitive UI
-- **Advanced White Balance**: Precision color temperature and tint adjustments with real-time preview
-- **User-Generated Presets**: Community-driven photography styles with privacy controls and sharing
-- **Educational Platform**: Interactive tutorials, plain-language explanations, and contextual help
+### 📱 **Mobile Applications (iOS/Android) - ZERO BACKEND DEPENDENCIES**
+- **Self-Contained Operation**: Complete offline functionality with no server requirements
+- **Local AI Processing**: On-device scene analysis and photography recommendations
+- **Direct Camera Control**: Native mobile camera integration via Flutter camera plugin
+- **Local Storage**: Photos and settings stored entirely on device
+- **Privacy-First**: No data transmission to external servers
+
+### 🌐 **Web Debugging Application - BACKEND DEPENDENT** (Future Development)
+- **Development Interface**: Real-time debugging and testing tools
+- **Server-Side AI**: Advanced NeRF-based 3D scene understanding
+- **Multi-Brand DSLR Support**: Canon, Nikon, Sony, Fujifilm, Olympus, and Panasonic integration
+- **WebSocket Live View**: Professional camera streaming with <150ms latency
+- **Educational Platform**: Interactive tutorials and contextual help
 
 ## ✨ **Current Features & Live Demo**
 
@@ -73,12 +79,30 @@ make dev  # Starts backend + mobile app
 - **Background Sync**: Queue-based processing with offline support
 - **Storage Management**: Quota tracking with automatic cleanup recommendations
 
-## 🏗️ Architecture Overview
+## 🏗️ Hybrid Architecture Overview
 
+### 📱 **Mobile Architecture - NO BACKEND DEPENDENCIES**
+```
+┌─────────────────────────────────────────────────────────┐
+│                Mobile App (Flutter)                    │
+│  ┌─────────────────┐    ┌─────────────────────────────┐ │
+│  │   Local AI      │    │     Camera Integration      │ │
+│  │   Processing    │◄──►│   (Device Camera Plugin)    │ │
+│  └─────────────────┘    └─────────────────────────────┘ │
+│          │                           │                   │
+│          ▼                           ▼                   │
+│  ┌─────────────────┐    ┌─────────────────────────────┐ │
+│  │ Local Storage   │    │    Settings & Presets       │ │
+│  │  (On-Device)    │    │      (On-Device)            │ │
+│  └─────────────────┘    └─────────────────────────────┘ │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 🌐 **Web Debugging Architecture - BACKEND DEPENDENT** (Future)
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Mobile App    │    │   Backend API   │    │   AI Service    │
-│   (Flutter)     │◄──►│   (Node.js)     │◄──►│   (Python)      │
+│  Web Debug UI   │    │   Backend API   │    │   AI Service    │
+│   (React)       │◄──►│   (Node.js)     │◄──►│   (Python)      │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
          ▼                       ▼                       ▼
@@ -129,46 +153,53 @@ make dev  # Starts backend + mobile app
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### 📱 **Mobile App (iOS/Android) - No Backend Needed**
+
+#### Prerequisites
 - **Flutter** >= 3.16.0
+- **Dart** >= 3.3.0
+- For iOS: Xcode 15+, iOS 12+
+- For Android: Android Studio, API level 21+
+
+#### Installation
+```bash
+# Clone the repository
+git clone https://github.com/flyingfan/lens-ai.git
+cd lens-ai/mobile
+
+# Install dependencies
+flutter pub get
+
+# Run on your device/emulator
+flutter run -d ios      # For iOS
+flutter run -d android  # For Android
+flutter run -d macos    # For macOS desktop testing
+```
+
+#### Build for Release
+```bash
+# iOS release build
+flutter build ios --release
+
+# Android release build  
+flutter build android --release
+```
+
+### 🌐 **Web Debugging App (Future) - Backend Required**
+
+#### Prerequisites
 - **Node.js** >= 18.0.0
 - **Python** >= 3.9
 - **Docker** (for local development)
 
-### Installation
-
+#### Installation
 ```bash
-# Clone the repository
-git clone https://github.com/flyingfan/lens-ai.git
-cd lens-ai
-
-# Install dependencies and setup
-make install
-make setup
-
-# Initialize built-in style presets
-cd backend && npm run init-presets && cd ..
-
-# Start development environment
+# Full development environment (backend + web)
+make install && make setup
 make dev
-```
 
-### Mobile Development
-```bash
-# Start Flutter development
-make mobile-dev
-
-# Build for release
-make build-mobile
-```
-
-### Backend Development
-```bash
-# Start API server
+# Backend development only
 make backend-dev
-
-# Initialize built-in style presets (run once)
-cd backend && npm run init-presets
 
 # Run tests
 make test-backend

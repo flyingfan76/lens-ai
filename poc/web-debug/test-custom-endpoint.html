@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Custom Endpoint</title>
+</head>
+<body>
+    <h1>Custom Endpoint Test</h1>
+    <p>Testing custom endpoint functionality...</p>
+    
+    <script>
+        // Test if the custom endpoint configuration works
+        console.log('Testing custom endpoint configuration...');
+        
+        // Simulate selecting custom endpoint
+        const testConfig = {
+            provider: 'custom',
+            endpoint: 'https://api.example.com/v1',
+            model: 'custom-model',
+            apiKey: 'test-key'
+        };
+        
+        console.log('Test config:', testConfig);
+        
+        // Test connection
+        fetch('http://localhost:3000/api/ai/test-connection', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(testConfig)
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Test connection result:', data);
+            if (data.success) {
+                document.body.innerHTML += '<p style="color: green;">✅ Custom endpoint test PASSED!</p>';
+                document.body.innerHTML += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            } else {
+                document.body.innerHTML += '<p style="color: red;">❌ Custom endpoint test FAILED!</p>';
+                document.body.innerHTML += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            }
+        })
+        .catch(error => {
+            console.error('Test error:', error);
+            document.body.innerHTML += '<p style="color: red;">❌ Network error: ' + error.message + '</p>';
+        });
+    </script>
+</body>
+</html>

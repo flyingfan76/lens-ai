@@ -7,15 +7,39 @@ enum AISuggestionType {
 }
 
 enum AISuggestionCategory {
-  // Camera Settings
+  // Camera Settings - Basic
   iso,
   aperture,
   shutterSpeed,
   whiteBalance,
+  
+  // Camera Settings - Advanced
   exposureCompensation,
   focusMode,
   meteringMode,
-
+  flashMode,
+  zoomLevel,
+  stabilization,
+  focusPoint,
+  exposurePoint,
+  exposureLock,
+  focusLock,
+  
+  // Image Quality Settings
+  imageFormat,
+  colorSpace,
+  noiseReduction,
+  sharpness,
+  contrast,
+  saturation,
+  hdr,
+  
+  // Shooting Modes
+  burstMode,
+  timerMode,
+  aspectRatio,
+  sceneMode,
+  
   // Composition
   ruleOfThirds,
   horizon,
@@ -34,6 +58,11 @@ enum AISuggestionCategory {
   bokeh,
   motion,
   perspective,
+  
+  // Enhanced categories
+  colorGrading,
+  depthOfField,
+  motionBlur,
 }
 
 class AISuggestion {
@@ -121,6 +150,11 @@ class AISuggestion {
 
   double get relevanceScore {
     return priority * confidence;
+  }
+
+  /// Convert to Map for compatibility
+  Map<String, dynamic> toMap() {
+    return toJson();
   }
 }
 
@@ -226,6 +260,15 @@ class SceneAnalysis {
   final String? weather;
   final double? colorTemperature;
   final Map<String, dynamic>? compositionAnalysis;
+  
+  // Additional properties for local AI analysis
+  final double? brightness;
+  final double? contrast;
+  final List<String>? dominantColors;
+  final List<dynamic>? faces;
+  final double? motion;
+  final double? focusDistance;
+  final double? exposureBias;
 
   SceneAnalysis({
     required this.sceneType,
@@ -237,6 +280,13 @@ class SceneAnalysis {
     this.weather,
     this.colorTemperature,
     this.compositionAnalysis,
+    this.brightness,
+    this.contrast,
+    this.dominantColors,
+    this.faces,
+    this.motion,
+    this.focusDistance,
+    this.exposureBias,
   });
 
   factory SceneAnalysis.fromJson(Map<String, dynamic> json) {

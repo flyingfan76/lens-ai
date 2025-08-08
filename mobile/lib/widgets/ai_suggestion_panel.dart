@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 import '../models/ai_suggestion.dart';
-import '../services/ai_service.dart';
+import '../services/ai/ai_coordinator.dart';
+import '../screens/ai_settings_screen.dart';
+import '../core/utils/disposal_mixin.dart';
 import 'ai_suggestion_card.dart';
 
 class AISuggestionPanel extends StatefulWidget {
@@ -21,7 +23,7 @@ class AISuggestionPanel extends StatefulWidget {
 }
 
 class _AISuggestionPanelState extends State<AISuggestionPanel>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, DisposalMixin {
   List<AISuggestion> _suggestions = [];
   bool _isLoading = false;
   bool _isAnalyzing = false;
@@ -29,20 +31,21 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
   late AnimationController _pulseController;
   late Animation<double> _panelAnimation;
   late Animation<double> _pulseAnimation;
-  final AIService _aiService = AIService();
+  final AICoordinator _aiService = AICoordinator();
 
   @override
   void initState() {
     super.initState();
     
-    _panelController = AnimationController(
+    // Initialize the unified AI service
+    _aiService.initialize();
+    
+    _panelController = createAnimationController(
       duration: const Duration(milliseconds: 300),
-      vsync: this,
     );
     
-    _pulseController = AnimationController(
+    _pulseController = createAnimationController(
       duration: const Duration(milliseconds: 1500),
-      vsync: this,
     );
     
     _panelAnimation = CurvedAnimation(
@@ -80,8 +83,7 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
 
   @override
   void dispose() {
-    _panelController.dispose();
-    _pulseController.dispose();
+    // DisposalMixin will handle animation controllers
     super.dispose();
   }
 
@@ -199,6 +201,14 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
             onPressed: _refreshSuggestions,
             icon: const Icon(
               Icons.refresh,
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
+          IconButton(
+            onPressed: _openAISettings,
+            icon: const Icon(
+              Icons.tune,
               color: Colors.white,
               size: 20,
             ),
@@ -483,7 +493,7 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
         subjectPosition: 'center',
       );
 
-      final result = await _aiService.analyzeSuggestions(sceneAnalysis);
+      final result = await _aiService.generateSuggestions(sceneAnalysis: sceneAnalysis);
       
       setState(() {
         _suggestions = result.suggestions;
@@ -528,5 +538,14 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
     setState(() {
       _suggestions.removeWhere((s) => s.id == suggestion.id);
     });
+  }
+
+  void _openAISettings() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AISettingsScreen(),
+      ),
+    );
   }
 }

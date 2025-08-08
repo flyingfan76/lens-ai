@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lens AI - AI Testing Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #4a5568;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: #4a5568;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .nav-link:hover {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 2rem;
+            padding: 2rem;
+            min-height: calc(100vh - 90px);
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .card h3 {
+            margin-bottom: 1rem;
+            color: #2d3748;
+            font-size: 1.2rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #4a5568;
+            font-size: 0.9rem;
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            background: white;
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #48bb78, #38a169);
+            color: white;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #ed8936, #dd6b20);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .content-area {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .test-results {
+            background: #1a202c;
+            color: #e2e8f0;
+            border-radius: 12px;
+            padding: 1.5rem;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        .message {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            border-left: 4px solid;
+        }
+
+        .message.success {
+            background: #c6f6d5;
+            color: #22543d;
+            border-color: #38a169;
+        }
+
+        .message.error {
+            background: #fed7d7;
+            color: #742a2a;
+            border-color: #e53e3e;
+        }
+
+        .message.warning {
+            background: #fefcbf;
+            color: #744210;
+            border-color: #ed8936;
+        }
+
+        .message.info {
+            background: #bee3f8;
+            color: #2a4365;
+            border-color: #3182ce;
+        }
+
+        .provider-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .provider-status.available {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .provider-status.unavailable {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .provider-status.untested {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .status-dot.green { background: #38a169; }
+        .status-dot.red { background: #e53e3e; }
+        .status-dot.gray { background: #a0aec0; }
+
+        .image-upload-area {
+            border: 2px dashed #cbd5e0;
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.2s;
+            cursor: pointer;
+            background: rgba(247, 250, 252, 0.5);
+        }
+
+        .image-upload-area:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .image-upload-area.dragover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .image-preview {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .prompt-examples {
+            display: grid;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .prompt-example {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 0.5rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .prompt-example:hover {
+            background: rgba(102, 126, 234, 0.2);
+        }
+
+        .camera-settings-preview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .setting-preview {
+            background: rgba(247, 250, 252, 0.8);
+            padding: 0.75rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .setting-preview-label {
+            font-size: 0.75rem;
+            color: #718096;
+            margin-bottom: 0.25rem;
+        }
+
+        .setting-preview-value {
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 0.9rem;
+        }
+
+        .response-timing {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: rgba(247, 250, 252, 0.8);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+        }
+
+        .timing-item {
+            text-align: center;
+        }
+
+        .timing-value {
+            font-weight: 600;
+            color: #2d3748;
+            display: block;
+        }
+
+        .timing-label {
+            color: #718096;
+            font-size: 0.75rem;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar {
+                order: 2;
+            }
+            
+            .content-area {
+                order: 1;
+            }
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 1.5rem;
+        }
+
+        .tab {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab:hover {
+            color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🤖 Lens AI - AI Testing Dashboard</h1>
+        <div class="nav-links">
+            <a href="camera-control.html" class="nav-link">📷 Camera Control</a>
+            <a href="ai-testing.html" class="nav-link">🤖 AI Testing</a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="sidebar">
+            <div class="card">
+                <h3>🔧 AI Provider Configuration</h3>
+                
+                <div class="form-group">
+                    <label class="form-label">AI Provider</label>
+                    <select class="form-select" id="aiProvider">
+                        <optgroup label="International Providers">
+                            <option value="openai">OpenAI GPT-4 Vision</option>
+                            <option value="azure-openai">Azure OpenAI</option>
+                            <option value="gemini">Google Gemini Pro Vision</option>
+                            <option value="claude">Anthropic Claude 3</option>
+                        </optgroup>
+                        <optgroup label="Chinese AI Providers">
+                            <option value="deepseek">DeepSeek (深度求索)</option>
+                            <option value="zhipu">智谱 GLM-4V</option>
+                            <option value="baidu">百度 Ernie Bot</option>
+                            <option value="alibaba">阿里巴巴 Tongyi Qianwen</option>
+                            <option value="tencent">腾讯 Hunyuan</option>
+                            <option value="moonshot">月之暗面 Kimi</option>
+                            <option value="minimax">MiniMax ABAB</option>
+                            <option value="sensetime">商汤 SenseNova</option>
+                        </optgroup>
+                        <optgroup label="Self-Hosted & Custom">
+                            <option value="local">Local AI (TensorFlow)</option>
+                            <option value="ollama">Ollama (Local)</option>
+                            <option value="custom">Custom Endpoint</option>
+                        </optgroup>
+                        <optgroup label="Testing">
+                            <option value="mock">Mock/Testing Mode</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div class="form-group" id="endpointGroup">
+                    <label class="form-label">API Endpoint</label>
+                    <input type="url" class="form-input" id="apiEndpoint" placeholder="https://api.openai.com/v1">
+                    <div style="font-size: 0.8rem; color: #718096; margin-top: 0.25rem;">
+                        Custom endpoint URL for your AI deployment
+                    </div>
+                </div>
+
+                <div class="form-group" id="protocolGroup" style="display: none;">
+                    <label class="form-label">API Protocol</label>
+                    <select class="form-select" id="apiProtocol">
+                        <option value="openai">OpenAI Compatible</option>
+                        <option value="anthropic">Anthropic Compatible</option>
+                        <option value="vertex">Google Vertex AI Compatible</option>
+                        <option value="custom">Custom Protocol</option>
+                    </select>
+                    <div style="font-size: 0.8rem; color: #718096; margin-top: 0.25rem;">
+                        Select the API protocol your endpoint follows
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">API Key</label>
+                    <input type="password" class="form-input" id="apiKey" placeholder="Enter your API key">
+                    <div style="font-size: 0.8rem; color: #718096; margin-top: 0.25rem;" id="apiKeyHint">
+                        Required for most providers (not needed for local deployments)
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Model</label>
+                    <select class="form-select" id="aiModel">
+                        <option value="gpt-4-vision-preview">GPT-4 Vision</option>
+                        <option value="gemini-pro-vision">Gemini Pro Vision</option>
+                        <option value="claude-3-opus">Claude 3 Opus</option>
+                        <option value="local-model">Local Model</option>
+                    </select>
+                    <div style="font-size: 0.8rem; color: #718096; margin-top: 0.25rem;">
+                        Model ID as expected by your endpoint
+                    </div>
+                </div>
+
+                <div class="form-group" id="advancedSettingsGroup" style="display: none;">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="showAdvancedSettings">
+                        <label for="showAdvancedSettings">Show Advanced Settings</label>
+                    </div>
+                </div>
+
+                <div id="advancedSettings" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label">Temperature</label>
+                        <input type="number" class="form-input" id="temperature" min="0" max="2" step="0.1" value="0.7" placeholder="0.7">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Max Tokens</label>
+                        <input type="number" class="form-input" id="maxTokens" min="1" max="4000" value="1000" placeholder="1000">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">API Version</label>
+                        <input type="text" class="form-input" id="apiVersion" placeholder="2024-02-15-preview">
+                        <div style="font-size: 0.8rem; color: #718096; margin-top: 0.25rem;">
+                            For Azure OpenAI or versioned APIs
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Custom Headers (JSON)</label>
+                        <textarea class="form-textarea" id="customHeaders" placeholder='{"Authorization": "Bearer token", "Custom-Header": "value"}' style="min-height: 80px;"></textarea>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="useCustomPrompt">
+                        <label for="useCustomPrompt">Use Custom Prompt</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <button class="btn btn-success" onclick="testConnection()">
+                        <span id="testBtnText">Test Connection</span>
+                    </button>
+                    
+                    <button class="btn btn-primary" onclick="showPresetConfigurations()" style="margin-left: 0.5rem;">
+                        📋 Presets
+                    </button>
+                </div>
+
+                <div id="presetConfigurations" style="display: none; margin-top: 1rem;">
+                    <div style="font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem; color: #4a5568;">
+                        Common Configurations:
+                    </div>
+                    <div class="prompt-examples">
+                        <div class="prompt-example" onclick="loadPresetConfig('azure-openai')">
+                            ☁️ Azure OpenAI Service
+                        </div>
+                        <div class="prompt-example" onclick="loadPresetConfig('deepseek-setup')">
+                            🧠 DeepSeek 深度求索
+                        </div>
+                        <div class="prompt-example" onclick="loadPresetConfig('zhipu-glm4v')">
+                            🤖 智谱AI GLM-4V
+                        </div>
+                        <div class="prompt-example" onclick="loadPresetConfig('ollama-local')">
+                            🏠 Ollama Local Setup
+                        </div>
+                        <div class="prompt-example" onclick="loadPresetConfig('openai-compatible')">
+                            🔗 OpenAI-Compatible API
+                        </div>
+                        <div class="prompt-example" onclick="loadPresetConfig('vertex-compatible')">
+                            🌐 Vertex AI Compatible
+                        </div>
+                        <div class="prompt-example" onclick="loadPresetConfig('custom-api')">
+                            ⚙️ Custom API Endpoint
+                        </div>
+                    </div>
+                </div>
+
+                <div id="providerStatus" style="margin-top: 1rem;">
+                    <!-- Provider status will be populated here -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>📸 Camera Context</h3>
+                
+                <div class="form-group">
+                    <label class="form-label">Camera Model</label>
+                    <select class="form-select" id="cameraModel">
+                        <option value="nikon-d90">Nikon D90</option>
+                        <option value="canon-5d">Canon 5D Mark IV</option>
+                        <option value="sony-a7">Sony α7 III</option>
+                        <option value="mobile-camera">Mobile Camera</option>
+                        <option value="generic">Generic DSLR</option>
+                    </select>
+                </div>
+
+                <div class="camera-settings-preview" id="cameraSettingsPreview">
+                    <div class="setting-preview">
+                        <div class="setting-preview-label">ISO</div>
+                        <div class="setting-preview-value" id="currentISO">400</div>
+                    </div>
+                    <div class="setting-preview">
+                        <div class="setting-preview-label">Aperture</div>
+                        <div class="setting-preview-value" id="currentAperture">f/4.0</div>
+                    </div>
+                    <div class="setting-preview">
+                        <div class="setting-preview-label">Shutter</div>
+                        <div class="setting-preview-value" id="currentShutter">1/125</div>
+                    </div>
+                    <div class="setting-preview">
+                        <div class="setting-preview-label">WB</div>
+                        <div class="setting-preview-value" id="currentWB">Auto</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Scene Type</label>
+                    <select class="form-select" id="sceneType">
+                        <option value="auto">Auto Detect</option>
+                        <option value="portrait">Portrait</option>
+                        <option value="landscape">Landscape</option>
+                        <option value="sports">Sports/Action</option>
+                        <option value="macro">Macro</option>
+                        <option value="street">Street Photography</option>
+                        <option value="architecture">Architecture</option>
+                        <option value="wildlife">Wildlife</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Lighting Conditions</label>
+                    <select class="form-select" id="lightingConditions">
+                        <option value="auto">Auto Detect</option>
+                        <option value="bright">Bright Daylight</option>
+                        <option value="overcast">Overcast</option>
+                        <option value="golden-hour">Golden Hour</option>
+                        <option value="blue-hour">Blue Hour</option>
+                        <option value="indoor">Indoor</option>
+                        <option value="low-light">Low Light</option>
+                        <option value="mixed">Mixed Lighting</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>📤 Image Upload</h3>
+                
+                <div class="image-upload-area" id="imageUploadArea" onclick="document.getElementById('imageInput').click()">
+                    <div id="uploadText">
+                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">📷</div>
+                        <div style="font-weight: 600; margin-bottom: 0.5rem;">Upload Test Image</div>
+                        <div style="font-size: 0.85rem; color: #718096;">
+                            Click to select or drag & drop<br>
+                            Supports JPG, PNG, WebP
+                        </div>
+                    </div>
+                    <img id="imagePreview" class="image-preview" style="display: none;">
+                </div>
+                <input type="file" id="imageInput" accept="image/*" style="display: none;">
+
+                <button class="btn btn-primary" onclick="runAIAnalysis()" id="analyzeBtn" disabled>
+                    <span id="analyzeBtnText">🤖 Analyze Image</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="content-area">
+            <div id="messagesArea"></div>
+
+            <div class="card">
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab('prompt-tab')">📝 Prompt Testing</div>
+                    <div class="tab" onclick="switchTab('results-tab')">📊 Results</div>
+                    <div class="tab" onclick="switchTab('comparison-tab')">⚖️ Comparison</div>
+                </div>
+
+                <div id="prompt-tab" class="tab-content active">
+                    <div class="form-group">
+                        <label class="form-label">Custom Prompt Template</label>
+                        <textarea class="form-textarea" id="customPrompt" placeholder="Enter your custom prompt template..." style="min-height: 120px;">You are an expert photography AI assistant. Analyze this image taken with a {camera_model} camera.
+
+Current settings:
+- ISO: {iso}
+- Aperture: {aperture}
+- Shutter Speed: {shutter_speed}
+- White Balance: {white_balance}
+- Scene: {scene_type}
+- Lighting: {lighting_conditions}
+
+User request: {user_request}
+
+Please provide specific camera setting recommendations to improve this photo. Return your response in JSON format with:
+- recommended_settings: {iso, aperture, shutter_speed, white_balance}
+- reasoning: explanation of why these settings would improve the image
+- alternative_approaches: 2-3 alternative techniques
+- confidence: score from 0-1</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">User Request</label>
+                        <input type="text" class="form-input" id="userRequest" placeholder="e.g., Make this portrait more professional" value="Improve the overall image quality and make it more visually appealing">
+                    </div>
+
+                    <div class="prompt-examples">
+                        <div class="prompt-example" onclick="loadPromptExample('portrait')">
+                            🎭 Portrait Enhancement Prompt
+                        </div>
+                        <div class="prompt-example" onclick="loadPromptExample('landscape')">
+                            🏔️ Landscape Optimization Prompt  
+                        </div>
+                        <div class="prompt-example" onclick="loadPromptExample('technical')">
+                            🔧 Technical Analysis Prompt
+                        </div>
+                        <div class="prompt-example" onclick="loadPromptExample('creative')">
+                            🎨 Creative Suggestions Prompt
+                        </div>
+                    </div>
+                </div>
+
+                <div id="results-tab" class="tab-content">
+                    <div class="response-timing" id="responseTiming" style="display: none;">
+                        <div class="timing-item">
+                            <span class="timing-value" id="responseTime">--</span>
+                            <span class="timing-label">Response Time</span>
+                        </div>
+                        <div class="timing-item">
+                            <span class="timing-value" id="tokenCount">--</span>
+                            <span class="timing-label">Tokens Used</span>
+                        </div>
+                        <div class="timing-item">
+                            <span class="timing-value" id="confidenceScore">--</span>
+                            <span class="timing-label">Confidence</span>
+                        </div>
+                        <div class="timing-item">
+                            <span class="timing-value" id="costEstimate">--</span>
+                            <span class="timing-label">Est. Cost</span>
+                        </div>
+                    </div>
+
+                    <div class="test-results" id="aiResults">
+                        AI analysis results will appear here...
+                        
+                        Try uploading an image and running the analysis to see:
+                        • Recommended camera settings
+                        • Technical analysis and reasoning
+                        • Alternative approaches
+                        • Confidence scores
+                        • Performance metrics
+                    </div>
+                </div>
+
+                <div id="comparison-tab" class="tab-content">
+                    <div class="form-group">
+                        <label class="form-label">Compare Multiple Providers</label>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="compareOpenAI" checked>
+                            <label for="compareOpenAI">OpenAI GPT-4V</label>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="compareGemini">
+                            <label for="compareGemini">Google Gemini</label>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="compareClaude">
+                            <label for="compareClaude">Anthropic Claude</label>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="compareLocal">
+                            <label for="compareLocal">Local Model</label>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-warning" onclick="runProviderComparison()" id="compareBtn">
+                        <span id="compareBtnText">⚖️ Compare All Providers</span>
+                    </button>
+
+                    <div class="test-results" id="comparisonResults" style="margin-top: 1rem;">
+                        Provider comparison results will appear here...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="ai-testing.js"></script>
+</body>
+</html>

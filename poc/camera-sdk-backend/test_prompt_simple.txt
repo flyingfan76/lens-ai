@@ -1,0 +1,1 @@
+Please analyze this photo taken with {camera_model}. Current settings: ISO {iso}, {aperture}, {shutter_speed}, {white_balance}. Scene: {scene_type}, Lighting: {lighting_conditions}. Request: {user_request}. Return your response in JSON FORMAT with recommended_settings including scene and lighting fields.

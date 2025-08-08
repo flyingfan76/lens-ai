@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
+import '../core/utils/responsive_utils.dart';
 import 'user_presets_screen.dart';
 
 class PresetsScreen extends StatefulWidget {
@@ -109,6 +110,7 @@ class _PresetsScreenState extends State<PresetsScreen> with TickerProviderStateM
       floatingActionButton: FloatingActionButton(
         onPressed: _showCreatePresetDialog,
         backgroundColor: AppColors.primary,
+        heroTag: "presets_fab",
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );
@@ -123,8 +125,28 @@ class _PresetsScreenState extends State<PresetsScreen> with TickerProviderStateM
       filteredPresets = _presets..sort((a, b) => b['downloads'].compareTo(a['downloads']));
     }
 
+    final config = ResponsiveUtils.getLayoutConfig(context);
+    
+    // Use grid view for landscape mode on larger screens
+    if (config.isLandscape && config.isTablet) {
+      return GridView.builder(
+        padding: ResponsiveUtils.getResponsivePadding(context),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: 1.2,
+        ),
+        itemCount: filteredPresets.length,
+        itemBuilder: (context, index) {
+          final preset = filteredPresets[index];
+          return _buildPresetCard(preset);
+        },
+      );
+    }
+    
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: ResponsiveUtils.getResponsivePadding(context),
       itemCount: filteredPresets.length,
       itemBuilder: (context, index) {
         final preset = filteredPresets[index];

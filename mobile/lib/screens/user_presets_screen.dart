@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
+import '../core/utils/disposal_mixin.dart';
 
 class UserPresetsScreen extends StatefulWidget {
   const UserPresetsScreen({super.key});
@@ -9,7 +10,7 @@ class UserPresetsScreen extends StatefulWidget {
 }
 
 class _UserPresetsScreenState extends State<UserPresetsScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, DisposalMixin {
   late TabController _tabController;
   List<UserPreset> _myPresets = [];
   List<UserPreset> _communityPresets = [];
