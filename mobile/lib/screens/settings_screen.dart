@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 import '../core/utils/responsive_utils.dart';
+import 'consolidated_ai_settings_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -17,14 +18,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _imageQuality = 'High';
   String _storageLocation = 'Internal';
   String _theme = 'System';
-  
-  // AI Provider Settings
-  String _aiProvider = 'OpenAI';
-  String _aiApiKey = '';
-  bool _enableOnlineAI = false;
-  String _aiModel = 'gpt-4-vision-preview';
-  String _customPrompt = '';
-  bool _useCustomPrompt = false;
 
   @override
   Widget build(BuildContext context) {
@@ -42,13 +35,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildSection(
               'Camera Settings',
               [
-                _buildSwitchTile(
-                  'AI Suggestions',
-                  'Get smart photography recommendations',
-                  _aiSuggestions,
-                  (value) => setState(() => _aiSuggestions = value),
-                  icon: Icons.psychology,
-                ),
                 _buildSwitchTile(
                   'Auto Apply AI Settings',
                   'Automatically apply AI-suggested camera settings',
@@ -96,68 +82,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 24),
             _buildSection(
-              'AI Provider Settings',
+              'AI & Intelligence',
               [
-                _buildSwitchTile(
-                  'Enable Online AI',
-                  'Use cloud AI providers for advanced suggestions',
-                  _enableOnlineAI,
-                  (value) => setState(() => _enableOnlineAI = value),
-                  icon: Icons.cloud_outlined,
+                ListTile(
+                  leading: const Icon(Icons.psychology),
+                  title: const Text('AI Configuration'),
+                  subtitle: const Text('Configure AI providers, models, and custom endpoints'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: _navigateToAISettings,
                 ),
-                if (_enableOnlineAI) ...[
-                  _buildDropdownTile(
-                    'AI Provider',
-                    'Choose your preferred AI service',
-                    _aiProvider,
-                    ['OpenAI', 'Google Gemini', 'Anthropic Claude', 'Local Only'],
-                    (value) => setState(() {
-                      _aiProvider = value!;
-                      _updateModelOptions();
-                    }),
-                    icon: Icons.smart_toy,
-                  ),
-                  _buildDropdownTile(
-                    'AI Model',
-                    'Select the AI model to use',
-                    _aiModel,
-                    _getAvailableModels(),
-                    (value) => setState(() => _aiModel = value!),
-                    icon: Icons.memory,
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.key),
-                    title: const Text('API Key'),
-                    subtitle: Text(_aiApiKey.isEmpty ? 'Not configured' : '••••••••${_aiApiKey.substring(_aiApiKey.length - 4)}'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: _showApiKeyDialog,
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.help_outline),
-                    title: const Text('Test AI Connection'),
-                    subtitle: const Text('Verify your AI provider setup'),
-                    trailing: const Icon(Icons.play_arrow),
-                    onTap: _testAIConnection,
-                  ),
-                  const Divider(),
-                  _buildSwitchTile(
-                    'Use Custom Prompt',
-                    'Customize the AI prompt for your photography style',
-                    _useCustomPrompt,
-                    (value) => setState(() => _useCustomPrompt = value),
-                    icon: Icons.edit_note,
-                  ),
-                  if (_useCustomPrompt)
-                    ListTile(
-                      leading: const Icon(Icons.text_fields),
-                      title: const Text('Custom Prompt Template'),
-                      subtitle: Text(_customPrompt.isEmpty 
-                          ? 'Tap to configure custom prompt' 
-                          : '${_customPrompt.length} characters configured'),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: _showCustomPromptDialog,
-                    ),
-                ],
+                _buildSwitchTile(
+                  'AI Suggestions',
+                  'Get smart photography recommendations',
+                  _aiSuggestions,
+                  (value) => setState(() => _aiSuggestions = value),
+                  icon: Icons.auto_awesome,
+                ),
               ],
             ),
             const SizedBox(height: 24),
@@ -297,18 +237,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
         title: const Text('Clear Cache'),
         content: const Text(
           'This will clear all cached images and temporary files. '
-          'This action cannot be undone.',
+          'Are you sure you want to continue?',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              _showCacheCleared();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Cache cleared successfully'),
+                  backgroundColor: AppColors.success,
+                ),
+              );
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+            ),
             child: const Text('Clear'),
           ),
         ],
@@ -316,305 +264,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showCacheCleared() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Cache cleared successfully'),
-        backgroundColor: Colors.green,
-      ),
-    );
-  }
-
   void _showNotImplemented(String feature) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$feature - Coming Soon!'),
-        backgroundColor: AppColors.accent,
+        content: Text('$feature is not yet implemented'),
+        backgroundColor: Colors.orange,
       ),
     );
   }
 
-  List<String> _getAvailableModels() {
-    switch (_aiProvider) {
-      case 'OpenAI':
-        return ['gpt-4-vision-preview', 'gpt-4o', 'gpt-4o-mini'];
-      case 'Google Gemini':
-        return ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro-vision'];
-      case 'Anthropic Claude':
-        return ['claude-3-5-sonnet-20241022', 'claude-3-opus-20240229', 'claude-3-haiku-20240307'];
-      case 'Local Only':
-        return ['local-vision-model'];
-      default:
-        return ['gpt-4-vision-preview'];
-    }
-  }
-
-  void _updateModelOptions() {
-    final availableModels = _getAvailableModels();
-    if (!availableModels.contains(_aiModel)) {
-      setState(() {
-        _aiModel = availableModels.first;
-      });
-    }
-  }
-
-  void _showApiKeyDialog() {
-    final TextEditingController controller = TextEditingController(text: _aiApiKey);
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('${_aiProvider} API Key'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: controller,
-              decoration: const InputDecoration(
-                labelText: 'API Key',
-                hintText: 'Enter your API key',
-                border: OutlineInputBorder(),
-              ),
-              obscureText: true,
-              maxLines: 1,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Your API key will be stored securely on this device only. Never shared with third parties.',
-              style: Theme.of(context).textTheme.bodySmall,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _aiApiKey = controller.text;
-              });
-              Navigator.pop(context);
-              _saveSettings();
-            },
-            child: const Text('Save'),
-          ),
-        ],
+  void _navigateToAISettings() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const ConsolidatedAISettingsScreen(),
       ),
     );
-  }
-
-  void _testAIConnection() async {
-    if (_aiApiKey.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please configure your API key first'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    // Show loading
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const AlertDialog(
-        content: Row(
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 16),
-            Text('Testing AI connection...'),
-          ],
-        ),
-      ),
-    );
-
-    try {
-      // TODO: Implement actual AI provider test
-      await Future.delayed(const Duration(seconds: 2)); // Mock test
-      
-      Navigator.pop(context); // Close loading dialog
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('✅ ${_aiProvider} connection successful!'),
-          backgroundColor: AppColors.success,
-        ),
-      );
-    } catch (e) {
-      Navigator.pop(context); // Close loading dialog
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Connection failed: ${e.toString()}'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    }
-  }
-
-  void _showCustomPromptDialog() {
-    final TextEditingController controller = TextEditingController(text: _customPrompt);
-    
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        child: Container(
-          width: MediaQuery.of(context).size.width * 0.9,
-          height: MediaQuery.of(context).size.height * 0.7,
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                children: [
-                  const Icon(Icons.edit_note, color: AppColors.primary),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'Custom AI Prompt Template',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-              const Divider(),
-              const SizedBox(height: 8),
-              
-              // Instructions
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Available Variables:',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      '• {cameraModel} - Current camera model\n'
-                      '• {currentISO} - Current ISO setting\n'
-                      '• {currentAperture} - Current aperture setting\n'
-                      '• {currentShutter} - Current shutter speed\n'
-                      '• {currentWB} - Current white balance\n'
-                      '• {sceneType} - Detected scene type\n'
-                      '• {lightingConditions} - Lighting analysis\n'
-                      '• {userRequest} - User\'s specific request',
-                      style: TextStyle(fontSize: 12, height: 1.4),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              
-              // Prompt editor
-              const Text(
-                'Custom Prompt:',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  maxLines: null,
-                  expands: true,
-                  textAlignVertical: TextAlignVertical.top,
-                  decoration: const InputDecoration(
-                    hintText: 'Enter your custom AI prompt template...\n\nExample:\nAnalyze this {sceneType} photo taken with {cameraModel}. Current settings: ISO {currentISO}, {currentAperture}, {currentShutter}. {userRequest}\n\nProvide camera settings recommendations and composition tips.',
-                    border: OutlineInputBorder(),
-                    alignLabelWithHint: true,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              
-              // Action buttons
-              Row(
-                children: [
-                  TextButton(
-                    onPressed: () {
-                      controller.text = _getDefaultPromptTemplate();
-                    },
-                    child: const Text('Load Default Template'),
-                  ),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        _customPrompt = controller.text;
-                      });
-                      Navigator.pop(context);
-                      _saveSettings();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                    ),
-                    child: const Text(
-                      'Save',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _getDefaultPromptTemplate() {
-    return '''Analyze this photograph taken with {cameraModel} and provide camera settings recommendations.
-
-Current Camera Setup:
-- Camera Model: {cameraModel}
-- Current ISO: {currentISO}
-- Current Aperture: {currentAperture}
-- Current Shutter Speed: {currentShutter}
-- Current White Balance: {currentWB}
-
-Scene Context:
-- Scene Type: {sceneType}
-- Lighting Conditions: {lightingConditions}
-- User Request: {userRequest}
-
-Please respond with a JSON object containing:
-1. "cameraSettings": Recommended camera settings with numeric values where applicable
-2. "changedSettings": Array of setting names that were modified from current values
-3. "compositionTips": Array of composition and creative suggestions
-4. "reasoning": Brief explanation of why these settings are recommended
-5. "confidence": Confidence score between 0.0 and 1.0
-
-Focus on practical, actionable camera settings that will improve the photograph.''';
-  }
-
-  void _saveSettings() {
-    // TODO: Implement persistent storage for AI settings
-    // Save to SharedPreferences or secure storage
   }
 }
