@@ -44,13 +44,17 @@ dependencies:
   uuid: ^4.3.3
   path: ^1.8.3
   
-  # Network dependencies (for optional AI provider integration)
-  # http: ^1.1.2
-  # connectivity_plus: ^5.0.2
+  # Network dependencies (for AI provider integration)
+  http: ^1.1.2
+  # connectivity_plus: ^5.0.2  # Temporarily disabled due to network issues
+  
+  # External Camera Support
+  network_info_plus: ^4.1.0  # For WiFi camera discovery
+  udp: ^5.0.3  # For camera network protocols
+  web_socket_channel: ^2.4.0  # For camera websocket communication
   
   # Still removed - not needed for AI provider workflow:
   # dio: ^5.4.0 - Simple http package sufficient
-  # web_socket_channel: ^2.4.0 - No real-time server communication needed
   # cached_network_image: ^3.3.0 - No network image loading needed
 
 dev_dependencies:

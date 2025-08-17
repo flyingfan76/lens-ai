@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
 
 import '../models/ai_provider_config.dart';
@@ -18,7 +17,6 @@ class ConsolidatedAISettingsScreen extends StatefulWidget {
 }
 
 class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScreen> {
-  static const _storage = FlutterSecureStorage();
   static const String _configKey = 'ai_configuration';
   
   AIConfiguration _configuration = AIConfiguration(
@@ -46,32 +44,65 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
 
   Future<void> _loadConfiguration() async {
     try {
+      debugPrint('AI Settings: Loading configuration...');
+      
+      // Load main configuration from SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       final configJson = prefs.getString(_configKey);
       
       if (configJson != null) {
-        final configData = jsonDecode(configJson);
-        _configuration = AIConfiguration.fromJson(configData);
+        try {
+          final configData = jsonDecode(configJson);
+          _configuration = AIConfiguration.fromJson(configData);
+          debugPrint('AI Settings: Configuration loaded from SharedPreferences');
+        } catch (e) {
+          debugPrint('AI Settings: Failed to parse configuration JSON: $e');
+          // Use default configuration if parsing fails
+          _configuration = AIConfiguration(
+            selectedProviderId: 'custom',
+            providers: _getDefaultProviders(),
+          );
+        }
+      } else {
+        debugPrint('AI Settings: No existing configuration found, using defaults');
+        _configuration = AIConfiguration(
+          selectedProviderId: 'custom',
+          providers: _getDefaultProviders(),
+        );
       }
       
-      // Load API keys from secure storage
+      // Load API keys from SharedPreferences (temporary workaround for keychain issues)
+      final updatedProviders = <AIProviderConfig>[];
       for (final provider in _configuration.providers) {
-        if (provider.apiKey != null) {
-          final secureKey = await _storage.read(key: 'ai_api_key_${provider.id}');
-          if (secureKey != null) {
-            final updatedProvider = provider.copyWith(apiKey: secureKey);
-            final index = _configuration.providers.indexWhere((p) => p.id == provider.id);
-            if (index != -1) {
-              _configuration.providers[index] = updatedProvider;
-            }
+        try {
+          final savedKey = prefs.getString('ai_api_key_${provider.id}');
+          if (savedKey != null && savedKey.isNotEmpty) {
+            final updatedProvider = provider.copyWith(apiKey: savedKey);
+            updatedProviders.add(updatedProvider);
+            debugPrint('AI Settings: Loaded API key for ${provider.id} from SharedPreferences');
+          } else {
+            updatedProviders.add(provider);
           }
+        } catch (e) {
+          debugPrint('AI Settings: Failed to load API key for ${provider.id}: $e');
+          updatedProviders.add(provider);
         }
       }
       
+      // Update configuration with loaded API keys
+      _configuration = _configuration.copyWith(providers: updatedProviders);
+      
       _initializeControllers();
+      debugPrint('AI Settings: Configuration loading completed successfully');
       
     } catch (e) {
-      debugPrint('Error loading AI configuration: $e');
+      debugPrint('AI Settings: Critical error loading configuration: $e');
+      // Fallback to default configuration
+      _configuration = AIConfiguration(
+        selectedProviderId: 'custom',
+        providers: _getDefaultProviders(),
+      );
+      _initializeControllers();
     } finally {
       setState(() {
         _isLoading = false;
@@ -85,7 +116,7 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
       _controllers['${provider.id}_apikey'] = TextEditingController(text: provider.apiKey ?? '');
       _controllers['${provider.id}_model'] = TextEditingController(text: provider.selectedModel ?? '');
     }
-    _controllers['custom_prompt'] = TextEditingController(text: _configuration.customPromptTemplate);
+    _controllers['custom_prompt'] = TextEditingController(text: _configuration.customPromptTemplate ?? AIConfiguration.getBuiltInPrompt());
   }
 
   Future<void> _saveConfiguration() async {
@@ -94,6 +125,8 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
     });
 
     try {
+      debugPrint('AI Settings: Starting save process...');
+      
       // Update configuration with current controller values
       final updatedProviders = <AIProviderConfig>[];
       
@@ -110,12 +143,16 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
         
         updatedProviders.add(updatedProvider);
         
-        // Save API key to secure storage
+        // Save API key to SharedPreferences (temporary workaround for keychain issues)
         if (updatedProvider.apiKey?.isNotEmpty == true) {
-          await _storage.write(
-            key: 'ai_api_key_${provider.id}',
-            value: updatedProvider.apiKey!,
-          );
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('ai_api_key_${provider.id}', updatedProvider.apiKey!);
+            debugPrint('AI Settings: Saved API key for ${provider.id} to SharedPreferences');
+          } catch (e) {
+            debugPrint('AI Settings: Failed to save API key for ${provider.id}: $e');
+            throw Exception('Failed to save API key for ${provider.name}: $e');
+          }
         }
       }
       
@@ -125,12 +162,40 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
       );
       
       // Save configuration (without API keys for security)
+      final providersWithoutKeys = <AIProviderConfig>[];
+      for (final provider in updatedProviders) {
+        try {
+          providersWithoutKeys.add(provider.copyWith(apiKey: null));
+        } catch (e) {
+          debugPrint('AI Settings: Failed to create provider copy for ${provider.id}: $e');
+          throw Exception('Failed to process provider ${provider.name}: $e');
+        }
+      }
+      
       final configToSave = updatedConfig.copyWith(
-        providers: updatedProviders.map((p) => p.copyWith(apiKey: null)).toList(),
+        providers: providersWithoutKeys,
       );
       
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_configKey, jsonEncode(configToSave.toJson()));
+      // Convert to JSON and validate
+      Map<String, dynamic> configJson;
+      try {
+        configJson = configToSave.toJson();
+        debugPrint('AI Settings: Configuration serialized to JSON successfully');
+      } catch (e) {
+        debugPrint('AI Settings: JSON serialization failed: $e');
+        throw Exception('Failed to serialize configuration: $e');
+      }
+      
+      // Save to SharedPreferences
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final jsonString = jsonEncode(configJson);
+        await prefs.setString(_configKey, jsonString);
+        debugPrint('AI Settings: Configuration saved to SharedPreferences successfully');
+      } catch (e) {
+        debugPrint('AI Settings: SharedPreferences save failed: $e');
+        throw Exception('Failed to save configuration to storage: $e');
+      }
       
       setState(() {
         _configuration = updatedConfig;
@@ -145,11 +210,11 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
         );
       }
     } catch (e) {
-      debugPrint('Error saving AI configuration: $e');
+      debugPrint('AI Settings: Save operation failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to save settings: $e'),
+            content: Text('Failed to save settings: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -334,7 +399,7 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
               subtitle: 'Configure individual AI providers',
             ),
             
-            ..._configuration.providers.map((provider) => _buildProviderCard(provider)).toList(),
+            ..._configuration.providers.map((provider) => _buildProviderCard(provider)),
             
             // Add Custom Provider
             ConfigurationCard(
@@ -365,12 +430,33 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
                 SettingsTextFieldRow(
                   title: 'Custom Prompt Template',
                   subtitle: 'Customize the AI prompt for photography suggestions',
-                  value: _configuration.customPromptTemplate,
+                  value: _configuration.customPromptTemplate ?? AIConfiguration.getBuiltInPrompt(),
                   hintText: 'Enter custom prompt template...',
                   maxLines: 3,
                   onChanged: (value) {
                     _controllers['custom_prompt']?.text = value;
                   },
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () {
+                        final defaultPrompt = AIConfiguration.getBuiltInPrompt();
+                        setState(() {
+                          _configuration = _configuration.copyWith(customPromptTemplate: defaultPrompt);
+                          _controllers['custom_prompt']?.text = defaultPrompt;
+                        });
+                      },
+                      icon: const Icon(Icons.refresh, size: 16),
+                      label: const Text('Reset to Default'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.accent,
+                        textStyle: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 SettingsRow(

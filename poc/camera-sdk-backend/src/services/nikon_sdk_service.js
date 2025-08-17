@@ -856,8 +856,7 @@ class NikonSDKService extends EventEmitter {
     const timeStr = now.toLocaleTimeString();
     const dateStr = now.toLocaleDateString();
     
-    return `
-      <svg width="640" height="480" xmlns="http://www.w3.org/2000/svg">
+    return `<svg width="640" height="480" xmlns="http://www.w3.org/2000/svg">
         <!-- Background -->
         <rect width="640" height="480" fill="#1a1a1a"/>
         
@@ -876,7 +875,7 @@ class NikonSDKService extends EventEmitter {
         <text x="35" y="45" fill="#4CAF50" font-family="monospace" font-size="16" font-weight="bold">NIKON D90 LIVE VIEW</text>
         
         <!-- Status -->
-        <text x="35" y="70" fill="#fff" font-family="monospace" font-size="12">Status: Connected & Streaming</text>
+        <text x="35" y="70" fill="#fff" font-family="monospace" font-size="12">Status: Connected &amp; Streaming</text>
         <text x="35" y="85" fill="#fff" font-family="monospace" font-size="12">Frame: #${frameNumber}</text>
         <text x="35" y="100" fill="#fff" font-family="monospace" font-size="12">Time: ${timeStr}</text>
         <text x="35" y="115" fill="#fff" font-family="monospace" font-size="12">Date: ${dateStr}</text>
@@ -886,7 +885,7 @@ class NikonSDKService extends EventEmitter {
         <text x="375" y="45" fill="#2196F3" font-family="monospace" font-size="14" font-weight="bold">CAMERA SETTINGS</text>
         <text x="375" y="65" fill="#fff" font-family="monospace" font-size="11">ISO: 800 | Aperture: f/5.6</text>
         <text x="375" y="80" fill="#fff" font-family="monospace" font-size="11">Shutter: 1/60s | WB: Auto</text>
-        <text x="375" y="95" fill="#fff" font-family="monospace" font-size="11">Focus: Single | Quality: RAW+JPEG</text>
+        <text x="375" y="95" fill="#fff" font-family="monospace" font-size="11">Focus: Single | Quality: JPEG</text>
         <text x="375" y="110" fill="#fff" font-family="monospace" font-size="11">Battery: 85% | Memory: 52GB Free</text>
         
         <!-- Center crosshair -->
@@ -907,13 +906,12 @@ class NikonSDKService extends EventEmitter {
         <circle cx="600" cy="40" r="8" fill="#f44336">
           <animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite"/>
         </circle>
-        <text x="575" y="65" fill="#f44336" font-family="monospace" font-size="12" font-weight="bold">● LIVE</text>
+        <text x="575" y="65" fill="#f44336" font-family="monospace" font-size="12" font-weight="bold">• LIVE</text>
         
         <!-- Bottom status bar -->
         <rect x="0" y="440" width="640" height="40" fill="rgba(0,0,0,0.9)"/>
-        <text x="20" y="460" fill="#4CAF50" font-family="monospace" font-size="12">🔴 Recording Live View - Frame Rate: 2 FPS - Resolution: 640x480</text>
-      </svg>
-    `;
+        <text x="20" y="460" fill="#4CAF50" font-family="monospace" font-size="12">• Recording Live View - Frame Rate: 2 FPS - Resolution: 640x480</text>
+      </svg>`;
   }
 
   addCameraOverlay(base64Image, frameNumber) {
@@ -938,7 +936,7 @@ class NikonSDKService extends EventEmitter {
         <!-- Camera info overlay -->
         <rect x="0" y="0" width="640" height="30" fill="rgba(0,0,0,0.8)" />
         <text x="8" y="20" font-family="monospace" font-size="13" fill="white" font-weight="bold">
-          🔴 LIVE VIEW - NIKON D90    1/125    f/4.0    ISO400    ${new Date().toLocaleTimeString()}
+          • LIVE VIEW - NIKON D90    1/125    f/4.0    ISO400    ${new Date().toLocaleTimeString()}
         </text>
         
         <!-- Bottom status bar -->
@@ -1005,7 +1003,7 @@ class NikonSDKService extends EventEmitter {
         <!-- Status info -->
         <rect x="0" y="0" width="640" height="30" fill="rgba(0,0,0,0.8)" />
         <text x="8" y="20" font-family="monospace" font-size="13" fill="white" font-weight="bold">
-          🔴 LIVE VIEW - REAL CAMERA MODE    Frame: ${String(frameNumber).padStart(4, '0')}    ${new Date().toLocaleTimeString()}
+          • LIVE VIEW - REAL CAMERA MODE    Frame: ${String(frameNumber).padStart(4, '0')}    ${new Date().toLocaleTimeString()}
         </text>
         
         <!-- Bottom status -->

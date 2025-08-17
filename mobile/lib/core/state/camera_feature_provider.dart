@@ -54,8 +54,6 @@ class CameraFeatureProvider extends BaseStateProvider
   String _captureMode = 'photo'; // photo, video, burst
   int _captureCount = 0;
   
-  // Presets and saved settings
-  Map<String, Map<String, dynamic>> _cameraPresets = {};
   Map<String, dynamic> _lastUsedSettings = {};
   bool _autoSaveSettings = true;
   bool _useLastSettings = true;
@@ -98,8 +96,6 @@ class CameraFeatureProvider extends BaseStateProvider
   String get captureMode => _captureMode;
   int get captureCount => _captureCount;
   
-  // Getters - Presets and settings
-  Map<String, Map<String, dynamic>> get cameraPresets => Map.from(_cameraPresets);
   Map<String, dynamic> get lastUsedSettings => Map.from(_lastUsedSettings);
   bool get autoSaveSettings => _autoSaveSettings;
   bool get useLastSettings => _useLastSettings;
@@ -124,8 +120,6 @@ class CameraFeatureProvider extends BaseStateProvider
     _prefs = await SharedPreferences.getInstance();
     await loadState();
     
-    // Load built-in presets
-    _loadBuiltInPresets();
     
     // Restore last used settings if enabled
     if (_useLastSettings && _lastUsedSettings.isNotEmpty) {
@@ -186,55 +180,6 @@ class CameraFeatureProvider extends BaseStateProvider
     }
   }
   
-  /// Load built-in camera presets
-  void _loadBuiltInPresets() {
-    _cameraPresets.addAll({
-      'portrait': {
-        'name': 'Portrait',
-        'description': 'Optimized for portrait photography',
-        'iso': 200.0,
-        'aperture': 2.8,
-        'shutterSpeed': 125.0,
-        'whiteBalance': 'auto',
-        'focusMode': 'single',
-        'flashMode': false,
-        'isBuiltIn': true,
-      },
-      'landscape': {
-        'name': 'Landscape',
-        'description': 'Wide aperture for landscapes',
-        'iso': 100.0,
-        'aperture': 8.0,
-        'shutterSpeed': 60.0,
-        'whiteBalance': 'daylight',
-        'focusMode': 'single',
-        'flashMode': false,
-        'isBuiltIn': true,
-      },
-      'lowLight': {
-        'name': 'Low Light',
-        'description': 'High ISO for low light conditions',
-        'iso': 1600.0,
-        'aperture': 1.8,
-        'shutterSpeed': 30.0,
-        'whiteBalance': 'auto',
-        'focusMode': 'continuous',
-        'flashMode': false,
-        'isBuiltIn': true,
-      },
-      'sports': {
-        'name': 'Sports',
-        'description': 'Fast shutter for action shots',
-        'iso': 800.0,
-        'aperture': 4.0,
-        'shutterSpeed': 500.0,
-        'whiteBalance': 'auto',
-        'focusMode': 'continuous',
-        'flashMode': false,
-        'isBuiltIn': true,
-      },
-    });
-  }
   
   /// Restore last used settings
   Future<void> _restoreLastUsedSettings() async {
@@ -409,22 +354,6 @@ class CameraFeatureProvider extends BaseStateProvider
     }, operationName: 'update camera settings');
   }
   
-  /// Apply camera preset
-  Future<void> applyPreset(String presetId) async {
-    if (!validateState()) return;
-    
-    final preset = _cameraPresets[presetId];
-    if (preset == null) {
-      throw ArgumentError('Preset not found: $presetId');
-    }
-    
-    await updateCameraSettings(preset);
-    
-    if (_autoSaveSettings) {
-      _lastUsedSettings['lastUsedPreset'] = presetId;
-      await saveState();
-    }
-  }
   
   // UI state management methods
   
@@ -580,31 +509,6 @@ class CameraFeatureProvider extends BaseStateProvider
     }
   }
   
-  /// Create new preset
-  Future<void> createPreset(String presetId, Map<String, dynamic> settings) async {
-    await executeWithErrorHandling(() async {
-      settings['isBuiltIn'] = false;
-      settings['createdAt'] = DateTime.now().toIso8601String();
-      
-      _cameraPresets[presetId] = Map<String, dynamic>.from(settings);
-      await saveState();
-      notifyListeners();
-    }, operationName: 'create preset');
-  }
-  
-  /// Delete preset
-  Future<void> deletePreset(String presetId) async {
-    await executeWithErrorHandling(() async {
-      final preset = _cameraPresets[presetId];
-      if (preset != null && preset['isBuiltIn'] == true) {
-        throw ArgumentError('Cannot delete built-in preset');
-      }
-      
-      _cameraPresets.remove(presetId);
-      await saveState();
-      notifyListeners();
-    }, operationName: 'delete preset');
-  }
   
   // State persistence implementation
   
@@ -632,10 +536,6 @@ class CameraFeatureProvider extends BaseStateProvider
         'captureMode': _captureMode,
         'captureCount': _captureCount,
       },
-      'presets': _cameraPresets.map((k, v) {
-        if (v['isBuiltIn'] == true) return MapEntry(k, null); // Don't save built-ins
-        return MapEntry(k, v);
-      })..removeWhere((k, v) => v == null),
       'settings': {
         'autoSaveSettings': _autoSaveSettings,
         'useLastSettings': _useLastSettings,
@@ -671,13 +571,6 @@ class CameraFeatureProvider extends BaseStateProvider
       _captureMode = uiSettings['captureMode'] ?? 'photo';
       _captureCount = uiSettings['captureCount'] ?? 0;
       
-      // Restore user presets (built-ins are loaded separately)
-      final presets = state['presets'] as Map<String, dynamic>? ?? {};
-      for (final entry in presets.entries) {
-        if (entry.value != null) {
-          _cameraPresets[entry.key] = Map<String, dynamic>.from(entry.value);
-        }
-      }
       
       // Restore settings
       final settings = state['settings'] as Map<String, dynamic>? ?? {};

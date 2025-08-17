@@ -249,7 +249,7 @@ class AIConfiguration {
   final List<AIProviderConfig> providers;
   final bool enableAISuggestions;
   final bool enableAutoAnalysis;
-  final String customPromptTemplate;
+  final String? customPromptTemplate;
   final double suggestionConfidenceThreshold;
   final int maxSuggestions;
 
@@ -258,7 +258,7 @@ class AIConfiguration {
     required this.providers,
     this.enableAISuggestions = true,
     this.enableAutoAnalysis = false,
-    this.customPromptTemplate = '',
+    this.customPromptTemplate,
     this.suggestionConfidenceThreshold = 0.7,
     this.maxSuggestions = 5,
   });
@@ -311,9 +311,59 @@ class AIConfiguration {
           .toList(),
       enableAISuggestions: json['enableAISuggestions'] as bool? ?? true,
       enableAutoAnalysis: json['enableAutoAnalysis'] as bool? ?? false,
-      customPromptTemplate: json['customPromptTemplate'] as String? ?? '',
+      customPromptTemplate: (json['customPromptTemplate'] as String? ?? '').isEmpty 
+          ? getBuiltInPrompt() 
+          : json['customPromptTemplate'] as String,
       suggestionConfidenceThreshold: json['suggestionConfidenceThreshold'] as double? ?? 0.7,
       maxSuggestions: json['maxSuggestions'] as int? ?? 5,
     );
+  }
+
+  /// Get the built-in default prompt template
+  static String getBuiltInPrompt() {
+    return '''You are an expert photography AI assistant specialized in camera settings optimization and creative guidance.
+
+Analyze the provided image and current camera settings to give specific, actionable recommendations.
+
+CURRENT CAMERA SETTINGS:
+- Camera Model: {camera_model}
+- ISO: {iso}
+- Aperture: {aperture}
+- Shutter Speed: {shutter_speed}
+- White Balance: {white_balance}
+- Scene Type: {scene_type}
+- Lighting Conditions: {lighting_conditions}
+
+USER REQUEST: {user_request}
+
+Please provide your response in the following JSON format:
+{
+  "analysis": {
+    "scene_description": "Brief description of what you see in the image",
+    "lighting_assessment": "Assessment of current lighting conditions",
+    "composition_notes": "Key composition elements and strengths/weaknesses"
+  },
+  "recommended_settings": {
+    "iso": "recommended ISO value with explanation",
+    "aperture": "recommended f-stop with explanation", 
+    "shutter_speed": "recommended shutter speed with explanation",
+    "white_balance": "recommended white balance setting",
+    "focus_mode": "recommended focus mode (single, continuous, manual)"
+  },
+  "improvements": [
+    "Specific improvement suggestion 1",
+    "Specific improvement suggestion 2",
+    "Specific improvement suggestion 3"
+  ],
+  "creative_suggestions": [
+    "Creative technique or angle to try",
+    "Alternative composition idea",
+    "Post-processing recommendation"
+  ],
+  "confidence": 0.85,
+  "reasoning": "Detailed explanation of why these settings would improve the image"
+}
+
+Focus on practical, actionable advice that will immediately improve the photographer's results.''';
   }
 }

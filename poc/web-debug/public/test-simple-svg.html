@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple SVG Test</title>
+</head>
+<body>
+    <h2>Simple SVG Data URI Test</h2>
+    <div id="result"></div>
+    
+    <script>
+        // Test the exact same base64 data that should be coming from backend
+        const testBase64 = 'PHN2ZyB3aWR0aD0iNjQwIiBoZWlnaHQ9IjQ4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0MCIgaGVpZ2h0PSI0ODAiIGZpbGw9IiMxYTFhMWEiLz4KPHRleHQgeD0iMjAiIHk9IjQwIiBmaWxsPSIjNENBRjUwIiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjE2Ij5URVNUIFNWRzwvdGV4dD4KPC9zdmc+';
+        
+        const dataUri = 'data:image/svg+xml;base64,' + testBase64;
+        
+        const img = new Image();
+        img.onload = function() {
+            document.getElementById('result').innerHTML = '<span style="color: green;">✅ Basic SVG data URI works!</span><br><img src="' + dataUri + '" style="border: 1px solid black;">';
+        };
+        
+        img.onerror = function() {
+            document.getElementById('result').innerHTML = '<span style="color: red;">❌ Basic SVG data URI failed</span>';
+        };
+        
+        img.src = dataUri;
+    </script>
+</body>
+</html>

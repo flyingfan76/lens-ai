@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SVG Debug Test</title>
+</head>
+<body>
+    <h2>SVG Frame Debug Test</h2>
+    <div id="status">Connecting...</div>
+    <div id="frameInfo"></div>
+    <canvas id="canvas" width="640" height="480" style="border: 1px solid black;"></canvas>
+    <div id="error"></div>
+
+    <script>
+        const ws = new WebSocket('ws://localhost:3000/liveview');
+        
+        ws.onopen = function() {
+            document.getElementById('status').textContent = 'Connected to WebSocket';
+        };
+        
+        ws.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'liveViewFrame') {
+                    document.getElementById('frameInfo').innerHTML = `
+                        Frame #${data.frameNumber}<br>
+                        Type: ${data.frameType}<br>
+                        Size: ${data.width}x${data.height}<br>
+                        Data length: ${data.data.length}<br>
+                        First 50 chars: ${data.data.substring(0, 50)}...
+                    `;
+                    
+                    if (data.frameType === 'svg') {
+                        // Test the base64 decoding
+                        try {
+                            const svgContent = atob(data.data);
+                            console.log('Decoded SVG start:', svgContent.substring(0, 100));
+                            
+                            // Try both methods
+                            const svgDataUri = 'data:image/svg+xml;base64,' + data.data;
+                            const svgContentUri = 'data:image/svg+xml,' + encodeURIComponent(svgContent);
+                            
+                            const img = new Image();
+                            img.onload = function() {
+                                const canvas = document.getElementById('canvas');
+                                const ctx = canvas.getContext('2d');
+                                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                                ctx.drawImage(img, 0, 0);
+                                document.getElementById('error').innerHTML = '<span style="color: green;">✅ SVG loaded successfully!</span>';
+                            };
+                            
+                            img.onerror = function() {
+                                document.getElementById('error').innerHTML = '<span style="color: red;">❌ SVG failed to load</span>';
+                                console.error('Image load failed');
+                                
+                                // Try alternative method
+                                const img2 = new Image();
+                                img2.onload = function() {
+                                    const canvas = document.getElementById('canvas');
+                                    const ctx = canvas.getContext('2d');
+                                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                                    ctx.drawImage(img2, 0, 0);
+                                    document.getElementById('error').innerHTML = '<span style="color: green;">✅ Alternative method worked!</span>';
+                                };
+                                img2.onerror = function() {
+                                    document.getElementById('error').innerHTML = '<span style="color: red;">❌ Both methods failed</span>';
+                                };
+                                img2.src = svgContentUri;
+                            };
+                            
+                            img.src = svgDataUri;
+                            
+                        } catch (e) {
+                            document.getElementById('error').innerHTML = '<span style="color: red;">❌ Base64 decode failed: ' + e.message + '</span>';
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('WebSocket message error:', e);
+            }
+        };
+        
+        ws.onerror = function(error) {
+            document.getElementById('status').textContent = 'WebSocket Error: ' + error;
+        };
+        
+        ws.onclose = function() {
+            document.getElementById('status').textContent = 'WebSocket Closed';
+        };
+    </script>
+</body>
+</html>

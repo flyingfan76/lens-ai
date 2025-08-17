@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Data URI Test</title>
+</head>
+<body>
+    <h2>Direct Data URI Test</h2>
+    <div id="status">Testing...</div>
+    <br>
+    <img id="testImg" style="border: 2px solid black; max-width: 320px;" />
+    
+    <script>
+        // Test the exact minimal SVG that the backend should generate
+        const minimalSvg = '<svg width="640" height="480" xmlns="http://www.w3.org/2000/svg"><rect width="640" height="480" fill="red"/><text x="50" y="50" fill="white" font-size="24">Frame 123</text></svg>';
+        
+        console.log('Testing SVG:', minimalSvg);
+        
+        // Test encoding
+        const base64 = btoa(minimalSvg);
+        console.log('Base64:', base64);
+        
+        // Test data URI
+        const dataUri = 'data:image/svg+xml;base64,' + base64;
+        console.log('Data URI:', dataUri);
+        
+        // Test image loading
+        const img = document.getElementById('testImg');
+        
+        img.onload = function() {
+            document.getElementById('status').innerHTML = '<span style="color: green;">✅ SUCCESS: Minimal SVG loads correctly!</span>';
+            console.log('Image loaded successfully');
+        };
+        
+        img.onerror = function() {
+            document.getElementById('status').innerHTML = '<span style="color: red;">❌ FAILED: Even minimal SVG fails to load</span>';
+            console.log('Image failed to load');
+            
+            // Try alternative encoding
+            const altDataUri = 'data:image/svg+xml,' + encodeURIComponent(minimalSvg);
+            console.log('Trying alternative encoding:', altDataUri);
+            
+            const img2 = new Image();
+            img2.onload = function() {
+                document.getElementById('status').innerHTML = '<span style="color: green;">✅ SUCCESS: Alternative encoding works!</span>';
+                img.src = altDataUri;
+            };
+            img2.onerror = function() {
+                document.getElementById('status').innerHTML = '<span style="color: red;">❌ FAILED: Both encodings fail - browser SVG support issue</span>';
+            };
+            img2.src = altDataUri;
+        };
+        
+        img.src = dataUri;
+    </script>
+</body>
+</html>

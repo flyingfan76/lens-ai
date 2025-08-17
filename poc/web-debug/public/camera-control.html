@@ -699,11 +699,12 @@
             try {
                 // Extract WebSocket URL (remove http/https and replace with ws/wss)
                 const wsUrl = streamUrl.replace('http://', 'ws://').replace('https://', 'wss://');
+                console.log('🔌 Connecting to WebSocket:', wsUrl);
                 
                 liveViewSocket = new WebSocket(wsUrl);
                 
                 liveViewSocket.onopen = function(event) {
-                    console.log('Live view WebSocket connected');
+                    console.log('✅ Live view WebSocket connected successfully');
                     document.getElementById('liveViewStatus').textContent = '🔴 Live View Active';
                     showMessage('Live view connected', 'success');
                 };
@@ -715,9 +716,12 @@
                             displayLiveViewFrame(event.data);
                         } else {
                             // Handle JSON messages
+                            console.log('📨 Received WebSocket message:', event.data.substring(0, 200) + '...');
                             const data = JSON.parse(event.data);
+                            console.log('📋 Parsed data:', data);
                             
                             if (data.type === 'liveViewFrame') {
+                                console.log('🖼️ Processing live view frame...');
                                 displayLiveViewFrameData(data);
                             } else {
                                 console.log('Live view message:', data);
@@ -755,40 +759,118 @@
             const ctx = canvas.getContext('2d');
             
             if (frameData.frameType === 'svg') {
+                // Debug logging
+                console.log('Frame data received:', {
+                    frameNumber: frameData.frameNumber,
+                    dataLength: frameData.data ? frameData.data.length : 0,
+                    width: frameData.width,
+                    height: frameData.height
+                });
+                
                 // Handle SVG frame data
-                const svgData = atob(frameData.data); // Decode base64
-                const svgDataUri = 'data:image/svg+xml;base64,' + frameData.data;
-                
-                const img = new Image();
-                img.onload = function() {
-                    // Set canvas size
-                    const containerWidth = canvas.offsetParent.offsetWidth - 40; // Account for padding
-                    const aspectRatio = frameData.width / frameData.height;
-                    const containerHeight = Math.min(400, containerWidth / aspectRatio);
+                try {
+                    const svgData = atob(frameData.data); // Decode base64
+                    console.log('Decoded SVG (first 100 chars):', svgData.substring(0, 100));
                     
-                    canvas.width = frameData.width;
-                    canvas.height = frameData.height;
-                    canvas.style.width = containerWidth + 'px';
-                    canvas.style.height = containerHeight + 'px';
+                    const svgDataUri = 'data:image/svg+xml;base64,' + frameData.data;
+                    console.log('Data URI (first 100 chars):', svgDataUri.substring(0, 100));
                     
-                    // Draw the SVG
-                    ctx.drawImage(img, 0, 0);
+                    const img = new Image();
+                    img.onload = function() {
+                        console.log('✅ SVG image loaded successfully');
+                        // Set canvas size
+                        const containerWidth = canvas.offsetParent.offsetWidth - 40; // Account for padding
+                        const aspectRatio = frameData.width / frameData.height;
+                        const containerHeight = Math.min(400, containerWidth / aspectRatio);
+                        
+                        canvas.width = frameData.width;
+                        canvas.height = frameData.height;
+                        canvas.style.width = containerWidth + 'px';
+                        canvas.style.height = containerHeight + 'px';
+                        
+                        // Draw the SVG
+                        ctx.drawImage(img, 0, 0);
+                        
+                        // Update status
+                        const statusEl = document.getElementById('liveViewStatus');
+                        if (statusEl) {
+                            statusEl.textContent = `🔴 Live View Active - Frame ${frameData.frameNumber}`;
+                        }
+                    };
                     
-                    // Update status
-                    const statusEl = document.getElementById('liveViewStatus');
-                    if (statusEl) {
-                        statusEl.textContent = `🔴 Live View Active - Frame ${frameData.frameNumber}`;
-                    }
-                };
-                
-                img.onerror = function() {
-                    console.error('Error loading SVG live view frame');
-                };
-                
-                img.src = svgDataUri;
+                    img.onerror = function() {
+                        console.error('❌ Error loading SVG live view frame');
+                        console.error('Failed data URI:', svgDataUri.substring(0, 200));
+                        console.error('Failed SVG content:', svgData.substring(0, 200));
+                        
+                        // Try alternative encoding
+                        const altDataUri = 'data:image/svg+xml,' + encodeURIComponent(svgData);
+                        console.log('Trying alternative encoding...');
+                        
+                        const img2 = new Image();
+                        img2.onload = function() {
+                            console.log('✅ Alternative encoding worked!');
+                            ctx.drawImage(img2, 0, 0);
+                        };
+                        img2.onerror = function() {
+                            console.error('❌ Alternative encoding also failed');
+                        };
+                        img2.src = altDataUri;
+                    };
+                    
+                    img.src = svgDataUri;
+                } catch (error) {
+                    console.error('Error processing SVG frame data:', error);
+                }
             } else {
-                // Handle legacy binary frame data
-                displayLiveViewFrame(new Blob([atob(frameData.data)]));
+                // Handle binary frame data - check if it's actually SVG
+                console.log('🔍 Checking binary frame data...');
+                try {
+                    // Try to decode as base64 and check if it's SVG
+                    const decodedData = atob(frameData.data);
+                    console.log('Decoded binary data (first 50 chars):', decodedData.substring(0, 50));
+                    
+                    if (decodedData.startsWith('<svg')) {
+                        console.log('✅ Binary frame contains SVG data, processing as SVG');
+                        // Process as SVG even though frameType is binary
+                        const svgDataUri = 'data:image/svg+xml;base64,' + frameData.data;
+                        
+                        const img = new Image();
+                        img.onload = function() {
+                            console.log('✅ Binary-to-SVG conversion successful');
+                            const containerWidth = canvas.offsetParent.offsetWidth - 40;
+                            const aspectRatio = 640 / 480; // Default aspect ratio
+                            const containerHeight = Math.min(400, containerWidth / aspectRatio);
+                            
+                            canvas.width = 640;
+                            canvas.height = 480;
+                            canvas.style.width = containerWidth + 'px';
+                            canvas.style.height = containerHeight + 'px';
+                            
+                            ctx.drawImage(img, 0, 0);
+                            
+                            const statusEl = document.getElementById('liveViewStatus');
+                            if (statusEl) {
+                                statusEl.textContent = `🔴 Live View Active - Frame ${frameData.frameNumber}`;
+                            }
+                        };
+                        
+                        img.onerror = function() {
+                            console.error('❌ Binary-to-SVG conversion failed');
+                            // Fall back to original binary processing
+                            displayLiveViewFrame(new Blob([atob(frameData.data)]));
+                        };
+                        
+                        img.src = svgDataUri;
+                    } else {
+                        console.log('📦 Processing as actual binary frame data');
+                        // Handle legacy binary frame data
+                        displayLiveViewFrame(new Blob([atob(frameData.data)]));
+                    }
+                } catch (error) {
+                    console.error('Error processing binary frame:', error);
+                    displayLiveViewFrame(new Blob([atob(frameData.data)]));
+                }
             }
         }
 

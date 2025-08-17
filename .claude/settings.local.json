@@ -88,8 +88,23 @@
       "Bash(sed:*)",
       "Bash(/dev/null:*)",
       "Bash(dart analyze:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(dart test:*)",
+      "Bash(xcrun devicectl:*)",
+      "Bash(osascript:*)",
+      "Bash(dart run test_external_camera.dart)",
+      "Bash(uuidgen:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(brew search:*)",
+      "Bash(gphoto2:*)",
+      "Bash(/usr/local/bin/gphoto2:*)",
+      "Bash(readlink:*)"
     ],
-    "deny": []
+    "deny": [],
+    "defaultMode": "acceptEdits",
+    "additionalDirectories": [
+      "/private/tmp"
+    ]
   }
 }

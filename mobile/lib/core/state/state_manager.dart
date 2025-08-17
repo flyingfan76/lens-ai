@@ -13,6 +13,7 @@ import 'error_state_provider.dart';
 import '../providers/mobile_camera_provider.dart';
 import '../providers/camera_state_provider.dart';
 import '../providers/camera_settings_provider.dart';
+import '../providers/unified_camera_provider.dart';
 import '../../services/ai/ai_coordinator.dart';
 
 /// Central state management coordinator
@@ -28,6 +29,9 @@ class StateManager {
   late final UIStateProvider uiStateProvider;
   late final PersistentStateProvider persistentStateProvider;
   late final ErrorStateProvider errorStateProvider;
+  
+  // Unified camera provider
+  late final UnifiedCameraProvider unifiedCameraProvider;
   
   // Legacy providers (for backward compatibility during migration)
   late final MobileCameraProvider mobileCameraProvider;
@@ -82,6 +86,9 @@ class StateManager {
       // Camera Settings Provider
       cameraSettingsProvider = CameraSettingsProvider();
       await cameraSettingsProvider.initialize();
+      
+      // Unified Camera Provider (new external camera support)
+      unifiedCameraProvider = UnifiedCameraProvider();
       
       // Mobile Camera Provider
       mobileCameraProvider = MobileCameraProvider();
@@ -145,6 +152,9 @@ class StateManager {
       ChangeNotifierProvider<UIStateProvider>.value(value: uiStateProvider),
       ChangeNotifierProvider<PersistentStateProvider>.value(value: persistentStateProvider),
       ChangeNotifierProvider<ErrorStateProvider>.value(value: errorStateProvider),
+      
+      // Unified camera provider
+      ChangeNotifierProvider<UnifiedCameraProvider>.value(value: unifiedCameraProvider),
       
       // Legacy providers (for backward compatibility)
       ChangeNotifierProvider<MobileCameraProvider>.value(value: mobileCameraProvider),

@@ -118,6 +118,14 @@ class WebSocketService {
       return;
     }
     
+    // Debug logging
+    logger.info('WebSocket received frame data:', {
+      type: typeof frameData,
+      frameDataType: frameData?.type,
+      hasData: !!frameData?.data,
+      dataLength: frameData?.data?.length
+    });
+    
     // Frame rate limiting
     const now = Date.now();
     if (now - this.lastFrameTime < this.frameInterval) {
@@ -130,6 +138,7 @@ class WebSocketService {
     let processedFrame;
     if (frameData && typeof frameData === 'object') {
       if (frameData.type === 'svg') {
+        logger.info('✅ Processing as SVG frame');
         // SVG frame data
         processedFrame = {
           type: 'liveViewFrame',
@@ -152,6 +161,7 @@ class WebSocketService {
           frameNumber: frameData.frameNumber
         };
       } else {
+        logger.info('❌ Processing as binary frame (fallback)', { frameDataType: frameData.type });
         // Legacy binary frame data
         processedFrame = {
           type: 'liveViewFrame',

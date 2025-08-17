@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Comprehensive SVG Debug</title>
+    <style>
+        body { font-family: monospace; margin: 20px; }
+        .section { margin: 20px 0; border: 1px solid #ccc; padding: 10px; }
+        .error { color: red; }
+        .success { color: green; }
+        .info { color: blue; }
+        .log { background: #f5f5f5; padding: 10px; white-space: pre-wrap; max-height: 200px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <h2>Comprehensive SVG Debug Tool</h2>
+    
+    <div class="section">
+        <h3>WebSocket Connection</h3>
+        <div id="wsStatus">Connecting...</div>
+        <div id="wsLog" class="log"></div>
+    </div>
+    
+    <div class="section">
+        <h3>Frame Data Analysis</h3>
+        <div id="frameAnalysis"></div>
+        <div id="frameLog" class="log"></div>
+    </div>
+    
+    <div class="section">
+        <h3>SVG Content Test</h3>
+        <div id="svgTest"></div>
+        <div id="svgContent" class="log" style="max-height: 150px;"></div>
+    </div>
+    
+    <div class="section">
+        <h3>Visual Test</h3>
+        <canvas id="testCanvas" width="640" height="480" style="border: 1px solid black; max-width: 320px;"></canvas>
+        <div id="visualTest"></div>
+    </div>
+
+    <script>
+        const wsLog = document.getElementById('wsLog');
+        const frameLog = document.getElementById('frameLog');
+        
+        function log(element, message) {
+            element.textContent += new Date().toLocaleTimeString() + ': ' + message + '\n';
+            element.scrollTop = element.scrollHeight;
+        }
+        
+        function logToAll(message) {
+            console.log(message);
+            log(wsLog, message);
+        }
+        
+        // Connect to WebSocket
+        const ws = new WebSocket('ws://localhost:3000/liveview');
+        
+        ws.onopen = function() {
+            document.getElementById('wsStatus').innerHTML = '<span class="success">✅ Connected to WebSocket</span>';
+            logToAll('WebSocket connected successfully');
+        };
+        
+        ws.onerror = function(error) {
+            document.getElementById('wsStatus').innerHTML = '<span class="error">❌ WebSocket Error</span>';
+            logToAll('WebSocket error: ' + error);
+        };
+        
+        ws.onclose = function() {
+            document.getElementById('wsStatus').innerHTML = '<span class="error">❌ WebSocket Closed</span>';
+            logToAll('WebSocket closed');
+        };
+        
+        let frameCount = 0;
+        
+        ws.onmessage = function(event) {
+            try {
+                frameCount++;
+                
+                // Parse the JSON data
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'liveViewFrame') {
+                    // Analysis
+                    const analysis = {
+                        frameNumber: data.frameNumber,
+                        frameType: data.frameType,
+                        dataLength: data.data ? data.data.length : 0,
+                        width: data.width,
+                        height: data.height,
+                        timestamp: data.timestamp,
+                        receivedAt: Date.now()
+                    };
+                    
+                    document.getElementById('frameAnalysis').innerHTML = 
+                        `Frame #${frameCount} (Server: ${analysis.frameNumber})<br>
+                        Type: ${analysis.frameType}<br>
+                        Data Length: ${analysis.dataLength} chars<br>
+                        Dimensions: ${analysis.width}x${analysis.height}<br>
+                        Latency: ${analysis.receivedAt - analysis.timestamp}ms`;
+                    
+                    log(frameLog, `Frame #${frameCount}: ${analysis.frameType}, ${analysis.dataLength} chars`);
+                    
+                    if (data.frameType === 'svg' && data.data) {
+                        testSVGFrame(data);
+                    }
+                }
+            } catch (error) {
+                log(frameLog, 'JSON parse error: ' + error.message);
+                document.getElementById('frameAnalysis').innerHTML = '<span class="error">Failed to parse frame data</span>';
+            }
+        };
+        
+        function testSVGFrame(frameData) {
+            try {
+                // Test 1: Base64 decoding
+                let svgContent;
+                try {
+                    svgContent = atob(frameData.data);
+                    document.getElementById('svgTest').innerHTML = '<span class="success">✅ Base64 decode OK</span><br>';
+                } catch (e) {
+                    document.getElementById('svgTest').innerHTML = '<span class="error">❌ Base64 decode failed: ' + e.message + '</span><br>';
+                    return;
+                }
+                
+                // Show SVG content (first 500 chars)
+                document.getElementById('svgContent').textContent = 
+                    'SVG Content (first 500 chars):\n' + svgContent.substring(0, 500) + 
+                    (svgContent.length > 500 ? '\n...(truncated)' : '');
+                
+                // Test 2: SVG structure validation
+                const checks = {
+                    startsWithSVG: svgContent.startsWith('<svg'),
+                    endsWithSVG: svgContent.endsWith('</svg>'),
+                    hasNamespace: svgContent.includes('xmlns="http://www.w3.org/2000/svg"'),
+                    hasWidthHeight: svgContent.includes('width=') && svgContent.includes('height='),
+                    noLeadingWhitespace: svgContent.charAt(0) === '<',
+                    noControlChars: !/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(svgContent)
+                };
+                
+                let checksHTML = '';
+                Object.entries(checks).forEach(([check, passed]) => {
+                    checksHTML += `${passed ? '✅' : '❌'} ${check}<br>`;
+                });
+                document.getElementById('svgTest').innerHTML += checksHTML;
+                
+                // Test 3: Try multiple data URI formats
+                testDataURI(frameData.data, svgContent);
+                
+            } catch (error) {
+                document.getElementById('svgTest').innerHTML = '<span class="error">❌ SVG test failed: ' + error.message + '</span>';
+            }
+        }
+        
+        function testDataURI(base64Data, svgContent) {
+            const canvas = document.getElementById('testCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#f0f0f0';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            let testResults = '';
+            let testCount = 0;
+            const maxTests = 3;
+            
+            // Method 1: Base64 data URI
+            testCount++;
+            const dataURI1 = 'data:image/svg+xml;base64,' + base64Data;
+            const img1 = new Image();
+            
+            img1.onload = function() {
+                ctx.drawImage(img1, 0, 0, 320, 240);
+                testResults += '✅ Method 1 (base64): Success<br>';
+                document.getElementById('visualTest').innerHTML = testResults;
+            };
+            
+            img1.onerror = function() {
+                testResults += '❌ Method 1 (base64): Failed<br>';
+                testMethod2();
+            };
+            
+            img1.src = dataURI1;
+            
+            function testMethod2() {
+                // Method 2: URL encoded
+                testCount++;
+                const dataURI2 = 'data:image/svg+xml,' + encodeURIComponent(svgContent);
+                const img2 = new Image();
+                
+                img2.onload = function() {
+                    ctx.drawImage(img2, 0, 0, 320, 240);
+                    testResults += '✅ Method 2 (URL encoded): Success<br>';
+                    document.getElementById('visualTest').innerHTML = testResults;
+                };
+                
+                img2.onerror = function() {
+                    testResults += '❌ Method 2 (URL encoded): Failed<br>';
+                    testMethod3();
+                };
+                
+                img2.src = dataURI2;
+            }
+            
+            function testMethod3() {
+                // Method 3: UTF-8 base64
+                testCount++;
+                try {
+                    const utf8Base64 = btoa(unescape(encodeURIComponent(svgContent)));
+                    const dataURI3 = 'data:image/svg+xml;base64,' + utf8Base64;
+                    const img3 = new Image();
+                    
+                    img3.onload = function() {
+                        ctx.drawImage(img3, 0, 0, 320, 240);
+                        testResults += '✅ Method 3 (UTF-8 base64): Success<br>';
+                        document.getElementById('visualTest').innerHTML = testResults;
+                    };
+                    
+                    img3.onerror = function() {
+                        testResults += '❌ Method 3 (UTF-8 base64): Failed<br>';
+                        if (testCount >= maxTests) {
+                            testResults += '<span class="error">All methods failed!</span><br>';
+                            document.getElementById('visualTest').innerHTML = testResults;
+                        }
+                    };
+                    
+                    img3.src = dataURI3;
+                    
+                } catch (e) {
+                    testResults += '❌ Method 3 (UTF-8 base64): Exception - ' + e.message + '<br>';
+                    document.getElementById('visualTest').innerHTML = testResults;
+                }
+            }
+        }
+    </script>
+</body>
+</html>
