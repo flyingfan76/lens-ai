@@ -10,6 +10,7 @@ import 'package:udp/udp.dart';
 import '../models/external_camera.dart';
 import 'native_system_service.dart';
 import 'nikon_sdk_service.dart';
+import 'libgphoto2_service.dart';
 
 class ExternalCameraService {
   static final ExternalCameraService _instance = ExternalCameraService._internal();
@@ -585,6 +586,12 @@ class ExternalCameraService {
       
       debugPrint('ExternalCameraService: Attempting to connect to camera: ${camera.name} (${camera.model})');
       
+      // Check if camera is already connected
+      if (camera.isConnected) {
+        debugPrint('ExternalCameraService: Camera ${camera.name} is already connected');
+        return true;
+      }
+      
       if (camera.model == 'Unknown Model' && !camera.id.contains('simulation')) {
         debugPrint('ExternalCameraService: Cannot connect to unknown camera model');
         return false;
@@ -979,8 +986,9 @@ class ExternalCameraService {
   DateTime? _lastFrameTime;
   Uint8List? _lastValidFrame;
   
-  // Real Nikon SDK service
+  // Real camera services
   final NikonSDKService _nikonSDK = NikonSDKService();
+  final LibGPhoto2Service _libgphoto2 = LibGPhoto2Service();
 
   Stream<Uint8List>? get liveViewStream => _bufferedLiveViewController?.stream;
   bool get isLiveViewActive => _isLiveViewActive;
@@ -988,9 +996,11 @@ class ExternalCameraService {
   /// Start live view streaming from the specified camera
   Future<bool> startLiveView(String cameraId) async {
     try {
+      debugPrint('🚨 LIVE VIEW BUTTON CLICKED! CameraId: $cameraId');
       final camera = _discoveredCameras.firstWhere((c) => c.id == cameraId && c.isConnected);
       
-      debugPrint('ExternalCameraService: Starting live view for ${camera.name}');
+      debugPrint('🚨 ExternalCameraService: Starting live view for ${camera.name}');
+      debugPrint('🚨 Camera details: ${camera.toString()}');
       
       // Stop any existing live view
       if (_isLiveViewActive) {
@@ -1017,7 +1027,9 @@ class ExternalCameraService {
       
       return false;
     } catch (e) {
-      debugPrint('ExternalCameraService: Failed to start live view: $e');
+      debugPrint('🚨 ExternalCameraService: CRITICAL ERROR - Failed to start live view: $e');
+      debugPrint('🚨 Error type: ${e.runtimeType}');
+      debugPrint('🚨 Stack trace: ${StackTrace.current}');
       return false;
     }
   }
@@ -1051,11 +1063,11 @@ class ExternalCameraService {
   
   /// Validate JPEG frame data
   bool _isValidJpegFrame(Uint8List data) {
-    return data.length > 10 && 
+    // More lenient validation for live view streams
+    return data.length > 1000 && 
            data[0] == 0xFF && 
-           data[1] == 0xD8 && 
-           data[data.length - 2] == 0xFF && 
-           data[data.length - 1] == 0xD9;
+           data[1] == 0xD8;
+           // Don't check end marker as live streams may not have complete frames
   }
 
   /// Stop live view streaming
@@ -1066,6 +1078,15 @@ class ExternalCameraService {
     
     _liveViewTimer?.cancel();
     _liveViewTimer = null;
+    
+    // Stop libgphoto2 live view if active
+    try {
+      if (_libgphoto2.isLiveViewActive) {
+        await _libgphoto2.stopLiveView();
+      }
+    } catch (e) {
+      debugPrint('ExternalCameraService: Error stopping libgphoto2: $e');
+    }
     
     // Stop Nikon SDK live view if active
     try {
@@ -1113,10 +1134,93 @@ class ExternalCameraService {
     }
   }
   
-  /// Start live view using real Nikon SDK
+  /// Start live view using libgphoto2 (primary) or Nikon SDK (fallback)
   Future<bool> _startNikonLiveView(ExternalCamera camera) async {
     try {
-      debugPrint('ExternalCameraService: Starting real Nikon SDK live view for ${camera.model}');
+      debugPrint('ExternalCameraService: Starting camera live view for ${camera.model}');
+      
+      // Try libgphoto2 first (purpose-built for D90 PTP cameras)
+      debugPrint('ExternalCameraService: Attempting libgphoto2 live view (PTP camera support)');
+      final libgphoto2Success = await _startLibGPhoto2LiveView(camera);
+      if (libgphoto2Success) {
+        debugPrint('ExternalCameraService: ✅ libgphoto2 live view successful - using real D90 camera');
+        return true;
+      }
+      
+      // Fallback to Nikon SDK (AVFoundation) - will likely use Mac camera
+      debugPrint('ExternalCameraService: ⚠️ libgphoto2 failed, falling back to AVFoundation (likely Mac camera)');
+      return await _startNikonSDKLiveView(camera);
+      
+    } catch (e) {
+      debugPrint('ExternalCameraService: Camera live view error: $e');
+      return false;
+    }
+  }
+  
+  /// Start live view using libgphoto2 (primary method)
+  Future<bool> _startLibGPhoto2LiveView(ExternalCamera camera) async {
+    try {
+      debugPrint('ExternalCameraService: Starting libgphoto2 live view for ${camera.model}');
+      
+      // Initialize libgphoto2 service
+      final initialized = await _libgphoto2.initialize();
+      if (!initialized) {
+        debugPrint('ExternalCameraService: libgphoto2 initialization failed');
+        return false;
+      }
+      
+      // Detect cameras
+      final cameras = await _libgphoto2.detectCameras();
+      if (cameras.isEmpty) {
+        debugPrint('ExternalCameraService: No cameras detected by libgphoto2');
+        return false;
+      }
+      
+      debugPrint('ExternalCameraService: libgphoto2 detected ${cameras.length} cameras');
+      
+      // Connect to camera
+      final connected = await _libgphoto2.connect();
+      if (!connected) {
+        debugPrint('ExternalCameraService: libgphoto2 connection failed');
+        return false;
+      }
+      
+      // Start live view
+      final liveViewStarted = await _libgphoto2.startLiveView();
+      if (!liveViewStarted) {
+        debugPrint('ExternalCameraService: libgphoto2 live view start failed');
+        return false;
+      }
+      
+      // Subscribe to libgphoto2 live view stream
+      final libgphoto2Stream = _libgphoto2.liveViewStream;
+      if (libgphoto2Stream != null) {
+        libgphoto2Stream.listen(
+          (imageData) {
+            if (_isLiveViewActive && _liveViewStreamController != null) {
+              debugPrint('ExternalCameraService: Received libgphoto2 live view frame: ${imageData.length} bytes');
+              _liveViewStreamController!.add(imageData);
+            }
+          },
+          onError: (error) {
+            debugPrint('ExternalCameraService: libgphoto2 live view stream error: $error');
+          },
+        );
+      }
+      
+      debugPrint('ExternalCameraService: libgphoto2 live view started successfully');
+      return true;
+      
+    } catch (e) {
+      debugPrint('ExternalCameraService: libgphoto2 live view error: $e');
+      return false;
+    }
+  }
+  
+  /// Start live view using Nikon SDK (fallback method)
+  Future<bool> _startNikonSDKLiveView(ExternalCamera camera) async {
+    try {
+      debugPrint('ExternalCameraService: Starting Nikon SDK live view for ${camera.model}');
       
       // Initialize the Nikon SDK service
       await _nikonSDK.initialize();
@@ -1125,7 +1229,7 @@ class ExternalCameraService {
       debugPrint('ExternalCameraService: Testing method channel connection...');
       bool testResult = false;
       try {
-        testResult = await _nikonSDK.testConnection().timeout(Duration(seconds: 5));
+        testResult = await _nikonSDK.testConnection().timeout(Duration(seconds: 15));
         debugPrint('ExternalCameraService: Method channel test result: $testResult');
       } catch (e) {
         debugPrint('ExternalCameraService: Method channel test timeout or error: $e');
@@ -1140,7 +1244,7 @@ class ExternalCameraService {
       // Check if camera is connected via SDK with timeout
       bool isConnected = false;
       try {
-        isConnected = await _nikonSDK.isCameraConnected().timeout(Duration(seconds: 5));
+        isConnected = await _nikonSDK.isCameraConnected().timeout(Duration(seconds: 15));
         debugPrint('ExternalCameraService: Camera connection check: $isConnected');
       } catch (e) {
         debugPrint('ExternalCameraService: Camera connection check timeout or error: $e');
@@ -1155,7 +1259,7 @@ class ExternalCameraService {
       // Start live view via SDK with timeout
       bool success = false;
       try {
-        success = await _nikonSDK.startLiveView().timeout(Duration(seconds: 10));
+        success = await _nikonSDK.startLiveView().timeout(Duration(seconds: 20));
         debugPrint('ExternalCameraService: Nikon SDK live view start result: $success');
       } catch (e) {
         debugPrint('ExternalCameraService: Nikon SDK live view start timeout or error: $e');
@@ -1173,17 +1277,17 @@ class ExternalCameraService {
         sdkStream.listen(
           (imageData) {
             if (_isLiveViewActive && _liveViewStreamController != null) {
-              debugPrint('ExternalCameraService: Received real live view frame: ${imageData.length} bytes');
+              debugPrint('ExternalCameraService: Received Nikon SDK live view frame: ${imageData.length} bytes');
               _liveViewStreamController!.add(imageData);
             }
           },
           onError: (error) {
-            debugPrint('ExternalCameraService: Nikon live view stream error: $error');
+            debugPrint('ExternalCameraService: Nikon SDK live view stream error: $error');
           },
         );
       }
       
-      debugPrint('ExternalCameraService: Real Nikon live view started successfully');
+      debugPrint('ExternalCameraService: Nikon SDK live view started successfully');
       return true;
       
     } catch (e) {
@@ -1195,85 +1299,27 @@ class ExternalCameraService {
   /// Start WiFi live view streaming
   Future<bool> _startWiFiLiveView(ExternalCamera camera) async {
     try {
-      debugPrint('ExternalCameraService: Starting WiFi live view for ${camera.name}');
-      
-      // Implementation would connect to camera's HTTP/RTSP stream
-      // For now, return mock implementation
-      _liveViewTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-        if (_isLiveViewActive && _liveViewStreamController != null) {
-          final mockFrame = _generateMockLiveViewFrame(camera);
-          _liveViewStreamController!.add(mockFrame);
-        }
-      });
-      
-      return true;
+      debugPrint('ExternalCameraService: WiFi live view not implemented for ${camera.name}');
+      // WiFi live view would require camera-specific HTTP/RTSP stream implementation
+      // This is not implemented yet - would need camera manufacturer protocols
+      return false;
     } catch (e) {
       debugPrint('ExternalCameraService: WiFi live view error: $e');
       return false;
     }
   }
 
-  /// Generate mock live view frame as JPEG (placeholder until real SDK integration)
-  Uint8List _generateMockLiveViewFrame(ExternalCamera camera) {
-    // Create a simple solid color JPEG that changes color over time
-    // This simulates a live video feed until real SDK integration
-    
-    final time = DateTime.now().millisecondsSinceEpoch;
-    final colorPhase = (time ~/ 1000) % 3; // Change color every second
-    
-    // Generate a simple 8x8 JPEG with a solid color
-    // This is a minimal valid JPEG that Flutter can decode
-    final List<int> jpegData = [];
-    
-    // JPEG header
-    jpegData.addAll([0xFF, 0xD8]); // SOI
-    
-    // JFIF header
-    jpegData.addAll([0xFF, 0xE0, 0x00, 0x10]); // APP0 marker and length
-    jpegData.addAll([0x4A, 0x46, 0x49, 0x46, 0x00]); // "JFIF\0"
-    jpegData.addAll([0x01, 0x01]); // Version 1.1
-    jpegData.addAll([0x01]); // Aspect ratio units (1 = no units)
-    jpegData.addAll([0x00, 0x01, 0x00, 0x01]); // X and Y density
-    jpegData.addAll([0x00, 0x00]); // Thumbnail width and height
-    
-    // Quantization table
-    jpegData.addAll([0xFF, 0xDB, 0x00, 0x43, 0x00]); // DQT marker
-    for (int i = 0; i < 64; i++) {
-      jpegData.add(16); // Simple quantization values
+  /// Stop macOS PTP services that block camera access
+  Future<bool> stopPTPService() async {
+    try {
+      debugPrint('ExternalCameraService: Stopping PTP service via Nikon SDK');
+      final success = await _nikonSDK.stopPTPService();
+      debugPrint('ExternalCameraService: Stop PTP service result: $success');
+      return success;
+    } catch (e) {
+      debugPrint('ExternalCameraService: Stop PTP service error: $e');
+      return false;
     }
-    
-    // Frame header (SOF0)
-    jpegData.addAll([0xFF, 0xC0, 0x00, 0x11, 0x08]); // SOF0 marker
-    jpegData.addAll([0x00, 0x08, 0x00, 0x08]); // 8x8 image
-    jpegData.addAll([0x01]); // 1 component (grayscale)
-    jpegData.addAll([0x01, 0x11, 0x00]); // Component 1: Y component
-    
-    // Huffman tables (simplified)
-    jpegData.addAll([0xFF, 0xC4, 0x00, 0x15, 0x00]); // DHT marker
-    jpegData.addAll([0x01]); // 1 code
-    for (int i = 0; i < 15; i++) {
-      jpegData.add(0);
-    }
-    jpegData.add(colorPhase * 80 + 40); // Varying brightness based on color phase
-    
-    jpegData.addAll([0xFF, 0xC4, 0x00, 0x14, 0x10]); // DHT marker AC
-    jpegData.add(0);
-    for (int i = 0; i < 15; i++) {
-      jpegData.add(0);
-    }
-    
-    // Start of scan
-    jpegData.addAll([0xFF, 0xDA, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3F, 0x00]);
-    
-    // Image data (minimal)
-    jpegData.add(0x00);
-    
-    // End of image
-    jpegData.addAll([0xFF, 0xD9]);
-    
-    final result = Uint8List.fromList(jpegData);
-    debugPrint('ExternalCameraService: Generated valid JPEG frame (${result.length} bytes, phase: $colorPhase)');
-    return result;
   }
 
   void dispose() {

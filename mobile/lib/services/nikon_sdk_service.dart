@@ -139,6 +139,60 @@ class NikonSDKService {
     }
   }
   
+  /// Advanced PTP management with multiple strategies
+  Future<bool> managePTP(String action) async {
+    try {
+      debugPrint('NikonSDKService: Managing PTP - action: $action');
+      final result = await _channel.invokeMethod('managePTP', {'action': action});
+      debugPrint('NikonSDKService: Manage PTP returned: $result');
+      return result == true;
+    } catch (e) {
+      debugPrint('NikonSDKService: Manage PTP error: $e');
+      return false;
+    }
+  }
+  
+  /// Stop macOS PTP services that block camera access
+  Future<bool> stopPTPService() async {
+    return await managePTP('disable');
+  }
+  
+  /// Re-enable PTP services
+  Future<bool> enablePTPService() async {
+    return await managePTP('enable');
+  }
+  
+  /// Check PTP daemon status
+  Future<bool> isPTPRunning() async {
+    return await managePTP('status');
+  }
+  
+  /// Request exclusive USB access for camera
+  Future<bool> requestExclusiveAccess() async {
+    try {
+      debugPrint('NikonSDKService: Requesting exclusive USB access');
+      final result = await _channel.invokeMethod('requestExclusiveAccess');
+      debugPrint('NikonSDKService: Exclusive access returned: $result');
+      return result == true;
+    } catch (e) {
+      debugPrint('NikonSDKService: Exclusive access error: $e');
+      return false;
+    }
+  }
+  
+  /// Capture a photo using the connected camera
+  Future<bool> capturePhoto() async {
+    try {
+      debugPrint('NikonSDKService: Capturing photo');
+      final result = await _channel.invokeMethod('capturePhoto');
+      debugPrint('NikonSDKService: Capture photo returned: $result');
+      return result == true;
+    } catch (e) {
+      debugPrint('NikonSDKService: Capture photo error: $e');
+      return false;
+    }
+  }
+  
   void dispose() {
     _eventSubscription?.cancel();
     _liveViewStreamController?.close();

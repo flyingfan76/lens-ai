@@ -101,6 +101,23 @@ class UnifiedCameraProvider extends ChangeNotifier {
         (cameras) {
           _externalCameras = cameras;
           debugPrint('UnifiedCameraProvider: External cameras updated: ${cameras.length}');
+          
+          // Auto-select connected camera if no camera is currently active
+          if (_activeExternalCamera == null && cameras.isNotEmpty) {
+            final connectedCamera = cameras.firstWhere(
+              (camera) => camera.isConnected,
+              orElse: () => cameras.first,
+            );
+            if (connectedCamera.isConnected) {
+              debugPrint('UnifiedCameraProvider: Auto-selecting connected camera: ${connectedCamera.name}');
+              _activeExternalCamera = connectedCamera;
+              _activeCameraType = CameraSourceType.external;
+              _isInitialized = true;
+              _error = null;  // CRITICAL: Clear any previous errors
+              debugPrint('UnifiedCameraProvider: Camera auto-selected successfully, error cleared');
+            }
+          }
+          
           notifyListeners();
         },
       );
@@ -170,7 +187,10 @@ class UnifiedCameraProvider extends ChangeNotifier {
       final connected = await _externalCameraService.connectToCamera(camera.id);
       
       if (connected) {
-        _activeExternalCamera = camera;
+        // Get the updated camera object from the service to ensure we have the latest connection state
+        final updatedCamera = _externalCameraService.discoveredCameras
+            .firstWhere((c) => c.id == camera.id, orElse: () => camera);
+        _activeExternalCamera = updatedCamera;
         _activeCameraType = CameraSourceType.external;
         _isInitialized = true;
         _error = null;
@@ -239,12 +259,15 @@ class UnifiedCameraProvider extends ChangeNotifier {
 
   /// Start live view for the active external camera
   Future<bool> startLiveView() async {
+    debugPrint('======================================');
     debugPrint('UnifiedCameraProvider: startLiveView called');
     debugPrint('UnifiedCameraProvider: _activeExternalCamera = $_activeExternalCamera');
     debugPrint('UnifiedCameraProvider: _activeCameraType = $_activeCameraType');
+    debugPrint('UnifiedCameraProvider: Current error state = $_error');
+    debugPrint('======================================');
     
     if (_activeExternalCamera == null) {
-      debugPrint('UnifiedCameraProvider: No external camera is active - cannot start live view');
+      debugPrint('UnifiedCameraProvider: ERROR - No external camera is active - cannot start live view');
       _error = 'No external camera is active';
       notifyListeners();
       return false;
@@ -276,6 +299,19 @@ class UnifiedCameraProvider extends ChangeNotifier {
       debugPrint('UnifiedCameraProvider: Live view stopped');
     } catch (e) {
       debugPrint('UnifiedCameraProvider: Stop live view error: $e');
+    }
+  }
+  
+  /// Stop macOS PTP services that block camera access
+  Future<bool> stopPTPService() async {
+    try {
+      debugPrint('UnifiedCameraProvider: Stopping PTP service');
+      final success = await _externalCameraService.stopPTPService();
+      debugPrint('UnifiedCameraProvider: Stop PTP service result: $success');
+      return success;
+    } catch (e) {
+      debugPrint('UnifiedCameraProvider: Stop PTP service error: $e');
+      return false;
     }
   }
 

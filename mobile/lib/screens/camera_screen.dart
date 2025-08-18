@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../core/theme/app_colors.dart';
 import '../core/utils/disposal_mixin.dart';
 import '../widgets/white_balance_control.dart';
@@ -49,16 +47,6 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
     // Note: External cameras work on macOS via USB/WiFi connections
   }
   
-  Future<void> _clearCameraCacheOnMacOS() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('discovered_cameras');
-      await prefs.remove('connected_camera');
-      debugPrint('CameraScreen: Cleared camera cache for macOS');
-    } catch (e) {
-      debugPrint('CameraScreen: Failed to clear camera cache: $e');
-    }
-  }
 
   Future<void> _switchToBuiltinCamera(CameraDescription camera) async {
     final success = await _cameraProvider.switchToBuiltinCamera(camera);
@@ -121,9 +109,12 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
     return Consumer<UnifiedCameraProvider>(
       builder: (context, provider, child) {
         // Debug logging for macOS camera issue
-        debugPrint('CameraScreen: isLoading=${provider.isLoading}, hasAnyCameras=${provider.hasAnyCameras}, error=${provider.error}');
-        debugPrint('CameraScreen: builtinCameras=${provider.builtinCameras.length}, externalCameras=${provider.externalCameras.length}');
-        debugPrint('CameraScreen: External cameras: ${provider.externalCameras.map((c) => '${c.name} (connected: ${c.isConnected})').join(', ')}');
+        debugPrint('🔥 CameraScreen: isLoading=${provider.isLoading}, hasAnyCameras=${provider.hasAnyCameras}, error=${provider.error}');
+        debugPrint('🔥 CameraScreen: builtinCameras=${provider.builtinCameras.length}, externalCameras=${provider.externalCameras.length}');
+        debugPrint('🔥 CameraScreen: External cameras: ${provider.externalCameras.map((c) => '${c.name} (connected: ${c.isConnected})').join(', ')}');
+        if (provider.error != null) {
+          debugPrint('🚨 ERROR SOURCE DETECTED: ${provider.error}');
+        }
         
         if (provider.isLoading) {
           return const Center(
@@ -181,12 +172,7 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
     } else if (provider.activeCameraType == CameraSourceType.external) {
       return _buildExternalCameraPreview(provider.activeExternalCamera!);
     } else {
-      return const Center(
-        child: Text(
-          'Select a camera to begin',
-          style: TextStyle(color: Colors.white, fontSize: 16),
-        ),
-      );
+      return Container(color: Colors.black);
     }
   }
 
@@ -224,21 +210,65 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
           // Optimized live view stream
           Positioned.fill(
             child: StreamBuilder<Uint8List>(
-              stream: liveViewStream.distinct(),  // Remove duplicate frames
+              stream: liveViewStream,
               builder: (context, snapshot) {
-                // Use previous valid frame if current is corrupted/empty
-                final currentFrame = snapshot.hasData && snapshot.data!.isNotEmpty 
-                    ? snapshot.data! 
-                    : _lastValidFrame;
-                    
-                if (currentFrame != null && _isValidJpegFrame(currentFrame)) {
-                  // Cache the valid frame
-                  _lastValidFrame = currentFrame;
-                  
-                  return _buildOptimizedLiveViewDisplay(currentFrame, camera);
+                if (snapshot.hasError) {
+                  debugPrint('📺 StreamBuilder ERROR: ${snapshot.error}');
+                  return Container(
+                    color: Colors.red.withOpacity(0.3),
+                    child: const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.error_outline, color: Colors.white, size: 48),
+                          SizedBox(height: 8),
+                          Text('Stream Error', style: TextStyle(color: Colors.white)),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  debugPrint('📺 StreamBuilder: Waiting for data... hasData=${snapshot.hasData}, connectionState=${snapshot.connectionState}');
+                  return Container(
+                    color: Colors.black,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const CircularProgressIndicator(color: Colors.white),
+                          const SizedBox(height: 16),
+                          Text(
+                            snapshot.connectionState == ConnectionState.waiting 
+                                ? 'Connecting to live view...'
+                                : 'Starting live view...',
+                            style: const TextStyle(color: Colors.white)
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Connection: ${snapshot.connectionState.toString()}',
+                            style: const TextStyle(color: Colors.white70, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                
+                final frameData = snapshot.data!;
+                debugPrint('📺 StreamBuilder: Received frame ${frameData.length} bytes');
+                
+                if (_isValidJpegFrame(frameData)) {
+                  _lastValidFrame = frameData;
+                  return _buildOptimizedLiveViewDisplay(frameData, camera);
                 } else {
-                  return const Center(
-                    child: CircularProgressIndicator(color: Colors.green),
+                  debugPrint('📺 StreamBuilder: Invalid JPEG frame, showing loading...');
+                  return Container(
+                    color: Colors.black87,
+                    child: const Center(
+                      child: Text('Processing frame...', style: TextStyle(color: Colors.white70)),
+                    ),
                   );
                 }
               },
@@ -255,11 +285,29 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
   
   /// Check if frame is valid JPEG to prevent rendering corrupted frames
   bool _isValidJpegFrame(Uint8List data) {
-    return data.length > 10 && 
-           data[0] == 0xFF && 
-           data[1] == 0xD8 && 
-           data[data.length - 2] == 0xFF && 
-           data[data.length - 1] == 0xD9;
+    if (data.length <= 10) {
+      debugPrint('⚠️ JPEG Validation: Frame too short (${data.length} bytes)');
+      return false;
+    }
+    
+    // Check JPEG start marker (FF D8)
+    bool hasValidStart = data[0] == 0xFF && data[1] == 0xD8;
+    
+    if (!hasValidStart) {
+      debugPrint('⚠️ JPEG Validation: Missing JPEG start marker. First bytes: [${data[0]}, ${data[1]}]');
+      return false;
+    }
+    
+    // For live view frames, we'll be more lenient about the end marker
+    // as some cameras send streaming JPEG data that might be truncated
+    // Basic validation: must be reasonable size and have JPEG start
+    if (data.length > 1000) { // Reasonable minimum size for a JPEG frame
+      debugPrint('✅ JPEG Validation: Valid JPEG frame (${data.length} bytes)');
+      return true;
+    } else {
+      debugPrint('⚠️ JPEG Validation: Frame too small for valid JPEG (${data.length} bytes)');
+      return false;
+    }
   }
   
   /// Build optimized live view display with minimal rebuilds
@@ -280,12 +328,47 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
             child: RepaintBoundary(  // Isolate image painting
               child: Image.memory(
                 imageData,
-                fit: BoxFit.cover,
+                fit: BoxFit.contain,  // Changed from cover to contain for better display
                 gaplessPlayback: true,  // Smooth frame transitions
                 filterQuality: FilterQuality.low,  // Better performance
                 errorBuilder: (context, error, stackTrace) {
-                  debugPrint('Live view image error: $error');
-                  return _buildMockCameraPreview();
+                  debugPrint('❌ Image.memory DECODE ERROR: $error');
+                  debugPrint('❌ Stack trace: $stackTrace');
+                  debugPrint('❌ Frame info: ${imageData.length} bytes, starts with [${imageData[0]}, ${imageData[1]}]');
+                  
+                  // Show more detailed error info
+                  if (kDebugMode) {
+                    debugPrint('❌ Full error: $error');
+                    debugPrint('❌ Problematic frame data (first 50 bytes): ${imageData.take(50).toList()}');
+                    debugPrint('❌ Last 10 bytes: ${imageData.skip(imageData.length - 10).toList()}');
+                  }
+                  
+                  return Container(
+                    color: Colors.orange.withOpacity(0.3),
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.warning_amber_outlined, color: Colors.white, size: 48),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Frame Decode Error',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            'Error: ${error.toString().length > 50 ? '${error.toString().substring(0, 50)}...' : error.toString()}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.white70, fontSize: 10),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${imageData.length} bytes received',
+                            style: const TextStyle(color: Colors.white70, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
                 },
               ),
             ),
@@ -354,41 +437,6 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
           ),
         ),
         
-        // Status text
-        Positioned(
-          bottom: 80,
-          left: 0,
-          right: 0,
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.green.withValues(alpha: 0.5)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.videocam,
-                    color: Colors.green,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Live view streaming from ${camera.name}',
-                    style: TextStyle(
-                      color: Colors.green.withValues(alpha: 0.9),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -438,57 +486,48 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
 
   Widget _buildCameraInfoWithControls(ExternalCamera camera, UnifiedCameraProvider provider) {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.black87,
-        border: Border.all(color: AppColors.accent, width: 2),
-      ),
+      color: Colors.black,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            _getCameraIcon(camera.brand),
-            size: 80,
-            color: AppColors.accent,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            camera.name,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          Text(
-            camera.model,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: camera.isConnected ? Colors.green : Colors.orange,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              camera.isConnected ? 'Connected' : 'Connecting...',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          
-          // Live view control button
           if (camera.isConnected) ...[
-            const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: () async {
-                await provider.startLiveView();
+                try {
+                  final result = await provider.startLiveView();
+                  debugPrint('🔥 startLiveView() returned: $result');
+                  
+                  if (!result && mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Camera not found via AVFoundation.\n'
+                          'Make sure your Nikon D90 is connected and recognized by macOS.',
+                        ),
+                        backgroundColor: Colors.orange,
+                        duration: Duration(seconds: 6),
+                      ),
+                    );
+                  } else if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Live view started with AVFoundation!'),
+                        backgroundColor: Colors.green,
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  debugPrint('🚨 Live view error: $e');
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Live view failed: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
               },
               icon: const Icon(Icons.videocam),
               label: const Text('Start Live View'),
@@ -498,155 +537,12 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
               ),
             ),
           ],
-          
-          // Debug info
-          if (defaultTargetPlatform == TargetPlatform.macOS)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                'Debug: isConnected=${camera.isConnected}',
-                style: const TextStyle(
-                  color: Colors.yellow,
-                  fontSize: 10,
-                ),
-              ),
-            ),
-          if (camera.connectionType == CameraConnectionType.wifi && camera.ipAddress != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                'IP: ${camera.ipAddress}',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5),
-                  fontSize: 12,
-                ),
-              ),
-            ),
         ],
       ),
     );
   }
 
-  /// Build real live view image from camera JPEG data
-  Widget _buildRealLiveViewImage(Uint8List imageData) {
-    try {
-      // Check if we have JPEG data (starts with FF D8)
-      if (imageData.length > 2 && imageData[0] == 0xFF && imageData[1] == 0xD8) {
-        // Real JPEG image from camera
-        return Image.memory(
-          imageData,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            debugPrint('Error displaying live view image: $error');
-            return _buildMockCameraPreview();
-          },
-        );
-      } else {
-        // Not JPEG data, fall back to mock preview
-        return _buildMockCameraPreview();
-      }
-    } catch (e) {
-      debugPrint('Error processing live view image data: $e');
-      return _buildMockCameraPreview();
-    }
-  }
 
-  /// Build mock camera preview background (fallback)
-  Widget _buildMockCameraPreview() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.grey[900]!,
-            Colors.grey[800]!,
-            Colors.grey[700]!,
-            Colors.grey[600]!,
-          ],
-        ),
-      ),
-      child: Stack(
-        children: [
-          // Simulated depth with circles (like bokeh effect)
-          Positioned(
-            top: 50,
-            right: 80,
-            child: Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.orange.withValues(alpha: 0.3),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.orange.withValues(alpha: 0.2),
-                    blurRadius: 20,
-                    spreadRadius: 10,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 80,
-            left: 60,
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.blue.withValues(alpha: 0.4),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.blue.withValues(alpha: 0.2),
-                    blurRadius: 15,
-                    spreadRadius: 8,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
-          // Center focus area
-          Center(
-            child: Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: Colors.green.withValues(alpha: 0.6),
-                  width: 2,
-                ),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Center(
-                child: Icon(
-                  Icons.center_focus_strong,
-                  color: Colors.green.withValues(alpha: 0.7),
-                  size: 48,
-                ),
-              ),
-            ),
-          ),
-          
-          // Mock scene elements
-          Positioned(
-            top: 30,
-            left: 30,
-            child: Container(
-              width: 80,
-              height: 20,
-              decoration: BoxDecoration(
-                color: Colors.brown.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   IconData _getCameraIcon(CameraBrand brand) {
     switch (brand) {
@@ -1331,38 +1227,6 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
   }
 
   /// Build quick control button for frequently used settings
-  Widget _buildQuickControl(IconData icon, String label, String value, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: Colors.white, size: 16),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: const TextStyle(color: Colors.white, fontSize: 10),
-            ),
-            Text(
-              value,
-              style: TextStyle(
-                color: AppColors.accent,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   /// Build functional slider for camera settings with real provider integration
   Widget _buildFunctionalSlider(String label, double value, double min, double max, Function(double) onChanged) {
@@ -1399,59 +1263,8 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
   }
 
   /// Build compact slider for camera settings
-  Widget _buildCompactSlider(String label, double value, double min, double max, Function(double) onChanged) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '$label${_formatSliderValue(label, value)}',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 4),
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            activeTrackColor: AppColors.accent,
-            inactiveTrackColor: Colors.white.withValues(alpha: 0.2),
-            thumbColor: AppColors.accent,
-            overlayColor: AppColors.accent.withValues(alpha: 0.2),
-            trackHeight: 3,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
-          ),
-          child: Slider(
-            value: value,
-            min: min,
-            max: max,
-            onChanged: onChanged,
-          ),
-        ),
-      ],
-    );
-  }
 
   /// Build action button for main controls
-  Widget _buildActionButton(IconData icon, VoidCallback onPressed) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.1),
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-        ),
-        child: Icon(
-          icon,
-          color: Colors.white,
-          size: 20,
-        ),
-      ),
-    );
-  }
 
   Widget _buildAISuggestionOverlay() {
     return Positioned.fill(
@@ -1889,155 +1702,7 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
     });
   }
 
-  /// Build comprehensive camera control panel with all settings
-  Widget _buildCameraControlPanel() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // White Balance Control
-          WhiteBalanceControl(
-            initialSettings: _wbSettings,
-            onChanged: (settings) {
-              setState(() {
-                _wbSettings = settings;
-              });
-            },
-          ),
-          const SizedBox(height: 16),
-          
-          // Camera Settings Row 1: ISO and Aperture
-          Row(
-            children: [
-              Expanded(
-                child: _buildSliderControl(
-                  'ISO',
-                  400.0, // Current value - would get from provider
-                  100.0,
-                  3200.0,
-                  (value) {
-                    // Update ISO
-                    debugPrint('ISO: $value');
-                  },
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildSliderControl(
-                  'f/',
-                  2.8, // Current value - would get from provider
-                  1.4,
-                  16.0,
-                  (value) {
-                    // Update aperture
-                    debugPrint('Aperture: f/$value');
-                  },
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          
-          // Camera Settings Row 2: Shutter Speed and Flash
-          Row(
-            children: [
-              Expanded(
-                child: _buildSliderControl(
-                  'Shutter',
-                  60.0, // Current value - would get from provider
-                  1.0,
-                  1000.0,
-                  (value) {
-                    // Update shutter speed
-                    debugPrint('Shutter: 1/${value.round()}');
-                  },
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Flash',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.8),
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.flash_off,
-                          color: Colors.white.withValues(alpha: 0.6),
-                          size: 16,
-                        ),
-                        Expanded(
-                          child: Switch(
-                            value: false, // Would get from provider
-                            onChanged: (value) {
-                              debugPrint('Flash: $value');
-                            },
-                            activeColor: AppColors.accent,
-                          ),
-                        ),
-                        Icon(
-                          Icons.flash_on,
-                          color: AppColors.accent,
-                          size: 16,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
-  /// Build slider control widget
-  Widget _buildSliderControl(String label, double value, double min, double max, Function(double) onChanged) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '$label: ${_formatSliderValue(label, value)}',
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.8),
-            fontSize: 12,
-          ),
-        ),
-        const SizedBox(height: 4),
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            activeTrackColor: AppColors.accent,
-            inactiveTrackColor: Colors.white.withValues(alpha: 0.2),
-            thumbColor: AppColors.accent,
-            overlayColor: AppColors.accent.withValues(alpha: 0.2),
-            trackHeight: 2,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-          ),
-          child: Slider(
-            value: value,
-            min: min,
-            max: max,
-            onChanged: onChanged,
-          ),
-        ),
-      ],
-    );
-  }
 
   /// Format slider values for display
   String _formatSliderValue(String label, double value) {
@@ -2228,8 +1893,4 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
     );
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
 }

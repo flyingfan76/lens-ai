@@ -17,8 +17,12 @@ class MainFlutterWindow: NSWindow {
   }
   
   private func registerCustomPlugins(registry: FlutterPluginRegistry) {
-    // Register NikonSDKBridge
+    // Register NikonSDKBridge (AVFoundation implementation - working)
     NikonSDKBridge.register(with: registry.registrar(forPlugin: "NikonSDKBridge"))
-    print("🚀 NikonSDKBridge registered in MainFlutterWindow")
+    print("✅ NikonSDKBridge registered - Camera detection working")
+    
+    // Enable LibGPhoto2Swift with bridging header approach
+    LibGPhoto2Swift.register(with: registry.registrar(forPlugin: "LibGPhoto2Swift"))
+    print("✅ LibGPhoto2Swift registered - Full D90 camera control enabled")
   }
 }

@@ -1,0 +1,7 @@
+/Users/i052156/workspace/lens-ai/mobile/macos/build-native/CMakeFiles/libgphoto2_native.dir
+/Users/i052156/workspace/lens-ai/mobile/macos/build-native/CMakeFiles/edit_cache.dir
+/Users/i052156/workspace/lens-ai/mobile/macos/build-native/CMakeFiles/rebuild_cache.dir
+/Users/i052156/workspace/lens-ai/mobile/macos/build-native/CMakeFiles/list_install_components.dir
+/Users/i052156/workspace/lens-ai/mobile/macos/build-native/CMakeFiles/install.dir
+/Users/i052156/workspace/lens-ai/mobile/macos/build-native/CMakeFiles/install/local.dir
+/Users/i052156/workspace/lens-ai/mobile/macos/build-native/CMakeFiles/install/strip.dir

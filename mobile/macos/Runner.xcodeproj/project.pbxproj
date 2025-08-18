@@ -29,7 +29,8 @@
 		33CC10F62044A3C60003C045 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 33CC10F42044A3C60003C045 /* MainMenu.xib */; };
 		33CC11132044BFA00003C045 /* MainFlutterWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CC11122044BFA00003C045 /* MainFlutterWindow.swift */; };
 		3D6E2486854247E48EC91937 /* NikonSDKBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65B74AFB032A4BC2A1FF63BF /* NikonSDKBridge.swift */; };
-		4E2A1B2F2A1B3C4D00123456 /* libgphoto2-bridge.c in Sources */ = {isa = PBXBuildFile; fileRef = 4E2A1B2E2A1B3C4D00123456 /* libgphoto2-bridge.c */; };
+		4E2A1B3E2A1B3C5E00123456 /* LibGPhoto2Swift.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E2A1B3D2A1B3C5E00123456 /* LibGPhoto2Swift.swift */; };
+		4E2A1B4F2A1B3C6F00123456 /* LibGPhoto2Native.c in Sources */ = {isa = PBXBuildFile; fileRef = 4E2A1B4E2A1B3C6F00123456 /* LibGPhoto2Native.c */; };
 		D049433A0B05BFD645F4FF0F /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AA5AF6B30347834A55F9E2A0 /* Pods_Runner.framework */; };
 /* End PBXBuildFile section */
 
@@ -79,7 +80,9 @@
 		33CC11122044BFA00003C045 /* MainFlutterWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainFlutterWindow.swift; sourceTree = "<group>"; };
 		33CEB47222A05771004F2AC0 /* Flutter-Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Flutter-Debug.xcconfig"; sourceTree = "<group>"; };
 		65B74AFB032A4BC2A1FF63BF /* NikonSDKBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NikonSDKBridge.swift; sourceTree = "<group>"; };
-		4E2A1B2E2A1B3C4D00123456 /* libgphoto2-bridge.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "libgphoto2-bridge.c"; sourceTree = "<group>"; };
+		4E2A1B3D2A1B3C5E00123456 /* LibGPhoto2Swift.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibGPhoto2Swift.swift; sourceTree = "<group>"; };
+		4E2A1B4E2A1B3C6F00123456 /* LibGPhoto2Native.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LibGPhoto2Native.c; sourceTree = "<group>"; };
+		4E2A1B5F2A1B3C7F00123456 /* LibGPhoto2Native.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LibGPhoto2Native.h; sourceTree = "<group>"; };
 		4E2A1B2D2A1B3C4D00123456 /* libgphoto2-bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "libgphoto2-bridge.h"; sourceTree = "<group>"; };
 		4E2A1B2C2A1B3C4D00123456 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
 		33CEB47422A05771004F2AC0 /* Flutter-Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Flutter-Release.xcconfig"; sourceTree = "<group>"; };
@@ -184,7 +187,9 @@
 				33CC10F02044A3C60003C045 /* AppDelegate.swift */,
 				33CC11122044BFA00003C045 /* MainFlutterWindow.swift */,
 				65B74AFB032A4BC2A1FF63BF /* NikonSDKBridge.swift */,
-				4E2A1B2E2A1B3C4D00123456 /* libgphoto2-bridge.c */,
+				4E2A1B3D2A1B3C5E00123456 /* LibGPhoto2Swift.swift */,
+				4E2A1B4E2A1B3C6F00123456 /* LibGPhoto2Native.c */,
+				4E2A1B5F2A1B3C7F00123456 /* LibGPhoto2Native.h */,
 				4E2A1B2D2A1B3C4D00123456 /* libgphoto2-bridge.h */,
 				4E2A1B2C2A1B3C4D00123456 /* Runner-Bridging-Header.h */,
 				33E51913231747F40026EE4D /* DebugProfile.entitlements */,
@@ -450,7 +455,8 @@
 				33CC11132044BFA00003C045 /* MainFlutterWindow.swift in Sources */,
 				33CC10F12044A3C60003C045 /* AppDelegate.swift in Sources */,
 				3D6E2486854247E48EC91937 /* NikonSDKBridge.swift in Sources */,
-				4E2A1B2F2A1B3C4D00123456 /* libgphoto2-bridge.c in Sources */,
+				4E2A1B3E2A1B3C5E00123456 /* LibGPhoto2Swift.swift in Sources */,
+				4E2A1B4F2A1B3C6F00123456 /* LibGPhoto2Native.c in Sources */,
 				335BBD1B22A9A15E00E9071D /* GeneratedPluginRegistrant.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

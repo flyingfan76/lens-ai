@@ -1,0 +1,2 @@
+/usr/bin/ar qc lib/liblibgphoto2_native.a CMakeFiles/libgphoto2_native.dir/Runner/LibGPhoto2Native.c.o
+/usr/bin/ranlib lib/liblibgphoto2_native.a
