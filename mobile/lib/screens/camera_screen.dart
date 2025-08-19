@@ -370,10 +370,9 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
     _cachedControlsOverlay ??= _buildLiveViewControls();
     
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.black,
-        border: Border.all(color: AppColors.accent, width: 2),
-      ),
+      color: Colors.black,
+      width: double.infinity,
+      height: double.infinity,
       child: Stack(
         children: [
           // Optimized live view stream
@@ -483,64 +482,63 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
   Widget _buildOptimizedLiveViewDisplay(Uint8List imageData, ExternalCamera camera) {
     return Container(
       color: Colors.black,
-      child: Center(
-        child: Container(
-          width: MediaQuery.of(context).size.width * 0.8,
-          height: MediaQuery.of(context).size.height * 0.6,
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.green, width: 2),
-            borderRadius: BorderRadius.circular(8),
-            color: Colors.black87,
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: RepaintBoundary(  // Isolate image painting
-              child: Image.memory(
-                imageData,
-                fit: BoxFit.contain,  // Changed from cover to contain for better display
-                gaplessPlayback: true,  // Smooth frame transitions
-                filterQuality: FilterQuality.low,  // Better performance
-                errorBuilder: (context, error, stackTrace) {
-                  debugPrint('❌ Image.memory DECODE ERROR: $error');
-                  debugPrint('❌ Stack trace: $stackTrace');
-                  debugPrint('❌ Frame info: ${imageData.length} bytes, starts with [${imageData[0]}, ${imageData[1]}]');
-                  
-                  // Show more detailed error info
-                  if (kDebugMode) {
-                    debugPrint('❌ Full error: $error');
-                    debugPrint('❌ Problematic frame data (first 50 bytes): ${imageData.take(50).toList()}');
-                    debugPrint('❌ Last 10 bytes: ${imageData.skip(imageData.length - 10).toList()}');
-                  }
-                  
-                  return Container(
-                    color: Colors.orange.withOpacity(0.3),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.warning_amber_outlined, color: Colors.white, size: 48),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Frame Decode Error',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            'Error: ${error.toString().length > 50 ? '${error.toString().substring(0, 50)}...' : error.toString()}',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: Colors.white70, fontSize: 10),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${imageData.length} bytes received',
-                            style: const TextStyle(color: Colors.white70, fontSize: 12),
-                          ),
-                        ],
-                      ),
+      width: double.infinity,
+      height: double.infinity,
+      child: RepaintBoundary(  // Isolate image painting
+        child: InteractiveViewer(
+          panEnabled: true,  // Allow panning
+          scaleEnabled: true,  // Allow zoom
+          minScale: 0.5,  // Allow zooming out to see more
+          maxScale: 4.0,  // Allow zooming in for details
+          constrained: false,  // Allow the image to be larger than the viewport
+          child: Image.memory(
+            imageData,
+            fit: BoxFit.contain,  // Show entire image while maintaining aspect ratio
+            width: double.infinity,
+            height: double.infinity,
+            gaplessPlayback: true,  // Smooth frame transitions
+            filterQuality: FilterQuality.medium,  // Better quality for full screen
+          errorBuilder: (context, error, stackTrace) {
+            debugPrint('❌ Image.memory DECODE ERROR: $error');
+            debugPrint('❌ Stack trace: $stackTrace');
+            debugPrint('❌ Frame info: ${imageData.length} bytes, starts with [${imageData[0]}, ${imageData[1]}]');
+            
+            // Show more detailed error info
+            if (kDebugMode) {
+              debugPrint('❌ Full error: $error');
+              debugPrint('❌ Problematic frame data (first 50 bytes): ${imageData.take(50).toList()}');
+              debugPrint('❌ Last 10 bytes: ${imageData.skip(imageData.length - 10).toList()}');
+            }
+            
+            return Container(
+              color: Colors.orange.withOpacity(0.3),
+              width: double.infinity,
+              height: double.infinity,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.warning_amber_outlined, color: Colors.white, size: 48),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Frame Decode Error',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                     ),
-                  );
-                },
+                    Text(
+                      'Error: ${error.toString().length > 50 ? '${error.toString().substring(0, 50)}...' : error.toString()}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white70, fontSize: 10),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${imageData.length} bytes received',
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ],
+                ),
               ),
-            ),
+            );
+          },
           ),
         ),
       ),
@@ -601,6 +599,40 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 11,
+              ),
+            ),
+          ),
+        ),
+        
+        // Zoom/Pan hint (bottom center)
+        Positioned(
+          bottom: 80,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.zoom_in,
+                    color: Colors.white70,
+                    size: 16,
+                  ),
+                  SizedBox(width: 6),
+                  Text(
+                    'Pinch to zoom • Drag to pan',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
