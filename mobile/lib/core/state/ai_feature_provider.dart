@@ -231,9 +231,10 @@ class AIFeatureProvider extends BaseStateProvider
           _learnFromContext(sceneContext);
         }
       } else {
-        // Generate mock suggestions for demo/offline mode
-        _currentSuggestions = _generateMockSuggestions(context);
+        // No AI coordinator available - create empty suggestions
+        _currentSuggestions = [];
         _lastSuggestionsUpdate = DateTime.now();
+        debugPrint('AIFeatureProvider: No AI coordinator available for suggestion generation');
       }
       
       _suggestionsLoading = false;
@@ -247,84 +248,6 @@ class AIFeatureProvider extends BaseStateProvider
     );
   }
   
-  /// Generate mock suggestions for demo mode
-  List<AISuggestion> _generateMockSuggestions(String context) {
-    final suggestions = <AISuggestion>[];
-    
-    switch (context) {
-      case 'portrait':
-        suggestions.addAll([
-          AISuggestion(
-            id: 'portrait_1',
-            type: AISuggestionType.cameraSettings,
-            category: AISuggestionCategory.aperture,
-            title: 'Portrait Enhancement',
-            message: 'Lower aperture for better background blur',
-            priority: 0.85,
-            confidence: 0.85,
-            actionable: true,
-            action: SuggestionAction(
-              type: 'camera_setting',
-              settings: {'aperture': 1.8, 'iso': 200},
-            ),
-            explanation: 'Wide aperture creates pleasing bokeh effect for portraits',
-          ),
-          AISuggestion(
-            id: 'portrait_2',
-            type: AISuggestionType.composition,
-            category: AISuggestionCategory.ruleOfThirds,
-            title: 'Composition Tip',
-            message: 'Position subject using rule of thirds',
-            priority: 0.78,
-            confidence: 0.78,
-            actionable: false,
-            explanation: 'Rule of thirds creates more dynamic portraits',
-          ),
-        ]);
-        break;
-        
-      case 'landscape':
-        suggestions.addAll([
-          AISuggestion(
-            id: 'landscape_1',
-            type: AISuggestionType.cameraSettings,
-            category: AISuggestionCategory.aperture,
-            title: 'Landscape Settings',
-            message: 'Increase aperture for sharp foreground and background',
-            priority: 0.82,
-            confidence: 0.82,
-            actionable: true,
-            action: SuggestionAction(
-              type: 'camera_setting',
-              settings: {'aperture': 8.0, 'iso': 100},
-            ),
-            explanation: 'Higher aperture ensures entire scene is in focus',
-          ),
-        ]);
-        break;
-        
-      default:
-        suggestions.add(
-          AISuggestion(
-            id: 'general_1',
-            type: AISuggestionType.cameraSettings,
-            category: AISuggestionCategory.iso,
-            title: 'Balanced Settings',
-            message: 'Optimize for current lighting conditions',
-            priority: 0.75,
-            confidence: 0.75,
-            actionable: true,
-            action: SuggestionAction(
-              type: 'camera_setting',
-              settings: {'iso': 400, 'aperture': 2.8},
-            ),
-            explanation: 'Balanced settings work well in most situations',
-          ),
-        );
-    }
-    
-    return suggestions;
-  }
   
   /// Select a suggestion
   void selectSuggestion(AISuggestion suggestion) {
@@ -454,8 +377,9 @@ class AIFeatureProvider extends BaseStateProvider
           analysisType: analysisType,
         );
       } else {
-        // Generate mock analysis for demo mode
-        analysisResult = _generateMockAnalysis(analysisType);
+        // No AI coordinator available - create empty analysis
+        analysisResult = {};
+        debugPrint('AIFeatureProvider: No AI coordinator available for scene analysis');
       }
       
       _lastAnalysisResult = analysisResult;
@@ -475,47 +399,6 @@ class AIFeatureProvider extends BaseStateProvider
     return result ?? {};
   }
   
-  /// Generate mock analysis for demo mode
-  Map<String, dynamic> _generateMockAnalysis(String analysisType) {
-    switch (analysisType) {
-      case 'composition':
-        return {
-          'type': 'composition',
-          'score': 0.75,
-          'recommendations': [
-            'Apply rule of thirds for better composition',
-            'Consider adding leading lines',
-          ],
-          'detectedElements': ['subject', 'background', 'lighting'],
-        };
-        
-      case 'lighting':
-        return {
-          'type': 'lighting',
-          'score': 0.82,
-          'recommendations': [
-            'Good natural lighting detected',
-            'Consider slight exposure adjustment',
-          ],
-          'lightingType': 'natural',
-          'direction': 'front-left',
-          'quality': 'soft',
-        };
-        
-      default: // scene
-        return {
-          'type': 'scene',
-          'score': 0.78,
-          'sceneType': 'portrait',
-          'confidence': 0.85,
-          'recommendations': [
-            'Subject well positioned',
-            'Background could be less cluttered',
-          ],
-          'detectedObjects': ['person', 'face', 'indoor'],
-        };
-    }
-  }
   
   // Preference management methods
   

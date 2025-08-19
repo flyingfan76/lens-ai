@@ -360,7 +360,7 @@ class CachedOptimizedAIService with ErrorHandlerMixin, ServiceDisposalMixin impl
       for (final sceneType in commonSceneTypes) {
         warmupEntries.add(AIWarmupEntry(
           key: 'scene_analysis_$sceneType',
-          dataProvider: () async => _generateMockSceneAnalysis(sceneType),
+          dataProvider: () async => _generateEmptySceneAnalysis(sceneType),
           policy: CachePolicy.aiOptimized(),
         ));
       }
@@ -371,7 +371,7 @@ class CachedOptimizedAIService with ErrorHandlerMixin, ServiceDisposalMixin impl
       for (final setting in frequentCameraSettings) {
         warmupEntries.add(AIWarmupEntry(
           key: 'camera_settings_$setting',
-          dataProvider: () async => _generateMockCameraSettings(setting),
+          dataProvider: () async => _generateEmptyCameraSettings(setting),
         ));
       }
     }
@@ -566,14 +566,15 @@ class CachedOptimizedAIService with ErrorHandlerMixin, ServiceDisposalMixin impl
     }
   }
   
-  SceneAnalysis _generateMockSceneAnalysis(String sceneType) {
+  /// Generate empty scene analysis when caching is not available
+  SceneAnalysis _generateEmptySceneAnalysis(String sceneType) {
     return SceneAnalysis(
       sceneType: sceneType,
-      lightingCondition: 'normal',
-      subjectDistance: 'medium',
+      lightingCondition: 'unknown',
+      subjectDistance: 'unknown',
       movementDetected: false,
-      brightness: 0.5,
-      contrast: 0.5,
+      brightness: 0.0,
+      contrast: 0.0,
       colorTemperature: 5500,
       dominantColors: [],
       faces: [],
@@ -583,14 +584,9 @@ class CachedOptimizedAIService with ErrorHandlerMixin, ServiceDisposalMixin impl
     );
   }
   
-  Map<String, dynamic> _generateMockCameraSettings(String setting) {
-    return {
-      'mode': setting,
-      'iso': 400,
-      'aperture': 5.6,
-      'shutterSpeed': 125,
-      'whiteBalance': 'auto',
-    };
+  /// Generate empty camera settings when caching is not available
+  Map<String, dynamic> _generateEmptyCameraSettings(String setting) {
+    return {'error': 'Cache not available', 'confidence': 0.0};
   }
   
   SceneAnalysis _createFallbackSceneAnalysis() {

@@ -16,12 +16,8 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _aiSuggestions = true;
-  bool _autoApplySettings = false;
-  bool _saveRawFiles = true;
+  bool _savePicturesToPhone = true;
   bool _notifications = true;
-  String _imageQuality = 'High';
-  String _storageLocation = 'Internal';
   String _theme = 'System';
   
   // Camera management state
@@ -75,43 +71,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildSection(
-              'Camera Settings',
-              [
-                _buildSwitchTile(
-                  'Auto Apply AI Settings',
-                  'Automatically apply AI-suggested camera settings',
-                  _autoApplySettings,
-                  (value) => setState(() => _autoApplySettings = value),
-                  icon: Icons.auto_awesome,
-                ),
-                _buildSwitchTile(
-                  'Save RAW Files',
-                  'Save uncompressed image files',
-                  _saveRawFiles,
-                  (value) => setState(() => _saveRawFiles = value),
-                  icon: Icons.photo_camera,
-                ),
-                _buildDropdownTile(
-                  'Image Quality',
-                  'Choose image compression level',
-                  _imageQuality,
-                  ['Low', 'Medium', 'High', 'Maximum'],
-                  (value) => setState(() => _imageQuality = value!),
-                  icon: Icons.high_quality,
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            _buildSection(
               'Storage & Performance',
               [
-                _buildDropdownTile(
-                  'Storage Location',
-                  'Where to save captured photos',
-                  _storageLocation,
-                  ['Internal', 'SD Card', 'Cloud'],
-                  (value) => setState(() => _storageLocation = value!),
-                  icon: Icons.storage,
+                _buildSwitchTile(
+                  'Save Pictures to Phone',
+                  'Keep a copy of captured photos on your device',
+                  _savePicturesToPhone,
+                  (value) => setState(() => _savePicturesToPhone = value),
+                  icon: Icons.save_alt,
                 ),
                 ListTile(
                   leading: const Icon(Icons.cleaning_services),
@@ -199,13 +166,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: const Text('Configure AI providers, models, and custom endpoints'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: _navigateToAISettings,
-                ),
-                _buildSwitchTile(
-                  'AI Suggestions',
-                  'Get smart photography recommendations',
-                  _aiSuggestions,
-                  (value) => setState(() => _aiSuggestions = value),
-                  icon: Icons.auto_awesome,
                 ),
               ],
             ),

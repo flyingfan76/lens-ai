@@ -13,16 +13,22 @@ class MobileLocalAIPlatform implements LocalAIPlatform {
   @override
   Future<void> initializeModel() async {
     try {
-      // TODO: Uncomment when TensorFlow Lite model is available
-      // _interpreter = await Interpreter.fromAsset('assets/models/scene_analysis.tflite');
-      // _isModelLoaded = true;
-      
-      // For now, simulate model loading
-      await Future.delayed(const Duration(milliseconds: 200));
-      _isModelLoaded = true;
-      debugPrint('MobileLocalAIPlatform: TensorFlow Lite model loaded (simulated)');
+      // Try to load TensorFlow Lite model if available
+      try {
+        // Uncomment when TensorFlow Lite model is available and add tflite_flutter dependency
+        // _interpreter = await Interpreter.fromAsset('assets/models/scene_analysis.tflite');
+        // _isModelLoaded = true;
+        // debugPrint('MobileLocalAIPlatform: TensorFlow Lite model loaded successfully');
+        
+        // For now, we'll use rule-based analysis instead of ML model
+        _isModelLoaded = true;
+        debugPrint('MobileLocalAIPlatform: Using rule-based analysis (ML model not available)');
+      } catch (modelError) {
+        debugPrint('MobileLocalAIPlatform: TFLite model not available, using fallback: $modelError');
+        _isModelLoaded = true; // Still functional without ML model
+      }
     } catch (e) {
-      debugPrint('MobileLocalAIPlatform: Failed to load TFLite model: $e');
+      debugPrint('MobileLocalAIPlatform: Failed to initialize: $e');
       _isModelLoaded = false;
       rethrow;
     }
@@ -35,30 +41,34 @@ class MobileLocalAIPlatform implements LocalAIPlatform {
     }
     
     try {
-      // TODO: Implement actual TensorFlow Lite inference
-      // For now, return enhanced suggestions based on mobile capabilities
+      // Use rule-based analysis for now (instead of TensorFlow Lite)
+      // This provides intelligent suggestions based on scene analysis
       final suggestions = <AISuggestion>[];
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       
-      // Mobile-specific AI suggestions using device capabilities
+      // Advanced analysis using scene data and mathematical algorithms
       
-      // Advanced exposure analysis
-      if ((sceneAnalysis.brightness ?? 0.5) < 0.3) {
+      // Advanced exposure analysis based on scene brightness
+      final brightness = sceneAnalysis.brightness ?? 0.5;
+      if (brightness < 0.3) {
+        // Calculate optimal ISO based on brightness level
+        final suggestedISO = brightness < 0.15 ? 3200 : brightness < 0.25 ? 1600 : 800;
+        
         suggestions.add(AISuggestion(
-          id: 'mobile_advanced_iso_$timestamp',
+          id: 'advanced_low_light_$timestamp',
           type: AISuggestionType.cameraSettings,
           category: AISuggestionCategory.iso,
-          title: 'Mobile Night Mode',
-          message: 'Use device night mode for better low-light photos',
-          icon: 'brightness_2',
+          title: 'Advanced Low Light Mode',
+          message: 'Brightness: ${(brightness * 100).toInt()}% - Suggested ISO: $suggestedISO',
+          icon: 'brightness_2',  
           priority: 0.9,
           confidence: 0.9,
           actionable: true,
           action: SuggestionAction(
             type: 'apply_settings',
-            settings: {'nightMode': true, 'iso': 'auto'},
+            settings: {'iso': suggestedISO, 'stabilization': true},
           ),
-          explanation: 'Mobile night mode uses computational photography for excellent low-light results',
+          explanation: 'Optimized ISO setting based on measured scene brightness and stabilization enabled',
         ));
       }
       
@@ -103,14 +113,55 @@ class MobileLocalAIPlatform implements LocalAIPlatform {
         ));
       }
       
+      // Intelligent color temperature analysis
+      final colorTemp = sceneAnalysis.colorTemperature ?? 5500;
+      String whiteBalanceMode;
+      String lightingDescription;
+      
+      if (colorTemp < 3500) {
+        whiteBalanceMode = 'tungsten';
+        lightingDescription = 'Very warm indoor lighting';
+      } else if (colorTemp < 4200) {
+        whiteBalanceMode = 'incandescent';
+        lightingDescription = 'Warm indoor lighting';
+      } else if (colorTemp > 6500) {
+        whiteBalanceMode = 'shade';
+        lightingDescription = 'Cool outdoor shade';
+      } else if (colorTemp > 5800) {
+        whiteBalanceMode = 'cloudy';
+        lightingDescription = 'Overcast daylight';
+      } else {
+        whiteBalanceMode = 'daylight';
+        lightingDescription = 'Natural daylight';
+      }
+      
+      if (colorTemp < 4500 || colorTemp > 6200) {
+        suggestions.add(AISuggestion(
+          id: 'advanced_wb_$timestamp',
+          type: AISuggestionType.cameraSettings,
+          category: AISuggestionCategory.whiteBalance,
+          title: 'Color Temperature Correction',
+          message: '$lightingDescription detected (${colorTemp.toInt()}K)',
+          icon: 'wb_auto',
+          priority: 0.8,
+          confidence: 0.85,
+          actionable: true,
+          action: SuggestionAction(
+            type: 'apply_settings',
+            settings: {'whiteBalance': whiteBalanceMode},
+          ),
+          explanation: 'Adjust white balance to neutralize color cast from lighting',
+        ));
+      }
+      
       // Motion detection and stabilization
       if (sceneAnalysis.movementDetected || (sceneAnalysis.motion ?? 0.0) > 0.3) {
         suggestions.add(AISuggestion(
-          id: 'mobile_stabilization_$timestamp',
+          id: 'advanced_stabilization_$timestamp',
           type: AISuggestionType.cameraSettings,
           category: AISuggestionCategory.stabilization,
-          title: 'Optical Image Stabilization',
-          message: 'Enable OIS for moving subjects',
+          title: 'Motion Compensation',
+          message: 'Movement detected - enabling stabilization',
           icon: 'videocam_off',
           priority: 0.8,
           confidence: 0.85,
@@ -119,7 +170,7 @@ class MobileLocalAIPlatform implements LocalAIPlatform {
             type: 'apply_settings',
             settings: {'opticalStabilization': true, 'continuousAF': true},
           ),
-          explanation: 'Optical stabilization reduces blur when tracking moving subjects',
+          explanation: 'Stabilization and continuous AF will help track moving subjects',
         ));
       }
       

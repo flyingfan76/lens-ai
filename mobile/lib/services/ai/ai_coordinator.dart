@@ -33,8 +33,7 @@ class AICoordinator with ErrorHandlerMixin, ServiceDisposalMixin implements IAIS
     return _instance!;
   }
   
-  /// Reset singleton for testing purposes
-  @visibleForTesting
+  /// Reset singleton for testing purposes or configuration updates
   static void resetSingleton() {
     _instance?.dispose();
     _instance = null;
@@ -49,28 +48,53 @@ class AICoordinator with ErrorHandlerMixin, ServiceDisposalMixin implements IAIS
           return;
         }
         
+        debugPrint('🔧 AICoordinator: Starting initialization...');
+        debugPrint('🔧 AICoordinator: Configuration details:');
+        debugPrint('🔧   - enableCloudAI: ${_configuration.enableCloudAI}');
+        debugPrint('🔧   - selectionStrategy: ${_configuration.selectionStrategy.name}');
+        debugPrint('🔧   - allowFallbackToLocal: ${_configuration.allowFallbackToLocal}');
+        debugPrint('🔧   - cloudConfiguration exists: ${_configuration.cloudConfiguration != null}');
+        
         // Always initialize local service
         await _localService.initialize();
-        debugPrint('AICoordinator: Local AI service initialized');
+        debugPrint('✅ AICoordinator: Local AI service initialized');
         
         // Initialize cloud service if configured
         if (_configuration.enableCloudAI && _configuration.cloudConfiguration != null) {
+          debugPrint('🚀 AICoordinator: Attempting to initialize cloud AI service...');
+          debugPrint('🚀 AICoordinator: Cloud config - Provider: ${_configuration.cloudConfiguration!.provider}');
+          debugPrint('🚀 AICoordinator: Cloud config - Model: ${_configuration.cloudConfiguration!.modelId}');
+          debugPrint('🚀 AICoordinator: Cloud config - Endpoint: ${_configuration.cloudConfiguration!.customEndpoint}');
+          debugPrint('🚀 AICoordinator: Cloud config - API Key length: ${_configuration.cloudConfiguration!.apiKey.length}');
+          debugPrint('🚀 AICoordinator: Cloud config - API Key preview: ${_configuration.cloudConfiguration!.apiKey.substring(0, 4).padRight(4, '*')}...${_configuration.cloudConfiguration!.apiKey.substring(_configuration.cloudConfiguration!.apiKey.length - 4).padLeft(4, '*')}');
+          
           try {
             _cloudService = CloudAIService();
             await _cloudService!.initializeWithConfiguration(_configuration.cloudConfiguration!);
-            debugPrint('AICoordinator: Cloud AI service initialized');
+            debugPrint('✅ AICoordinator: Cloud AI service initialized successfully');
           } catch (e) {
-            debugPrint('AICoordinator: Cloud AI initialization failed: $e');
+            debugPrint('❌ AICoordinator: Cloud AI initialization failed: $e');
+            debugPrint('❌ AICoordinator: Error type: ${e.runtimeType}');
+            debugPrint('❌ AICoordinator: Stack trace: ${StackTrace.current}');
             if (!_configuration.allowFallbackToLocal) {
               rethrow;
             }
             // Continue with local-only mode
+            debugPrint('⚠️ AICoordinator: Falling back to local-only mode');
+            _cloudService = null;
           }
+        } else {
+          debugPrint('⚠️ AICoordinator: Cloud AI disabled or not configured');
+          debugPrint('⚠️ AICoordinator: enableCloudAI: ${_configuration.enableCloudAI}');
+          debugPrint('⚠️ AICoordinator: cloudConfiguration: ${_configuration.cloudConfiguration != null}');
         }
         
         _isInitialized = true;
         _aiServiceAvailable = true;
-        debugPrint('AICoordinator: Initialization complete (Strategy: ${_configuration.selectionStrategy.name})');
+        debugPrint('✅ AICoordinator: Initialization complete');
+        debugPrint('✅ AICoordinator: Strategy: ${_configuration.selectionStrategy.name}');
+        debugPrint('✅ AICoordinator: Cloud service available: ${_cloudService != null}');
+        debugPrint('✅ AICoordinator: Local service available: ${_localService.isInitialized}');
       },
       operation: 'initialize AI coordinator',
       showToUser: false,
@@ -351,8 +375,13 @@ class AICoordinator with ErrorHandlerMixin, ServiceDisposalMixin implements IAIS
     String? userRequest,
     Uint8List? imageBytes,
   }) async {
+    debugPrint('🔥 AICoordinator: _tryCloudFirst called');
+    debugPrint('🔥 AICoordinator: _cloudService is null: ${_cloudService == null}');
+    debugPrint('🔥 AICoordinator: _cloudService?.isInitialized: ${_cloudService?.isInitialized}');
+    
     if (_cloudService == null) {
-      debugPrint('AICoordinator: Cloud service not available, using local');
+      debugPrint('❌ AICoordinator: Cloud service not available, using local');
+      debugPrint('❌ AICoordinator: Reason: _cloudService is null');
       return await _localService.generateSuggestions(
         sceneAnalysis: sceneAnalysis,
         cameraModel: cameraModel,

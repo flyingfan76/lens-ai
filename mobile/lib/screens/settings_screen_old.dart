@@ -12,7 +12,6 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _aiSuggestions = true;
-  bool _autoApplySettings = false;
   bool _saveRawFiles = true;
   bool _notifications = true;
   String _imageQuality = 'High';
@@ -43,13 +42,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _aiSuggestions,
                   (value) => setState(() => _aiSuggestions = value),
                   icon: Icons.psychology,
-                ),
-                _buildSwitchTile(
-                  'Auto Apply AI Settings',
-                  'Automatically apply AI-suggested camera settings',
-                  _autoApplySettings,
-                  (value) => setState(() => _autoApplySettings = value),
-                  icon: Icons.auto_awesome,
                 ),
                 _buildSwitchTile(
                   'Save RAW Files',

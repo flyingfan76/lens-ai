@@ -20,7 +20,7 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
   static const String _configKey = 'ai_configuration';
   
   AIConfiguration _configuration = AIConfiguration(
-    selectedProviderId: 'custom',
+    selectedProviderId: 'local',
     providers: _getDefaultProviders(),
   );
   
@@ -53,20 +53,57 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
       if (configJson != null) {
         try {
           final configData = jsonDecode(configJson);
-          _configuration = AIConfiguration.fromJson(configData);
-          debugPrint('AI Settings: Configuration loaded from SharedPreferences');
+          final loadedConfig = AIConfiguration.fromJson(configData);
+          
+          // Check if loaded config has valid providers, if not reset to defaults
+          final hasLocalAiDuplicate = loadedConfig.providers.where((p) => p.name == 'Local AI').length > 1;
+          final hasValidCustomProvider = loadedConfig.providers.any((p) => p.id == 'custom' && p.selectedModel?.isNotEmpty == true);
+          
+          if (hasLocalAiDuplicate || !hasValidCustomProvider) {
+            debugPrint('AI Settings: Configuration has duplicates or missing model, resetting to defaults');
+            _configuration = AIConfiguration(
+              selectedProviderId: 'local',
+              providers: _getDefaultProviders(),
+            );
+          } else {
+            // Merge loaded configuration with defaults to ensure all fields are present
+            final defaultProviders = _getDefaultProviders();
+            final mergedProviders = <AIProviderConfig>[];
+            
+            for (final defaultProvider in defaultProviders) {
+              // Find matching saved provider
+              final savedProvider = loadedConfig.providers.firstWhere(
+                (p) => p.id == defaultProvider.id,
+                orElse: () => defaultProvider,
+              );
+              
+              // Merge: use saved values where available, defaults for missing fields
+              final mergedProvider = defaultProvider.copyWith(
+                endpoint: savedProvider.endpoint ?? defaultProvider.endpoint,
+                apiKey: savedProvider.apiKey ?? defaultProvider.apiKey,
+                selectedModel: savedProvider.selectedModel ?? defaultProvider.selectedModel,
+                isEnabled: savedProvider.isEnabled,
+              );
+              
+              mergedProviders.add(mergedProvider);
+              debugPrint('AI Settings: Merged provider ${mergedProvider.id} - model: ${mergedProvider.selectedModel}');
+            }
+            
+            _configuration = loadedConfig.copyWith(providers: mergedProviders);
+          }
+          debugPrint('AI Settings: Configuration loaded and merged with defaults');
         } catch (e) {
           debugPrint('AI Settings: Failed to parse configuration JSON: $e');
           // Use default configuration if parsing fails
           _configuration = AIConfiguration(
-            selectedProviderId: 'custom',
+            selectedProviderId: 'local',
             providers: _getDefaultProviders(),
           );
         }
       } else {
         debugPrint('AI Settings: No existing configuration found, using defaults');
         _configuration = AIConfiguration(
-          selectedProviderId: 'custom',
+          selectedProviderId: 'local',
           providers: _getDefaultProviders(),
         );
       }
@@ -99,7 +136,7 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
       debugPrint('AI Settings: Critical error loading configuration: $e');
       // Fallback to default configuration
       _configuration = AIConfiguration(
-        selectedProviderId: 'custom',
+        selectedProviderId: 'local',
         providers: _getDefaultProviders(),
       );
       _initializeControllers();
@@ -259,21 +296,6 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
     }
   }
 
-  void _showAddCustomProviderDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => _AddCustomProviderDialog(
-        onAdd: (provider) {
-          setState(() {
-            _configuration = _configuration.copyWith(
-              providers: [..._configuration.providers, provider],
-            );
-          });
-          _initializeControllers();
-        },
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -283,6 +305,8 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
         appBar: AppBar(
           title: const Text('AI & Intelligence'),
           backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          iconTheme: const IconThemeData(color: Colors.white),
         ),
         body: const Center(
           child: CircularProgressIndicator(
@@ -297,6 +321,8 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
       appBar: AppBar(
         title: const Text('AI & Intelligence'),
         backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           TextButton(
             onPressed: _isSaving ? null : _saveConfiguration,
@@ -331,19 +357,19 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
               statusType: _configuration.selectedProvider != null 
                   ? StatusType.success 
                   : StatusType.warning,
-              description: _configuration.selectedProvider?.description,
+              description: _configuration.selectedProvider?.description ?? 'No AI provider selected',
             ),
             
-            // General AI Settings
+            // AI Features
             const SectionHeader(
-              title: 'General Settings',
-              subtitle: 'Control AI behavior and features',
+              title: 'AI Features',
+              subtitle: 'Enable or disable AI-powered features',
             ),
             ConfigurationCard(
               children: [
                 SettingsSwitchRow(
-                  title: 'Enable AI Suggestions',
-                  subtitle: 'Get AI-powered photography recommendations',
+                  title: 'AI Suggestions',
+                  subtitle: 'Get real-time photography recommendations',
                   value: _configuration.enableAISuggestions,
                   onChanged: (value) {
                     setState(() {
@@ -351,40 +377,113 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
                     });
                   },
                 ),
-                SettingsSwitchRow(
-                  title: 'Auto Analysis',
-                  subtitle: 'Automatically analyze photos after capture',
-                  value: _configuration.enableAutoAnalysis,
-                  onChanged: (value) {
-                    setState(() {
-                      _configuration = _configuration.copyWith(enableAutoAnalysis: value);
-                    });
-                  },
-                ),
               ],
             ),
             
-            // Provider Selection
+            
+            // AI Provider Selection
             const SectionHeader(
               title: 'AI Provider',
-              subtitle: 'Choose your preferred AI service',
+              subtitle: 'Choose your AI service',
             ),
             ConfigurationCard(
               children: [
-                SettingsDropdownRow<String>(
-                  title: 'Active Provider',
-                  subtitle: 'Select which AI service to use',
-                  value: _configuration.selectedProviderId,
-                  items: _configuration.providers.map((provider) {
-                    return DropdownMenuItem<String>(
-                      value: provider.id,
-                      child: Text(provider.name),
+                ..._configuration.providers.map((provider) => 
+                  ListTile(
+                    leading: Icon(
+                      _getProviderIcon(provider.type.iconName),
+                      color: provider.id == _configuration.selectedProviderId 
+                          ? AppColors.accent 
+                          : Colors.white70,
+                    ),
+                    title: Text(
+                      provider.name,
+                      style: TextStyle(
+                        color: provider.id == _configuration.selectedProviderId 
+                            ? AppColors.accent 
+                            : Colors.white,
+                        fontWeight: provider.id == _configuration.selectedProviderId 
+                            ? FontWeight.w600 
+                            : FontWeight.normal,
+                      ),
+                    ),
+                    subtitle: Text(
+                      provider.description,
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                    trailing: provider.id == _configuration.selectedProviderId 
+                        ? const Icon(Icons.check_circle, color: AppColors.accent, size: 20)
+                        : const Icon(Icons.radio_button_unchecked, color: Colors.white30, size: 20),
+                    onTap: () {
+                      setState(() {
+                        _configuration = _configuration.copyWith(selectedProviderId: provider.id);
+                      });
+                    },
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                const Divider(color: Colors.white24, height: 1),
+              ],
+            ),
+            
+            // Selected Provider Configuration
+            if (_configuration.selectedProvider != null) ...[
+              SectionHeader(
+                title: 'Configuration',
+                subtitle: 'Configure ${_configuration.selectedProvider!.name}',
+              ),
+              _buildProviderCard(_configuration.selectedProvider!),
+            ],
+            
+            // Advanced Settings
+            ExpansionTile(
+              title: const Text(
+                'Advanced Settings',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+              subtitle: const Text(
+                'Customize AI behavior and prompts',
+                style: TextStyle(color: Colors.white70),
+              ),
+              iconColor: AppColors.accent,
+              collapsedIconColor: Colors.white70,
+              children: [
+                ConfigurationCard(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  children: [
+                    SettingsRow(
+                      title: 'Confidence Threshold',
+                      subtitle: 'Minimum confidence for AI suggestions (${(_configuration.suggestionConfidenceThreshold * 100).toInt()}%)',
+                      trailing: SizedBox(
+                        width: 120,
+                        child: Slider(
+                          value: _configuration.suggestionConfidenceThreshold,
+                          min: 0.1,
+                          max: 1.0,
+                          divisions: 9,
+                          activeColor: AppColors.accent,
+                          onChanged: (value) {
+                            setState(() {
+                              _configuration = _configuration.copyWith(suggestionConfidenceThreshold: value);
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                    SettingsDropdownRow<int>(
+                      title: 'Max Suggestions',
+                  subtitle: 'Maximum number of AI suggestions to show',
+                  value: _configuration.maxSuggestions,
+                  items: [1, 3, 5, 10].map((count) {
+                    return DropdownMenuItem<int>(
+                      value: count,
+                      child: Text(count.toString()),
                     );
                   }).toList(),
                   onChanged: (value) {
                     if (value != null) {
                       setState(() {
-                        _configuration = _configuration.copyWith(selectedProviderId: value);
+                        _configuration = _configuration.copyWith(maxSuggestions: value);
                       });
                     }
                   },
@@ -393,51 +492,24 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
               ],
             ),
             
-            // Provider Configurations
+            // Custom Prompt Template
             const SectionHeader(
-              title: 'Provider Configuration',
-              subtitle: 'Configure individual AI providers',
-            ),
-            
-            ..._configuration.providers.map((provider) => _buildProviderCard(provider)),
-            
-            // Add Custom Provider
-            ConfigurationCard(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.add, color: AppColors.accent),
-                  title: const Text(
-                    'Add Custom Provider',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                  subtitle: const Text(
-                    'Configure a custom AI endpoint',
-                    style: TextStyle(color: Colors.white70),
-                  ),
-                  onTap: _showAddCustomProviderDialog,
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ],
-            ),
-            
-            // Advanced Settings
-            const SectionHeader(
-              title: 'Advanced Settings',
-              subtitle: 'Customize AI behavior and prompts',
+              title: 'Custom Prompt',
+              subtitle: 'Customize AI instructions for better results',
             ),
             ConfigurationCard(
               children: [
                 SettingsTextFieldRow(
-                  title: 'Custom Prompt Template',
-                  subtitle: 'Customize the AI prompt for photography suggestions',
+                  title: 'Prompt Template',
+                  subtitle: 'Custom instructions for the AI to follow',
                   value: _configuration.customPromptTemplate ?? AIConfiguration.getBuiltInPrompt(),
                   hintText: 'Enter custom prompt template...',
-                  maxLines: 3,
+                  maxLines: 4,
                   onChanged: (value) {
                     _controllers['custom_prompt']?.text = value;
                   },
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -458,51 +530,12 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                SettingsRow(
-                  title: 'Confidence Threshold',
-                  subtitle: 'Minimum confidence for AI suggestions (${(_configuration.suggestionConfidenceThreshold * 100).toInt()}%)',
-                  trailing: Slider(
-                    value: _configuration.suggestionConfidenceThreshold,
-                    min: 0.1,
-                    max: 1.0,
-                    divisions: 9,
-                    activeColor: AppColors.accent,
-                    onChanged: (value) {
-                      setState(() {
-                        _configuration = _configuration.copyWith(suggestionConfidenceThreshold: value);
-                      });
-                    },
-                  ),
-                ),
-                SettingsRow(
-                  title: 'Max Suggestions',
-                  subtitle: 'Maximum number of AI suggestions to show',
-                  trailing: DropdownButton<int>(
-                    value: _configuration.maxSuggestions,
-                    items: [1, 3, 5, 10].map((count) {
-                      return DropdownMenuItem<int>(
-                        value: count,
-                        child: Text(count.toString()),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _configuration = _configuration.copyWith(maxSuggestions: value);
-                        });
-                      }
-                    },
-                    underline: const SizedBox(),
-                    dropdownColor: const Color(0xFF2A2A2A),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  showDivider: false,
-                ),
               ],
             ),
+            ],
+            ),
             
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -511,57 +544,183 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
 
   Widget _buildProviderCard(AIProviderConfig provider) {
     return ConfigurationCard(
-      title: provider.name,
-      subtitle: provider.description,
-      leading: Icon(
-        _getProviderIcon(provider.type.iconName),
-        color: provider.id == _configuration.selectedProviderId 
-            ? AppColors.accent 
-            : Colors.white70,
-      ),
       children: [
-        if (provider.type != AIProviderType.local) ...[
-          if (provider.type == AIProviderType.custom) ...[
-            SettingsDropdownRow<AIProtocol>(
-              title: 'API Protocol',
-              subtitle: 'Choose the API protocol format',
-              value: provider.protocol ?? AIProtocol.openai,
-              items: AIProtocol.values.map((protocol) => DropdownMenuItem(
-                value: protocol,
-                child: Text(protocol.displayName),
-              )).toList(),
-              onChanged: (protocol) {
-                if (protocol != null) {
-                  setState(() {
-                    final index = _configuration.providers.indexWhere((p) => p.id == provider.id);
-                    if (index != -1) {
-                      _configuration.providers[index] = provider.copyWith(protocol: protocol);
-                    }
-                  });
-                }
-              },
+        // Provider info header
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.accent.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                _getProviderIcon(provider.type.iconName),
+                color: AppColors.accent,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    provider.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    provider.description,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
-          SettingsTextFieldRow(
-            title: 'API Endpoint',
-            subtitle: 'Service endpoint URL',
-            value: _controllers['${provider.id}_endpoint']?.text,
-            hintText: provider.type.defaultEndpoint ?? 'https://api.example.com/v1',
-            onChanged: (value) {
-              _controllers['${provider.id}_endpoint']?.text = value;
-            },
-          ),
-          SettingsTextFieldRow(
-            title: 'API Key',
-            subtitle: 'Your API key for this service',
-            value: _controllers['${provider.id}_apikey']?.text,
-            hintText: 'Enter your API key...',
-            obscureText: true,
-            onChanged: (value) {
-              _controllers['${provider.id}_apikey']?.text = value;
-            },
-          ),
-        ],
+        ),
+        const SizedBox(height: 24),
+        
+        // Provider-specific configuration
+        if (provider.type == AIProviderType.local) ...
+          _buildLocalAIConfiguration(provider)
+        else if (provider.type == AIProviderType.custom) ...
+          _buildCustomProviderConfiguration(provider)
+        else ...
+          _buildCloudProviderConfiguration(provider),
+      ],
+    );
+  }
+  
+  List<Widget> _buildLocalAIConfiguration(AIProviderConfig provider) {
+    return [
+      StatusCard(
+        title: 'Status',
+        status: 'Ready',
+        statusType: StatusType.success,
+        description: 'Local AI processing is available offline',
+      ),
+      const SizedBox(height: 16),
+      if (provider.availableModels.isNotEmpty) ...[
+        SettingsDropdownRow<String>(
+          title: 'Model',
+          subtitle: 'Local AI model for offline processing',
+          value: provider.selectedModel ?? provider.availableModels.first,
+          items: provider.availableModels.map((model) {
+            return DropdownMenuItem<String>(
+              value: model,
+              child: Text(model),
+            );
+          }).toList(),
+          onChanged: (value) {
+            if (value != null) {
+              _controllers['${provider.id}_model']?.text = value;
+            }
+          },
+          showDivider: false,
+        ),
+      ],
+    ];
+  }
+  
+  List<Widget> _buildCustomProviderConfiguration(AIProviderConfig provider) {
+    return [
+      SettingsDropdownRow<AIProtocol>(
+        title: 'API Protocol',
+        subtitle: 'Choose the API protocol format',
+        value: provider.protocol ?? AIProtocol.openai,
+        items: AIProtocol.values.map((protocol) => DropdownMenuItem(
+          value: protocol,
+          child: Text(protocol.displayName),
+        )).toList(),
+        onChanged: (protocol) {
+          if (protocol != null) {
+            setState(() {
+              final index = _configuration.providers.indexWhere((p) => p.id == provider.id);
+              if (index != -1) {
+                _configuration.providers[index] = provider.copyWith(protocol: protocol);
+              }
+            });
+          }
+        },
+      ),
+      SettingsTextFieldRow(
+        title: 'API Endpoint',
+        subtitle: 'Your custom API endpoint URL',
+        value: _controllers['${provider.id}_endpoint']?.text,
+        hintText: 'https://api.example.com/v1',
+        onChanged: (value) {
+          _controllers['${provider.id}_endpoint']?.text = value;
+        },
+      ),
+      SettingsTextFieldRow(
+        title: 'API Key', 
+        subtitle: 'API key for your custom endpoint',
+        value: _controllers['${provider.id}_apikey']?.text,
+        hintText: 'Enter your API key...',
+        obscureText: true,
+        onChanged: (value) {
+          _controllers['${provider.id}_apikey']?.text = value;
+        },
+      ),
+      if (provider.availableModels.isNotEmpty) ...[
+        SettingsDropdownRow<String>(
+          title: 'Model',
+          subtitle: 'Available model from your endpoint',
+          value: provider.selectedModel ?? provider.availableModels.first,
+          items: provider.availableModels.map((model) {
+            return DropdownMenuItem<String>(
+              value: model,
+              child: Text(model),
+            );
+          }).toList(),
+          onChanged: (value) {
+            if (value != null) {
+              _controllers['${provider.id}_model']?.text = value;
+            }
+          },
+        ),
+      ],
+      const SizedBox(height: 16),
+      ConnectionTestCard(
+        title: 'Connection Test',
+        endpoint: _controllers['${provider.id}_endpoint']?.text.isNotEmpty == true 
+            ? _controllers['${provider.id}_endpoint']!.text 
+            : 'Not configured',
+        onTest: () => _testConnection(provider),
+      ),
+    ];
+  }
+  
+  List<Widget> _buildCloudProviderConfiguration(AIProviderConfig provider) {
+    return [
+      SettingsTextFieldRow(
+        title: 'API Endpoint',
+        subtitle: _getEndpointSubtitle(provider.type),
+        value: _controllers['${provider.id}_endpoint']?.text,
+        hintText: provider.type.defaultEndpoint ?? 'https://api.example.com/v1',
+        onChanged: (value) {
+          _controllers['${provider.id}_endpoint']?.text = value;
+        },
+      ),
+      SettingsTextFieldRow(
+        title: 'API Key',
+        subtitle: _getApiKeySubtitle(provider.type),
+        value: _controllers['${provider.id}_apikey']?.text,
+        hintText: 'Enter your API key...',
+        obscureText: true,
+        onChanged: (value) {
+          _controllers['${provider.id}_apikey']?.text = value;
+        },
+      ),
+      if (provider.availableModels.isNotEmpty) ...[
         SettingsDropdownRow<String>(
           title: 'Model',
           subtitle: 'Select the AI model to use',
@@ -578,18 +737,50 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
             }
           },
         ),
-        if (provider.type != AIProviderType.local) ...[
-          const SizedBox(height: 16),
-          ConnectionTestCard(
-            title: 'Connection Test',
-            endpoint: _controllers['${provider.id}_endpoint']?.text.isNotEmpty == true 
-                ? _controllers['${provider.id}_endpoint']!.text 
-                : 'Not configured',
-            onTest: () => _testConnection(provider),
-          ),
-        ],
       ],
-    );
+      const SizedBox(height: 16),
+      ConnectionTestCard(
+        title: 'Connection Test',
+        endpoint: _controllers['${provider.id}_endpoint']?.text.isNotEmpty == true 
+            ? _controllers['${provider.id}_endpoint']!.text 
+            : provider.type.defaultEndpoint ?? 'Not configured',
+        onTest: () => _testConnection(provider),
+      ),
+    ];
+  }
+  
+  String _getEndpointSubtitle(AIProviderType type) {
+    switch (type) {
+      case AIProviderType.openai:
+        return 'OpenAI API endpoint (leave default unless using proxy)';
+      case AIProviderType.anthropic:
+        return 'Anthropic API endpoint (leave default unless using proxy)';
+      case AIProviderType.google:
+        return 'Google Gemini API endpoint';
+      case AIProviderType.azure:
+        return 'Your specific Azure OpenAI endpoint URL';
+      case AIProviderType.local:
+        return 'Local server endpoint';
+      case AIProviderType.custom:
+        return 'Your custom API endpoint URL';
+    }
+  }
+  
+  String _getApiKeySubtitle(AIProviderType type) {
+    switch (type) {
+      case AIProviderType.openai:
+        return 'Get from platform.openai.com → API Keys';
+      case AIProviderType.anthropic:
+        return 'Get from console.anthropic.com → API Keys';
+      case AIProviderType.google:
+        return 'Get from ai.google.dev → API Keys';
+      case AIProviderType.azure:
+        return 'Your Azure OpenAI resource API key';
+      case AIProviderType.local:
+        return 'Local authentication key (if required)';
+      case AIProviderType.custom:
+        return 'API key for your custom endpoint';
+    }
   }
 
   IconData _getProviderIcon(String iconName) {
@@ -614,14 +805,24 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
   static List<AIProviderConfig> _getDefaultProviders() {
     return [
       AIProviderConfig(
+        id: 'local',
+        name: 'Local AI',
+        description: 'Local AI processing without internet connection',
+        type: AIProviderType.local,
+        endpoint: 'http://localhost:8080',
+        availableModels: AIProviderType.local.defaultModels,
+        selectedModel: 'local-model',
+        isEnabled: true,
+      ),
+      AIProviderConfig(
         id: 'custom',
         name: 'Custom Endpoint',
         description: 'Custom API endpoint for flexible AI integration',
         type: AIProviderType.custom,
         protocol: AIProtocol.openai,
-        endpoint: '',
-        availableModels: [],
-        selectedModel: '',
+        endpoint: 'https://openaiproxy.cfapps.sap.hana.ondemand.com/anthropic',
+        availableModels: ['claude-3-sonnet-20240229'],
+        selectedModel: 'claude-3-sonnet-20240229',
         isEnabled: true,
         isCustom: true,
       ),
@@ -633,7 +834,7 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
         endpoint: 'https://api.openai.com/v1',
         availableModels: AIProviderType.openai.defaultModels,
         selectedModel: 'gpt-4-vision-preview',
-        isEnabled: false,
+        isEnabled: true,
       ),
       AIProviderConfig(
         id: 'anthropic',
@@ -643,7 +844,7 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
         endpoint: 'https://api.anthropic.com',
         availableModels: AIProviderType.anthropic.defaultModels,
         selectedModel: 'claude-3-5-sonnet-20241022',
-        isEnabled: false,
+        isEnabled: true,
       ),
       AIProviderConfig(
         id: 'google',
@@ -653,161 +854,8 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
         endpoint: 'https://generativelanguage.googleapis.com/v1',
         availableModels: AIProviderType.google.defaultModels,
         selectedModel: 'gemini-1.5-pro',
-        isEnabled: false,
+        isEnabled: true,
       ),
     ];
-  }
-}
-
-class _AddCustomProviderDialog extends StatefulWidget {
-  final Function(AIProviderConfig) onAdd;
-
-  const _AddCustomProviderDialog({required this.onAdd});
-
-  @override
-  State<_AddCustomProviderDialog> createState() => _AddCustomProviderDialogState();
-}
-
-class _AddCustomProviderDialogState extends State<_AddCustomProviderDialog> {
-  final _nameController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _endpointController = TextEditingController();
-  final _apiKeyController = TextEditingController();
-  final _modelController = TextEditingController();
-  
-  AIProviderType _selectedType = AIProviderType.custom;
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _descriptionController.dispose();
-    _endpointController.dispose();
-    _apiKeyController.dispose();
-    _modelController.dispose();
-    super.dispose();
-  }
-
-  void _addProvider() {
-    if (_nameController.text.trim().isEmpty) return;
-
-    final provider = AIProviderConfig(
-      id: 'custom_${DateTime.now().millisecondsSinceEpoch}',
-      name: _nameController.text.trim(),
-      description: _descriptionController.text.trim(),
-      type: _selectedType,
-      endpoint: _endpointController.text.trim(),
-      apiKey: _apiKeyController.text.trim(),
-      selectedModel: _modelController.text.trim(),
-      availableModels: [_modelController.text.trim()],
-      isCustom: true,
-    );
-
-    widget.onAdd(provider);
-    Navigator.of(context).pop();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: const Color(0xFF1A1A1A),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Add Custom Provider',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 24),
-              TextField(
-                controller: _nameController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Provider Name',
-                  labelStyle: TextStyle(color: Colors.white70),
-                  filled: true,
-                  fillColor: Colors.white12,
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _descriptionController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Description',
-                  labelStyle: TextStyle(color: Colors.white70),
-                  filled: true,
-                  fillColor: Colors.white12,
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _endpointController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'API Endpoint',
-                  labelStyle: TextStyle(color: Colors.white70),
-                  filled: true,
-                  fillColor: Colors.white12,
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _apiKeyController,
-                style: const TextStyle(color: Colors.white),
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'API Key',
-                  labelStyle: TextStyle(color: Colors.white70),
-                  filled: true,
-                  fillColor: Colors.white12,
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _modelController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Model Name',
-                  labelStyle: TextStyle(color: Colors.white70),
-                  filled: true,
-                  fillColor: Colors.white12,
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Cancel'),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: _addProvider,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accent,
-                    ),
-                    child: const Text('Add Provider'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

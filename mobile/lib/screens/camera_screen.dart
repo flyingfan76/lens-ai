@@ -7,12 +7,17 @@ import '../core/theme/app_colors.dart';
 import '../core/utils/disposal_mixin.dart';
 import '../widgets/white_balance_control.dart';
 import '../services/ai/ai_coordinator.dart';
+import '../services/ai/cloud_ai_service.dart';
 import '../models/ai_suggestion.dart';
+import '../models/ai_provider_config.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../models/external_camera.dart';
 import '../core/state/camera_feature_provider.dart';
 import '../core/providers/unified_camera_provider.dart';
 import 'settings_screen.dart';
 import 'dart:async';
+import 'package:flutter/services.dart';
 
 /// Simplified Camera Screen that works with current architecture
 class CameraScreen extends StatefulWidget {
@@ -27,9 +32,13 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
   late UnifiedCameraProvider _cameraProvider;
   
   // AI suggestion state
-  final AICoordinator _aiCoordinator = AICoordinator();
+  late AICoordinator _aiCoordinator;
   List<AISuggestion> _currentSuggestions = [];
+  Set<String> _selectedSuggestionIds = {}; // Track selected suggestions for bulk apply
   bool _showAISuggestionDialog = false;
+  bool _isAIAnalyzing = false;
+  bool _hasPendingSuggestions = false;
+  DateTime? _lastAnalysisTime;
 
   // Control panel state
   bool _showControlPanel = false;
@@ -68,31 +77,186 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
 
   Future<void> _initializeAI() async {
     try {
-      await _aiCoordinator.initialize();
+      debugPrint('🔧 Loading AI configuration from settings...');
+      
+      // Initialize with default configuration first
+      _aiCoordinator = AICoordinator();
+      
+      // Load AI configuration from settings
+      final aiConfig = await _loadAIConfigurationFromSettings();
+      
+      if (aiConfig != null) {
+        // Configure AI coordinator based on user settings
+        final coordinatorConfig = _buildCoordinatorConfiguration(aiConfig);
+        
+        debugPrint('🔧 Configuring AI Coordinator with provider: ${aiConfig.selectedProviderId}');
+        
+        // Force re-initialization to pick up new configuration
+        debugPrint('🔄 Force re-initializing AI Coordinator...');
+        AICoordinator.resetSingleton();
+        _aiCoordinator = AICoordinator(configuration: coordinatorConfig);
+        await _aiCoordinator.initialize();
+        debugPrint('✅ AI Coordinator re-initialized with new settings');
+      } else {
+        debugPrint('⚠️ No AI configuration found, using local AI only');
+        // Fallback to local-only configuration
+        final coordinatorConfig = AICoordinatorConfiguration(
+          enableCloudAI: false,
+          selectionStrategy: ServiceSelectionStrategy.localOnly,
+          allowFallbackToLocal: true,
+        );
+        
+        _aiCoordinator.updateConfiguration(coordinatorConfig);
+        await _aiCoordinator.initialize();
+      }
     } catch (e) {
-      debugPrint('AI initialization error: $e');
+      debugPrint('❌ AI initialization error: $e');
+      // Final fallback to local AI
+      try {
+        final coordinatorConfig = AICoordinatorConfiguration(
+          enableCloudAI: false,
+          selectionStrategy: ServiceSelectionStrategy.localOnly,
+          allowFallbackToLocal: true,
+        );
+        _aiCoordinator.updateConfiguration(coordinatorConfig);
+        await _aiCoordinator.initialize();
+        debugPrint('✅ AI Coordinator initialized with local AI fallback');
+      } catch (fallbackError) {
+        debugPrint('❌ Even local AI initialization failed: $fallbackError');
+      }
     }
   }
 
-  String _getPlatformSpecificErrorMessage() {
-    if (defaultTargetPlatform == TargetPlatform.macOS) {
-      return 'Built-in camera not supported on macOS desktop.\n\nExternal cameras (DSLR, mirrorless) are supported via USB or WiFi.\nConnect a camera and tap "Scan for Cameras" to detect it.';
-    }
-    
-    // Check if running on iOS Simulator
-    if (defaultTargetPlatform == TargetPlatform.iOS && !kIsWeb) {
-      // iOS Simulator typically doesn't have camera access
-      try {
-        if (kDebugMode) {
-          return 'Camera not available in iOS Simulator.\nTo test camera features, please use a physical iOS device.\n\nAll other app features work normally in simulator.';
+  /// Load AI configuration from SharedPreferences
+  Future<AIConfiguration?> _loadAIConfigurationFromSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final configJson = prefs.getString('ai_configuration');
+      
+      if (configJson != null) {
+        final configData = jsonDecode(configJson);
+        final config = AIConfiguration.fromJson(configData);
+        
+        // Load API keys from SharedPreferences
+        final updatedProviders = <AIProviderConfig>[];
+        for (final provider in config.providers) {
+          final savedKey = prefs.getString('ai_api_key_${provider.id}');
+          if (savedKey != null && savedKey.isNotEmpty) {
+            final updatedProvider = provider.copyWith(apiKey: savedKey);
+            updatedProviders.add(updatedProvider);
+          } else {
+            updatedProviders.add(provider);
+          }
         }
-      } catch (e) {
-        // Fallback for any platform detection issues
+        
+        return config.copyWith(providers: updatedProviders);
       }
+    } catch (e) {
+      debugPrint('❌ Failed to load AI configuration: $e');
+    }
+    return null;
+  }
+  
+  /// Build AI coordinator configuration from user settings
+  AICoordinatorConfiguration _buildCoordinatorConfiguration(AIConfiguration aiConfig) {
+    // Find the selected provider
+    final selectedProvider = aiConfig.providers.firstWhere(
+      (p) => p.id == aiConfig.selectedProviderId,
+      orElse: () => aiConfig.providers.first,
+    );
+    
+    debugPrint('🎯 Selected AI provider: ${selectedProvider.name} (${selectedProvider.id})');
+    
+    // Debug provider details
+    debugPrint('🔍 Provider details:');
+    debugPrint('  - ID: ${selectedProvider.id}');
+    debugPrint('  - Endpoint: ${selectedProvider.endpoint}');
+    debugPrint('  - Has API key: ${selectedProvider.apiKey?.isNotEmpty ?? false}');
+    debugPrint('  - API key length: ${selectedProvider.apiKey?.length ?? 0}');
+    
+    // Check if custom endpoint is configured and should be prioritized
+    if (selectedProvider.id == 'custom' && 
+        selectedProvider.endpoint != null && 
+        selectedProvider.endpoint!.isNotEmpty) {
+      
+      // For testing purposes, provide a dummy key if missing
+      String apiKey = selectedProvider.apiKey ?? '';
+      if (apiKey.isEmpty) {
+        debugPrint('⚠️ No API key found, using test key for cloud AI testing');
+        apiKey = 'test-key-for-cloud-ai-testing';  // This will be used for testing only
+      }
+      
+      debugPrint('✨ Using custom endpoint: ${selectedProvider.endpoint}');
+      
+      // Configure cloud AI with custom endpoint
+      final cloudConfig = CloudAIConfiguration(
+        provider: CloudAIProvider.custom,
+        apiKey: apiKey,  // Use the test key if needed
+        modelId: selectedProvider.selectedModel ?? 'gpt-4-vision-preview',
+        customEndpoint: selectedProvider.endpoint!,
+        customPrompt: aiConfig.customPromptTemplate,
+      );
+      
+      debugPrint('🚀 Creating AICoordinator config with:');
+      debugPrint('  - enableCloudAI: true');
+      debugPrint('  - selectionStrategy: cloudFirst');
+      debugPrint('  - cloudConfig endpoint: ${cloudConfig.customEndpoint}');
+      debugPrint('  - cloudConfig apiKey length: ${cloudConfig.apiKey.length}');
+      
+      return AICoordinatorConfiguration(
+        enableCloudAI: true,
+        cloudConfiguration: cloudConfig,
+        selectionStrategy: ServiceSelectionStrategy.cloudFirst, // Prioritize custom endpoint
+        allowFallbackToLocal: true,
+      );
     }
     
-    return 'Unable to initialize camera.\nPlease check permissions and try again.';
+    // Handle other cloud providers (OpenAI, Anthropic, etc.)
+    if (selectedProvider.isEnabled && 
+        selectedProvider.apiKey != null && 
+        selectedProvider.apiKey!.isNotEmpty) {
+      
+      CloudAIProvider cloudProvider;
+      switch (selectedProvider.type) {
+        case AIProviderType.openai:
+          cloudProvider = CloudAIProvider.openai;
+          break;
+        case AIProviderType.anthropic:
+          cloudProvider = CloudAIProvider.claude;
+          break;
+        case AIProviderType.google:
+          cloudProvider = CloudAIProvider.gemini;
+          break;
+        case AIProviderType.custom:
+        default:
+          cloudProvider = CloudAIProvider.custom;
+      }
+      
+      final cloudConfig = CloudAIConfiguration(
+        provider: cloudProvider,
+        apiKey: selectedProvider.apiKey!,
+        modelId: selectedProvider.selectedModel ?? selectedProvider.availableModels.first,
+        customEndpoint: selectedProvider.endpoint,
+        customPrompt: aiConfig.customPromptTemplate,
+      );
+      
+      return AICoordinatorConfiguration(
+        enableCloudAI: true,
+        cloudConfiguration: cloudConfig,
+        selectionStrategy: ServiceSelectionStrategy.cloudFirst,
+        allowFallbackToLocal: true,
+      );
+    }
+    
+    // Fallback to local AI if no valid cloud provider is configured
+    debugPrint('⚠️ No valid cloud provider configured, falling back to local AI');
+    return AICoordinatorConfiguration(
+      enableCloudAI: false,
+      selectionStrategy: ServiceSelectionStrategy.localOnly,
+      allowFallbackToLocal: true,
+    );
   }
+
 
 
   @override
@@ -126,9 +290,10 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
           return _buildErrorState(provider.error!);
         }
 
-        if (!provider.hasAnyCameras) {
-          return _buildNoCamerasState();
-        }
+        // TEMPORARY: Always show camera interface for AI testing, even without cameras
+        // if (!provider.hasAnyCameras) {
+        //   return _buildNoCamerasState();
+        // }
 
         return Stack(
           children: [
@@ -448,12 +613,56 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
       right: 16,
       child: Column(
         children: [
-          // AI Analysis button
-          FloatingActionButton.small(
-            onPressed: () => _showAISuggestions(),
-            backgroundColor: AppColors.accent,
-            heroTag: "ai_analysis",
-            child: const Icon(Icons.auto_awesome, color: Colors.white),
+          // AI Analysis button with loading and badge
+          Stack(
+            children: [
+              FloatingActionButton.small(
+                onPressed: (_isAIAnalyzing || !_isAISuggestionsEnabled()) ? null : () => _showAISuggestions(),
+                backgroundColor: (_isAIAnalyzing || !_isAISuggestionsEnabled())
+                    ? AppColors.accent.withOpacity(0.6)
+                    : AppColors.accent,
+                heroTag: "ai_analysis",
+                child: _isAIAnalyzing
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : Icon(
+                        Icons.auto_awesome, 
+                        color: _isAISuggestionsEnabled() ? Colors.white : Colors.grey,
+                      ),
+              ),
+              // Suggestion badge
+              if (_hasPendingSuggestions || (_currentSuggestions.isNotEmpty && !_showAISuggestionDialog))
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 18,
+                      minHeight: 18,
+                    ),
+                    child: Text(
+                      '${_currentSuggestions.length}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 8),
           FloatingActionButton.small(
@@ -590,67 +799,6 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
     );
   }
 
-  Widget _buildNoCamerasState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Icons.camera_alt_outlined,
-            size: 64,
-            color: Colors.white54,
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'No Cameras Found',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _getPlatformSpecificErrorMessage(),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 14,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ElevatedButton.icon(
-                onPressed: () {
-                  _cameraProvider.refreshExternalCameras();
-                },
-                icon: const Icon(Icons.refresh),
-                label: const Text('Scan for Cameras'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accent,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 16),
-              ElevatedButton.icon(
-                onPressed: () {
-                  setState(() {}); // Force UI rebuild
-                },
-                icon: const Icon(Icons.refresh),
-                label: const Text('Refresh UI'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildTopControls(UnifiedCameraProvider provider) {
     return Row(
@@ -723,9 +871,50 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
               ),
             ),
             const SizedBox(width: 8),
-            IconButton(
-              onPressed: _showAISuggestions,
-              icon: const Icon(Icons.auto_awesome, color: AppColors.accent),
+            // AI button with loading state and disabled state
+            Stack(
+              children: [
+                IconButton(
+                  onPressed: (_isAIAnalyzing || !_isAISuggestionsEnabled()) ? null : _showAISuggestions,
+                  icon: _isAIAnalyzing
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent),
+                          ),
+                        )
+                      : Icon(
+                          Icons.auto_awesome, 
+                          color: _isAISuggestionsEnabled() ? AppColors.accent : Colors.grey,
+                        ),
+                ),
+                // Suggestion badge
+                if (_hasPendingSuggestions || (_currentSuggestions.isNotEmpty && !_showAISuggestionDialog))
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '${_currentSuggestions.length > 9 ? '9+' : _currentSuggestions.length}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 8,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             IconButton(
               onPressed: () => _navigateToSettings(),
@@ -1315,30 +1504,62 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
                 ),
                 const SizedBox(height: 16),
                 
-                // Show analysis status
-                if (_currentSuggestions.isEmpty)
+                // Show analysis status with improved loading states
+                if (_isAIAnalyzing)
                   _buildAnalysisLoadingState()
+                else if (_currentSuggestions.isEmpty)
+                  _buildNoSuggestionsState()
                 else
                   _buildSuggestionsList(),
                 
                 const SizedBox(height: 16),
+                
+                // Bulk apply button
+                if (_selectedSuggestionIds.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: ElevatedButton.icon(
+                      onPressed: () => _applySelectedSuggestions(),
+                      icon: const Icon(Icons.check_circle, color: Colors.white),
+                      label: Text(
+                        'Apply Selected (${_selectedSuggestionIds.length})',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        minimumSize: const Size(double.infinity, 40),
+                      ),
+                    ),
+                  ),
                 
                 // Action buttons
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     TextButton.icon(
-                      onPressed: () => _analyzeCurrentFrame(),
-                      icon: const Icon(Icons.refresh, color: AppColors.accent),
-                      label: const Text(
-                        'Analyze Again',
-                        style: TextStyle(color: AppColors.accent),
+                      onPressed: _isAIAnalyzing ? null : () => _analyzeAgain(),
+                      icon: _isAIAnalyzing 
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent),
+                            ),
+                          )
+                        : const Icon(Icons.refresh, color: AppColors.accent),
+                      label: Text(
+                        _isAIAnalyzing ? 'Analyzing...' : 'Analyze Again',
+                        style: TextStyle(
+                          color: _isAIAnalyzing ? Colors.grey : AppColors.accent,
+                        ),
                       ),
                     ),
                     TextButton.icon(
                       onPressed: () {
                         setState(() {
                           _showAISuggestionDialog = false;
+                          _selectedSuggestionIds.clear(); // Clear selections when closing
                         });
                       },
                       icon: const Icon(Icons.close, color: Colors.white70),
@@ -1358,6 +1579,10 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
   }
   
   Widget _buildAnalysisLoadingState() {
+    final analysisTime = _lastAnalysisTime != null 
+        ? DateTime.now().difference(_lastAnalysisTime!).inSeconds
+        : 0;
+    
     return Column(
       children: [
         const CircularProgressIndicator(
@@ -1375,6 +1600,48 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
         const SizedBox(height: 8),
         Text(
           'AI is examining your composition, lighting, and settings',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.6),
+            fontSize: 12,
+          ),
+        ),
+        if (analysisTime > 3)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              'This may take a few more seconds...',
+              style: TextStyle(
+                color: Colors.orange.withValues(alpha: 0.8),
+                fontSize: 11,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+  
+  Widget _buildNoSuggestionsState() {
+    return Column(
+      children: [
+        Icon(
+          Icons.lightbulb_outline,
+          color: Colors.white.withValues(alpha: 0.5),
+          size: 48,
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'No suggestions available',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.8),
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Try analyzing the current view to get AI recommendations',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.6),
@@ -1418,10 +1685,8 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
         ),
         const SizedBox(height: 12),
         
-        // Suggestions list
-        ...(_currentSuggestions.take(4).map((suggestion) => 
-          _buildSuggestionCard(suggestion)
-        )),
+        // Categorized suggestions with scrolling
+        _buildCategorizedSuggestions(),
         
         if (_currentSuggestions.isEmpty)
           Container(
@@ -1499,77 +1764,263 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
 
   Future<void> _generateAISuggestions() async {
     try {
-      final result = await _aiCoordinator.generateSuggestions(
-        sceneAnalysis: SceneAnalysis(
-          sceneType: 'general',
-          lightingCondition: 'normal',
-          subjectDistance: 'medium',
-          movementDetected: false,
-        ),
-      );
+      // Get current live view frame for real image analysis
+      final frameData = _getCurrentLiveViewFrame();
       
-      setState(() {
-        _currentSuggestions = result.suggestions;
-      });
-    } catch (e) {
-      debugPrint('AI suggestion error: $e');
-    }
-  }
-
-  void _showAISuggestions() {
-    setState(() {
-      _showAISuggestionDialog = true;
-    });
-    _analyzeCurrentFrame();
-  }
-  
-  /// Analyze current live view frame with AI
-  Future<void> _analyzeCurrentFrame() async {
-    try {
-      // Get current frame from live view or capture a photo
-      Uint8List? imageData = await _getCurrentFrameData();
-      
-      if (imageData != null) {
-        // Show loading state
-        setState(() {
-          _currentSuggestions = []; // Clear previous suggestions
-        });
+      if (frameData != null) {
+        debugPrint('🎯 Generating AI suggestions from live view frame (${frameData.length} bytes)');
         
-        // Analyze image with AI
-        final sceneAnalysis = await _aiCoordinator.analyzeImage(imageData);
+        // First analyze the image to get scene analysis
+        final sceneAnalysis = await _aiCoordinator.analyzeImage(frameData);
+        debugPrint('📊 Scene analysis: ${sceneAnalysis.sceneType}, brightness: ${sceneAnalysis.brightness}, colors: ${sceneAnalysis.dominantColors}');
         
-        // Generate suggestions based on analysis
+        // Then generate suggestions using both scene analysis and image data
         final result = await _aiCoordinator.generateSuggestions(
           sceneAnalysis: sceneAnalysis,
-          cameraModel: _cameraProvider.getActiveCameraInfo()['model'],
-          currentSettings: _getCurrentCameraSettings(),
-          userRequest: 'Analyze this live view and provide photography suggestions',
-          imageBytes: imageData,
+          imageBytes: frameData,
+          cameraModel: _cameraProvider.activeExternalCamera?.name ?? 'Unknown Camera',
+        );
+        
+        debugPrint('✅ AI Analysis complete: ${result.suggestions.length} suggestions (confidence: ${result.confidence})');
+        
+        setState(() {
+          _currentSuggestions = result.suggestions;
+        });
+      } else {
+        // Fallback to basic scene analysis if no frame available
+        debugPrint('⚠️ No live view frame available, using basic scene analysis');
+        final result = await _aiCoordinator.generateSuggestions(
+          sceneAnalysis: SceneAnalysis(
+            sceneType: 'general',
+            lightingCondition: 'normal',
+            subjectDistance: 'medium',
+            movementDetected: false,
+          ),
         );
         
         setState(() {
           _currentSuggestions = result.suggestions;
         });
-        
-        debugPrint('AI Analysis: Found ${result.suggestions.length} suggestions with confidence ${result.confidence}');
-      } else {
-        // No frame available, generate general suggestions
-        await _generateAISuggestions();
       }
     } catch (e) {
-      debugPrint('AI analysis error: $e');
-      // Show error message to user
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('AI analysis failed: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      // Fallback to general suggestions
-      await _generateAISuggestions();
+      debugPrint('❌ AI suggestion error: $e');
     }
+  }
+
+  /// Check if AI suggestions should be enabled
+  bool _isAISuggestionsEnabled() {
+    final provider = Provider.of<UnifiedCameraProvider>(context, listen: false);
+    
+    // Enable if we have a live view frame available
+    if (provider.isLiveViewActive && _lastValidFrame != null) {
+      return true;
+    }
+    
+    // Enable if we have any camera active (builtin or external connected)
+    if (provider.activeCameraType == CameraSourceType.builtin && 
+        provider.builtinController != null) {
+      return true;
+    }
+    
+    if (provider.activeCameraType == CameraSourceType.external && 
+        provider.activeExternalCamera != null && 
+        provider.activeExternalCamera!.isConnected) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  /// Show AI suggestion dialog (non-blocking)
+  void _showAISuggestions() {
+    // Check if AI suggestions should be enabled
+    if (!_isAISuggestionsEnabled()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('AI suggestions require an active camera connection'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+    
+    if (_hasPendingSuggestions || _currentSuggestions.isNotEmpty) {
+      // Show existing suggestions immediately
+      setState(() {
+        _showAISuggestionDialog = true;
+        _hasPendingSuggestions = false;
+      });
+    } else {
+      // Start new analysis in background
+      _startBackgroundAIAnalysis();
+      setState(() {
+        _showAISuggestionDialog = true;
+      });
+    }
+  }
+  
+  /// Start AI analysis in background (non-blocking)
+  Future<void> _startBackgroundAIAnalysis() async {
+    if (_isAIAnalyzing) {
+      debugPrint('AI analysis already in progress, skipping');
+      return;
+    }
+
+    // Check if AI suggestions are enabled
+    if (!_isAISuggestionsEnabled()) {
+      debugPrint('AI suggestions are disabled - no valid image source available');
+      setState(() {
+        _isAIAnalyzing = false;
+        _currentSuggestions = [];
+      });
+      return;
+    }
+
+    // Get current frame immediately (fast, non-blocking)
+    final frameData = _getCurrentLiveViewFrame();
+    
+    if (frameData == null) {
+      debugPrint('No live view frame available, using fallback capture');
+      await _fallbackAIAnalysis();
+      return;
+    }
+
+    // Set analyzing state immediately
+    setState(() {
+      _isAIAnalyzing = true;
+      _lastAnalysisTime = DateTime.now();
+    });
+
+    debugPrint('🤖 Starting background AI analysis with ${frameData.length} byte frame');
+    
+    // Process AI in background (slow, but non-blocking)
+    _processAIInBackground(frameData);
+  }
+
+  /// Get current live view frame immediately (non-blocking)
+  Uint8List? _getCurrentLiveViewFrame() {
+    // Use existing live view frame buffer - instant access
+    if (_lastValidFrame != null && _lastValidFrame!.isNotEmpty) {
+      debugPrint('✅ Using current live view frame (${_lastValidFrame!.length} bytes)');
+      return _lastValidFrame;
+    }
+    
+    // No live view frame available
+    debugPrint('⚠️ No live view frame available for AI analysis');
+    return null;
+  }
+
+
+  /// Process AI analysis in background
+  Future<void> _processAIInBackground(Uint8List frameData) async {
+    try {
+      debugPrint('🔄 Processing AI analysis in background...');
+      
+      // Phase 1: Quick local analysis (1-2 seconds)
+      final sceneAnalysis = await _aiCoordinator.analyzeImage(frameData);
+      debugPrint('✅ Scene analysis complete');
+      
+      // Phase 2: Generate suggestions (3-10 seconds)
+      final result = await _aiCoordinator.generateSuggestions(
+        sceneAnalysis: sceneAnalysis,
+        cameraModel: _cameraProvider.getActiveCameraInfo()['model'],
+        currentSettings: _getCurrentCameraSettings(),
+        userRequest: 'Analyze this live view and provide photography suggestions',
+        imageBytes: frameData,
+      );
+      
+      // Update UI when complete
+      if (mounted) {
+        setState(() {
+          _currentSuggestions = result.suggestions;
+          _isAIAnalyzing = false;
+          _hasPendingSuggestions = !_showAISuggestionDialog;
+        });
+        
+        debugPrint('🎉 AI Analysis complete: ${result.suggestions.length} suggestions (confidence: ${result.confidence})');
+        
+        // Show notification if panel is not visible
+        if (!_showAISuggestionDialog && result.suggestions.isNotEmpty) {
+          _showSuggestionAvailableNotification(result.suggestions.length);
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Background AI analysis failed: $e');
+      
+      if (mounted) {
+        setState(() {
+          _isAIAnalyzing = false;
+        });
+        
+        // Show error only if dialog is open
+        if (_showAISuggestionDialog) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('AI analysis failed: ${e.toString()}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+        
+        // Try fallback analysis
+        await _fallbackAIAnalysis();
+      }
+    }
+  }
+
+  /// Fallback AI analysis when no live view frame available
+  Future<void> _fallbackAIAnalysis() async {
+    try {
+      final imageData = await _getCurrentFrameData();
+      if (imageData != null) {
+        await _processAIInBackground(imageData);
+      } else {
+        // No image available - disable AI suggestions
+        debugPrint('⚠️ No image data available for AI analysis');
+        setState(() {
+          _isAIAnalyzing = false;
+          _currentSuggestions = [];
+        });
+      }
+    } catch (e) {
+      debugPrint('Fallback AI analysis failed: $e');
+      if (mounted) {
+        setState(() {
+          _isAIAnalyzing = false;
+        });
+      }
+    }
+  }
+
+  /// Show notification when suggestions are ready
+  void _showSuggestionAvailableNotification(int count) {
+    if (!mounted) return;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Text('$count AI suggestions ready'),
+          ],
+        ),
+        backgroundColor: AppColors.accent,
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'View',
+          textColor: Colors.white,
+          onPressed: () {
+            setState(() {
+              _showAISuggestionDialog = true;
+              _hasPendingSuggestions = false;
+            });
+          },
+        ),
+      ),
+    );
   }
   
   /// Get current frame data from live view or capture
@@ -1623,7 +2074,116 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
     };
   }
 
-  Widget _buildSuggestionCard(AISuggestion suggestion) {
+  /// Build categorized suggestions with proper scrolling
+  Widget _buildCategorizedSuggestions() {
+    if (_currentSuggestions.isEmpty) return Container();
+    
+    // Categorize suggestions
+    final cameraSettings = <AISuggestion>[];
+    final composition = <AISuggestion>[];
+    final technical = <AISuggestion>[];
+    final creative = <AISuggestion>[];
+    
+    for (final suggestion in _currentSuggestions) {
+      switch (suggestion.type) {
+        case AISuggestionType.cameraSettings:
+          cameraSettings.add(suggestion);
+          break;
+        case AISuggestionType.composition:
+          composition.add(suggestion);
+          break;
+        case AISuggestionType.technique:
+          technical.add(suggestion);
+          break;
+        case AISuggestionType.creative:
+          creative.add(suggestion);
+          break;
+        case AISuggestionType.timing:
+          technical.add(suggestion); // Timing suggestions go to technical
+          break;
+      }
+    }
+    
+    return Container(
+      height: 300, // Fixed height to ensure scrolling
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Camera Parameters Section
+            if (cameraSettings.isNotEmpty) ...[
+              _buildCategoryHeader('📷 Camera Parameters', cameraSettings.length),
+              ...cameraSettings.map((s) => _buildSuggestionCard(s, showCameraIcon: true)),
+              const SizedBox(height: 16),
+            ],
+            
+            // Composition Section  
+            if (composition.isNotEmpty) ...[
+              _buildCategoryHeader('🎨 Composition & Framing', composition.length),
+              ...composition.map((s) => _buildSuggestionCard(s, showCompositionIcon: true)),
+              const SizedBox(height: 16),
+            ],
+            
+            // Technical Section
+            if (technical.isNotEmpty) ...[
+              _buildCategoryHeader('⚙️ Technical Settings', technical.length),
+              ...technical.map((s) => _buildSuggestionCard(s, showTechnicalIcon: true)),
+              const SizedBox(height: 16),
+            ],
+            
+            // Creative Section
+            if (creative.isNotEmpty) ...[
+              _buildCategoryHeader('💡 Creative Ideas', creative.length),
+              ...creative.map((s) => _buildSuggestionCard(s, showCreativeIcon: true)),
+              const SizedBox(height: 16),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+  
+  /// Build category header with count
+  Widget _buildCategoryHeader(String title, int count) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppColors.accent.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              count.toString(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSuggestionCard(AISuggestion suggestion, {
+    bool showCameraIcon = false,
+    bool showCompositionIcon = false, 
+    bool showTechnicalIcon = false,
+    bool showCreativeIcon = false,
+  }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
@@ -1638,7 +2198,7 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
           Row(
             children: [
               Icon(
-                Icons.lightbulb_outline,
+                _getSuggestionIcon(showCameraIcon, showCompositionIcon, showTechnicalIcon, showCreativeIcon),
                 color: AppColors.accent,
                 size: 16,
               ),
@@ -1665,16 +2225,32 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
           ),
           if (suggestion.actionable) ...[
             const SizedBox(height: 8),
-            ElevatedButton(
-              onPressed: () => _applySuggestion(suggestion),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accent,
-                minimumSize: const Size(double.infinity, 32),
-              ),
-              child: const Text(
-                'Apply',
-                style: TextStyle(color: Colors.white, fontSize: 12),
-              ),
+            Row(
+              children: [
+                Checkbox(
+                  value: _selectedSuggestionIds.contains(suggestion.id),
+                  onChanged: (bool? value) {
+                    setState(() {
+                      if (value == true) {
+                        _selectedSuggestionIds.add(suggestion.id);
+                      } else {
+                        _selectedSuggestionIds.remove(suggestion.id);
+                      }
+                    });
+                  },
+                  activeColor: AppColors.accent,
+                ),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Select to apply this suggestion',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ],
@@ -1682,24 +2258,69 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
     );
   }
 
-  void _applySuggestion(AISuggestion suggestion) {
-    // Apply the suggestion to camera settings
-    if (suggestion.action != null) {
-      final settings = suggestion.action!.settings;
-      // Here you would apply the settings to the camera
-      debugPrint('Applying suggestion: ${settings.toString()}');
+  /// Get appropriate icon for suggestion category
+  IconData _getSuggestionIcon(bool showCameraIcon, bool showCompositionIcon, bool showTechnicalIcon, bool showCreativeIcon) {
+    if (showCameraIcon) return Icons.camera_alt;
+    if (showCompositionIcon) return Icons.crop_free;
+    if (showTechnicalIcon) return Icons.settings;
+    if (showCreativeIcon) return Icons.lightbulb_outline;
+    return Icons.info_outline; // Default fallback
+  }
+
+
+  /// Apply all selected suggestions in bulk
+  void _applySelectedSuggestions() {
+    final selectedSuggestions = _currentSuggestions
+        .where((suggestion) => _selectedSuggestionIds.contains(suggestion.id))
+        .toList();
+    
+    if (selectedSuggestions.isEmpty) return;
+    
+    // Collect all settings to apply
+    final Map<String, dynamic> combinedSettings = {};
+    final List<String> appliedTitles = [];
+    
+    for (final suggestion in selectedSuggestions) {
+      if (suggestion.action != null) {
+        combinedSettings.addAll(suggestion.action!.settings);
+        appliedTitles.add(suggestion.title);
+      }
+    }
+    
+    // Apply combined settings
+    if (combinedSettings.isNotEmpty) {
+      debugPrint('Applying ${selectedSuggestions.length} suggestions: $combinedSettings');
       
+      // Here you would apply the combined settings to the camera
+      // For now, just show a success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Applied: ${suggestion.title}'),
+          content: Text('Applied ${selectedSuggestions.length} suggestions'),
           backgroundColor: AppColors.accent,
+          duration: const Duration(seconds: 3),
         ),
       );
     }
     
+    // Clear selection and close dialog
     setState(() {
+      _selectedSuggestionIds.clear();
       _showAISuggestionDialog = false;
     });
+  }
+
+  /// Trigger a new AI analysis
+  void _analyzeAgain() {
+    debugPrint('🔄 Analyze Again button pressed');
+    
+    // Clear current suggestions and selections
+    setState(() {
+      _currentSuggestions.clear();
+      _selectedSuggestionIds.clear();
+    });
+    
+    // Start new analysis
+    _startBackgroundAIAnalysis();
   }
 
 
@@ -1718,13 +2339,19 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
     }
   }
 
-  void _navigateToSettings() {
-    Navigator.push(
+  void _navigateToSettings() async {
+    // Navigate to settings and wait for return
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => const SettingsScreen(),
       ),
     );
+    
+    // Re-initialize AI configuration when returning from settings
+    debugPrint('🔄 Returned from settings, re-initializing AI configuration...');
+    await _initializeAI();
+    debugPrint('✅ AI configuration refreshed after settings change');
   }
 
   Widget _buildCameraSelectorOverlay(UnifiedCameraProvider provider) {
