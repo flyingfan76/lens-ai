@@ -18,6 +18,7 @@ import '../core/providers/unified_camera_provider.dart';
 import 'settings_screen.dart';
 import 'dart:async';
 import 'package:flutter/services.dart';
+import '../services/camera_settings_application_service.dart';
 
 /// Simplified Camera Screen that works with current architecture
 class CameraScreen extends StatefulWidget {
@@ -39,6 +40,9 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
   bool _isAIAnalyzing = false;
   bool _hasPendingSuggestions = false;
   DateTime? _lastAnalysisTime;
+
+  // Camera settings application service
+  final CameraSettingsApplicationService _settingsService = CameraSettingsApplicationService();
 
   // Control panel state
   bool _showControlPanel = false;
@@ -1519,14 +1523,27 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16),
                     child: ElevatedButton.icon(
-                      onPressed: () => _applySelectedSuggestions(),
-                      icon: const Icon(Icons.check_circle, color: Colors.white),
+                      onPressed: _isAIAnalyzing ? null : () => _applySelectedSuggestions(),
+                      icon: _isAIAnalyzing 
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Icon(Icons.check_circle, color: Colors.white),
                       label: Text(
-                        'Apply Selected (${_selectedSuggestionIds.length})',
+                        _isAIAnalyzing 
+                          ? 'Applying Settings...'
+                          : 'Apply Selected (${_selectedSuggestionIds.length})',
                         style: const TextStyle(color: Colors.white),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accent,
+                        backgroundColor: _isAIAnalyzing 
+                          ? AppColors.accent.withOpacity(0.7)
+                          : AppColors.accent,
                         minimumSize: const Size(double.infinity, 40),
                       ),
                     ),
@@ -2269,45 +2286,92 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
 
 
   /// Apply all selected suggestions in bulk
-  void _applySelectedSuggestions() {
+  Future<void> _applySelectedSuggestions() async {
     final selectedSuggestions = _currentSuggestions
         .where((suggestion) => _selectedSuggestionIds.contains(suggestion.id))
         .toList();
     
     if (selectedSuggestions.isEmpty) return;
-    
-    // Collect all settings to apply
-    final Map<String, dynamic> combinedSettings = {};
-    final List<String> appliedTitles = [];
-    
-    for (final suggestion in selectedSuggestions) {
-      if (suggestion.action != null) {
-        combinedSettings.addAll(suggestion.action!.settings);
-        appliedTitles.add(suggestion.title);
+
+    // Show loading state
+    setState(() {
+      _isAIAnalyzing = true; // Reuse loading state
+    });
+
+    try {
+      debugPrint('🎯 Applying ${selectedSuggestions.length} AI suggestions to camera');
+      
+      final cameraProvider = Provider.of<UnifiedCameraProvider>(context, listen: false);
+      final featureProvider = Provider.of<CameraFeatureProvider>(context, listen: false);
+
+      // Apply suggestions using the service
+      final appliedTitles = await _settingsService.applyMultipleSuggestions(
+        suggestions: selectedSuggestions,
+        cameraProvider: cameraProvider,
+        featureProvider: featureProvider,
+      );
+
+      // Show result
+      if (mounted) {
+        if (appliedTitles.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('✅ Applied ${appliedTitles.length} suggestions:'),
+                  const SizedBox(height: 4),
+                  ...appliedTitles.take(3).map((title) => Text('• $title', 
+                    style: const TextStyle(fontSize: 12, color: Colors.white70))),
+                  if (appliedTitles.length > 3)
+                    Text('• ... and ${appliedTitles.length - 3} more', 
+                      style: const TextStyle(fontSize: 12, color: Colors.white70)),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+
+          debugPrint('✅ Successfully applied suggestions: $appliedTitles');
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('⚠️ No camera settings could be applied. Check camera connection.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ),
+          );
+
+          debugPrint('⚠️ No suggestions were successfully applied');
+        }
+      }
+
+    } catch (e) {
+      debugPrint('❌ Error applying suggestions: $e');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error applying suggestions: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      // Clear loading state and close dialog
+      if (mounted) {
+        setState(() {
+          _isAIAnalyzing = false;
+          _selectedSuggestionIds.clear();
+          _showAISuggestionDialog = false;
+        });
       }
     }
-    
-    // Apply combined settings
-    if (combinedSettings.isNotEmpty) {
-      debugPrint('Applying ${selectedSuggestions.length} suggestions: $combinedSettings');
-      
-      // Here you would apply the combined settings to the camera
-      // For now, just show a success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Applied ${selectedSuggestions.length} suggestions'),
-          backgroundColor: AppColors.accent,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    }
-    
-    // Clear selection and close dialog
-    setState(() {
-      _selectedSuggestionIds.clear();
-      _showAISuggestionDialog = false;
-    });
   }
+
 
   /// Trigger a new AI analysis
   void _analyzeAgain() {
