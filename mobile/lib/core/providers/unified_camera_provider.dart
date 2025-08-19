@@ -1,8 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:camera/camera.dart';
-import 'dart:typed_data';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/external_camera.dart';
 import '../../services/external_camera_service.dart';
+import '../../services/photo_capture_service.dart';
 import 'dart:async';
 
 enum CameraSourceType {
@@ -349,17 +350,36 @@ class UnifiedCameraProvider extends ChangeNotifier {
     if (_activeExternalCamera == null) return false;
     
     try {
-      // For now, simulate photo capture
-      // In real implementation, this would trigger camera shutter via SDK
       debugPrint('UnifiedCameraProvider: Capturing photo from ${_activeExternalCamera!.name}');
       
-      // Simulate capture delay
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Use PhotoCaptureService for comprehensive capture handling
+      final PhotoCaptureService photoCaptureService = PhotoCaptureService();
       
-      debugPrint('UnifiedCameraProvider: External photo captured successfully');
-      return true;
+      // Read save to phone setting
+      final shouldSaveToPhone = await _getShouldSaveToPhone();
+      
+      final result = await photoCaptureService.capturePhoto(
+        camera: _activeExternalCamera!,
+        saveToPhone: shouldSaveToPhone,
+      );
+      
+      if (result.success) {
+        debugPrint('UnifiedCameraProvider: Photo captured successfully');
+        debugPrint('  - Camera file: ${result.cameraFilePath}');
+        debugPrint('  - Phone file: ${result.phoneFilePath}');
+        debugPrint('  - Formats: ${result.originalFormat} -> ${result.phoneFormat}');
+        return true;
+      } else {
+        debugPrint('UnifiedCameraProvider: Photo capture failed: ${result.error}');
+        _error = result.error;
+        notifyListeners();
+        return false;
+      }
+      
     } catch (e) {
       debugPrint('UnifiedCameraProvider: External capture error: $e');
+      _error = 'Photo capture failed: $e';
+      notifyListeners();
       return false;
     }
   }
@@ -435,6 +455,17 @@ class UnifiedCameraProvider extends ChangeNotifier {
       };
     }
     return {'type': 'none'};
+  }
+
+  /// Read the save to phone setting from SharedPreferences
+  Future<bool> _getShouldSaveToPhone() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool('save_pictures_to_phone') ?? true;
+    } catch (e) {
+      debugPrint('UnifiedCameraProvider: Error reading save to phone setting: $e');
+      return true; // Default to saving
+    }
   }
 
   @override

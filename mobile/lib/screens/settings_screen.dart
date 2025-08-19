@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/theme/app_colors.dart';
 import '../core/utils/responsive_utils.dart';
 import '../core/providers/unified_camera_provider.dart';
@@ -30,6 +31,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _initializeCameraState();
+    _loadSettings();
   }
   
   @override
@@ -77,7 +79,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'Save Pictures to Phone',
                   'Keep a copy of captured photos on your device',
                   _savePicturesToPhone,
-                  (value) => setState(() => _savePicturesToPhone = value),
+                  _updateSavePicturesToPhone,
                   icon: Icons.save_alt,
                 ),
                 ListTile(
@@ -472,5 +474,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       );
     }
+  }
+
+  /// Load settings from SharedPreferences
+  Future<void> _loadSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      setState(() {
+        _savePicturesToPhone = prefs.getBool('save_pictures_to_phone') ?? true;
+        _notifications = prefs.getBool('notifications') ?? true;
+        _theme = prefs.getString('theme') ?? 'System';
+      });
+    } catch (e) {
+      debugPrint('Settings: Error loading settings: $e');
+    }
+  }
+
+  /// Save a setting to SharedPreferences
+  Future<void> _saveSetting(String key, dynamic value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (value is bool) {
+        await prefs.setBool(key, value);
+      } else if (value is String) {
+        await prefs.setString(key, value);
+      }
+      debugPrint('Settings: Saved $key = $value');
+    } catch (e) {
+      debugPrint('Settings: Error saving setting $key: $e');
+    }
+  }
+
+  /// Update save pictures to phone setting
+  void _updateSavePicturesToPhone(bool value) {
+    setState(() {
+      _savePicturesToPhone = value;
+    });
+    _saveSetting('save_pictures_to_phone', value);
   }
 }
