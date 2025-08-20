@@ -337,7 +337,7 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
   Widget _buildCameraPreview(UnifiedCameraProvider provider) {
     if (provider.activeCameraType == CameraSourceType.builtin && 
         provider.builtinController != null) {
-      return CameraPreview(provider.builtinController!);
+      return _buildBuiltinCameraPreview(provider.builtinController!);
     } else if (provider.activeCameraType == CameraSourceType.external) {
       return _buildExternalCameraPreview(provider.activeExternalCamera!);
     } else {
@@ -357,6 +357,218 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
         return _buildCameraInfoWithControls(camera, provider);
       },
     );
+  }
+
+  Widget _buildBuiltinCameraPreview(CameraController controller) {
+    return Container(
+      color: Colors.black,
+      width: double.infinity,
+      height: double.infinity,
+      child: Stack(
+        children: [
+          // Full screen camera preview with zoom/pan
+          Positioned.fill(
+            child: RepaintBoundary(
+              child: InteractiveViewer(
+                panEnabled: true,  // Allow panning
+                scaleEnabled: true,  // Allow zoom
+                minScale: 0.5,  // Allow zooming out
+                maxScale: 4.0,  // Allow zooming in for details
+                constrained: false,  // Allow larger than viewport
+                child: CameraPreview(
+                  controller,
+                  child: Container(), // Empty container to prevent default overlay
+                ),
+              ),
+            ),
+          ),
+          
+          // Built-in camera overlays
+          _buildBuiltinCameraOverlays(controller),
+          
+          // Built-in camera controls
+          _buildBuiltinCameraControls(),
+        ],
+      ),
+    );
+  }
+
+  /// Build overlays for built-in camera (similar to external camera)
+  Widget _buildBuiltinCameraOverlays(CameraController controller) {
+    final cameraName = controller.description.name;
+    final cameraDirection = controller.description.lensDirection.name.toUpperCase();
+    
+    return Stack(
+      children: [
+        // LIVE indicator (similar to external camera)
+        Positioned(
+          top: 12,
+          left: 12,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.7),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: Colors.green, // Green for built-in camera
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Text(
+                  'CAMERA',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        
+        // Camera info
+        Positioned(
+          top: 12,
+          right: 12,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.7),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              '$cameraDirection Camera',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+              ),
+            ),
+          ),
+        ),
+        
+        // Zoom/Pan hint
+        Positioned(
+          bottom: 80,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.zoom_in,
+                    color: Colors.white70,
+                    size: 16,
+                  ),
+                  SizedBox(width: 6),
+                  Text(
+                    'Pinch to zoom • Drag to pan',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Build controls for built-in camera
+  Widget _buildBuiltinCameraControls() {
+    return Positioned(
+      bottom: 16,
+      right: 16,
+      child: Column(
+        children: [
+          // AI Analysis button
+          Stack(
+            children: [
+              FloatingActionButton.small(
+                onPressed: (_isAIAnalyzing || !_isBuiltinCameraAIEnabled()) ? null : () => _showAISuggestions(),
+                backgroundColor: (_isAIAnalyzing || !_isBuiltinCameraAIEnabled())
+                    ? AppColors.accent.withOpacity(0.6)
+                    : AppColors.accent,
+                heroTag: "ai_analysis_builtin",
+                child: _isAIAnalyzing
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : Icon(
+                        Icons.auto_awesome, 
+                        color: _isBuiltinCameraAIEnabled() ? Colors.white : Colors.grey,
+                      ),
+              ),
+              // Suggestion badge
+              if (_hasPendingSuggestions || (_currentSuggestions.isNotEmpty && !_showAISuggestionDialog))
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 18,
+                      minHeight: 18,
+                    ),
+                    child: Text(
+                      '${_currentSuggestions.length}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Capture button
+          FloatingActionButton.small(
+            onPressed: () async {
+              await _capturePhoto();
+            },
+            backgroundColor: Colors.green,
+            heroTag: "capture_photo_builtin",
+            child: const Icon(Icons.camera_alt, color: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Check if AI is enabled for built-in camera
+  bool _isBuiltinCameraAIEnabled() {
+    // Built-in camera can always do AI analysis since we can capture frames
+    return true;
   }
 
   // Cached overlay widgets to prevent rebuilds
@@ -888,74 +1100,49 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
             ),
           ],
         ),
-        Row(
+        // AI button with loading state and disabled state
+        Stack(
           children: [
-            // Camera count indicator
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: provider.hasExternalCameras ? AppColors.accent : Colors.grey,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                '${provider.totalCameraCount} cameras',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            // AI button with loading state and disabled state
-            Stack(
-              children: [
-                IconButton(
-                  onPressed: (_isAIAnalyzing || !_isAISuggestionsEnabled()) ? null : _showAISuggestions,
-                  icon: _isAIAnalyzing
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent),
-                          ),
-                        )
-                      : Icon(
-                          Icons.auto_awesome, 
-                          color: _isAISuggestionsEnabled() ? AppColors.accent : Colors.grey,
-                        ),
-                ),
-                // Suggestion badge
-                if (_hasPendingSuggestions || (_currentSuggestions.isNotEmpty && !_showAISuggestionDialog))
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(6),
+            IconButton(
+              onPressed: (_isAIAnalyzing || !_isAISuggestionsEnabled()) ? null : _showAISuggestions,
+              icon: _isAIAnalyzing
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent),
                       ),
-                      child: Center(
-                        child: Text(
-                          '${_currentSuggestions.length > 9 ? '9+' : _currentSuggestions.length}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 8,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                    )
+                  : Icon(
+                      Icons.auto_awesome, 
+                      color: _isAISuggestionsEnabled() ? AppColors.accent : Colors.grey,
+                    ),
+            ),
+            // Suggestion badge
+            if (_hasPendingSuggestions || (_currentSuggestions.isNotEmpty && !_showAISuggestionDialog))
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '${_currentSuggestions.length > 9 ? '9+' : _currentSuggestions.length}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-              ],
-            ),
-            IconButton(
-              onPressed: () => _navigateToSettings(),
-              icon: const Icon(Icons.settings, color: Colors.white),
-            ),
+                ),
+              ),
           ],
         ),
       ],
