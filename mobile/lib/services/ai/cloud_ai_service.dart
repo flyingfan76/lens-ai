@@ -579,7 +579,7 @@ Focus on providing actionable technical settings and composition improvements. R
     AISuggestionCategory category = AISuggestionCategory.lighting;
     AISuggestionType type = AISuggestionType.technique;
     
-    final lowerContent = (title + ' ' + message).toLowerCase();
+    final lowerContent = '$title $message'.toLowerCase();
     bool isActionable = true; // Default to actionable
     
     if (lowerContent.contains('iso') || lowerContent.contains('aperture') || lowerContent.contains('shutter') || lowerContent.contains('camera settings')) {

@@ -1,12 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:network_info_plus/network_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:udp/udp.dart';
 import '../models/external_camera.dart';
 import 'native_system_service.dart';
 import 'nikon_sdk_service.dart';
@@ -187,39 +184,6 @@ class ExternalCameraService {
       debugPrint('ExternalCameraService: WiFi camera discovery temporarily disabled to prevent false positives');
       return cameras;
       
-      // Get current WiFi network info
-      final networkInfo = NetworkInfo();
-      final wifiIP = await networkInfo.getWifiIP();
-      
-      if (wifiIP == null) {
-        debugPrint('ExternalCameraService: No WiFi connection');
-        return cameras;
-      }
-      
-      debugPrint('ExternalCameraService: Scanning WiFi network: $wifiIP');
-      
-      // Get network subnet (e.g., 192.168.1.0/24)
-      final subnet = _getSubnet(wifiIP);
-      
-      // Scan common camera ports on the network
-      final futures = <Future>[];
-      
-      for (int i = 1; i <= 254; i++) {
-        final targetIP = '$subnet.$i';
-        
-        // Skip own IP
-        if (targetIP == wifiIP) continue;
-        
-        // Scan common camera service ports
-        futures.add(_scanCameraServices(targetIP));
-      }
-      
-      final results = await Future.wait(futures);
-      for (final result in results) {
-        if (result != null) {
-          cameras.add(result as ExternalCamera);
-        }
-      }
       
     } catch (e) {
       debugPrint('ExternalCameraService: WiFi discovery error: $e');
@@ -228,223 +192,12 @@ class ExternalCameraService {
     return cameras;
   }
 
-  String _getSubnet(String ip) {
-    final parts = ip.split('.');
-    return '${parts[0]}.${parts[1]}.${parts[2]}';
-  }
 
-  Future<ExternalCamera?> _scanCameraServices(String ip) async {
-    try {
-      // Common camera service ports
-      const cameraPorts = [
-        8080, // Common HTTP port for cameras
-        80,   // Standard HTTP
-        443,  // HTTPS
-        8008, // Canon cameras
-        8000, // Some camera services
-        15740, // Nikon SnapBridge
-        1900,  // UPnP discovery
-      ];
-      
-      for (final port in cameraPorts) {
-        try {
-          final socket = await Socket.connect(ip, port, timeout: const Duration(seconds: 2));
-          socket.destroy();
-          
-          // Found an open port, check if it's a camera service
-          final camera = await _identifyCameraService(ip, port);
-          if (camera != null) {
-            debugPrint('ExternalCameraService: Found camera at $ip:$port - ${camera.name}');
-            return camera;
-          }
-        } catch (e) {
-          // Port not open, continue scanning
-        }
-      }
-    } catch (e) {
-      // IP not reachable, continue scanning
-    }
-    
-    return null;
-  }
 
-  Future<ExternalCamera?> _identifyCameraService(String ip, int port) async {
-    try {
-      // Try to get camera info via HTTP
-      final response = await http.get(
-        Uri.parse('http://$ip:$port/'),
-        headers: {'User-Agent': 'LensAI/1.0'},
-      ).timeout(const Duration(seconds: 3));
-      
-      if (response.statusCode == 200) {
-        final content = response.body.toLowerCase();
-        final headers = response.headers;
-        
-        // Identify camera by response content or headers
-        final cameraInfo = _parseCameraInfo(content, headers, ip, port);
-        if (cameraInfo != null) {
-          return cameraInfo;
-        }
-      }
-    } catch (e) {
-      // Not a standard HTTP service, might be proprietary protocol
-      debugPrint('ExternalCameraService: HTTP check failed for $ip:$port - $e');
-    }
-    
-    // Try UPnP discovery for cameras
-    return await _tryUPnPDiscovery(ip, port);
-  }
 
-  ExternalCamera? _parseCameraInfo(String content, Map<String, String> headers, String ip, int port) {
-    // Check for camera-specific identifiers in content or headers
-    final serverHeader = headers['server']?.toLowerCase() ?? '';
-    final contentLower = content.toLowerCase();
-    
-    // Look for camera brand indicators
-    CameraBrand brand = CameraBrand.unknown;
-    CameraType type = CameraType.unknown;
-    String model = 'Unknown Camera';
-    
-    for (final entry in brandPatterns.entries) {
-      if (contentLower.contains(entry.key) || serverHeader.contains(entry.key)) {
-        brand = entry.value;
-        break;
-      }
-    }
-    
-    for (final entry in typePatterns.entries) {
-      if (contentLower.contains(entry.key)) {
-        type = entry.value;
-        if (entry.key == 'd90') {
-          model = 'Nikon D90';
-          brand = CameraBrand.nikon;
-        }
-        break;
-      }
-    }
-    
-    // Only create camera object if we have strong indicators
-    // Either a known camera brand OR very specific camera keywords
-    if (brand != CameraBrand.unknown || (brand == CameraBrand.unknown && _containsCameraKeywords(contentLower))) {
-      return ExternalCamera(
-        id: 'wifi_${ip}_$port',
-        name: '$model (WiFi)',
-        model: model,
-        brand: brand,
-        type: type,
-        connectionType: CameraConnectionType.wifi,
-        ipAddress: ip,
-        port: port,
-        isConnected: false,
-        capabilities: {
-          'supportsLiveView': true,
-          'supportsRemoteCapture': true,
-          'supportsSettingsControl': true,
-        },
-      );
-    }
-    
-    return null;
-  }
 
-  bool _containsCameraKeywords(String content) {
-    // Much stricter camera detection - require specific camera-related terms
-    // and multiple indicators to reduce false positives
-    const strictCameraKeywords = [
-      'dslr', 'mirrorless', 'liveview', 'ptpip', 'ccapi',
-      'remote control', 'camera control', 'eos utility',
-      'nikon transfer', 'canon eos', 'sony alpha', 'fujifilm x'
-    ];
-    
-    const cameraApiKeywords = [
-      '/camera/api', '/ccapi', '/v1/camera', '/remote',
-      'shutter_speed', 'iso_speed', 'aperture_value',
-      'white_balance', 'focus_mode'
-    ];
-    
-    // Require at least one strict camera keyword AND one API keyword
-    final hasStrictKeyword = strictCameraKeywords.any((keyword) => content.contains(keyword));
-    final hasApiKeyword = cameraApiKeywords.any((keyword) => content.contains(keyword));
-    
-    return hasStrictKeyword && hasApiKeyword;
-  }
 
-  Future<ExternalCamera?> _tryUPnPDiscovery(String ip, int port) async {
-    try {
-      // Send UPnP SSDP discovery message
-      final socket = await UDP.bind(Endpoint.any(port: const Port(0)));
-      
-      const ssdpMessage = 'M-SEARCH * HTTP/1.1\r\n'
-          'HOST: 239.255.255.250:1900\r\n'
-          'MAN: "ssdp:discover"\r\n'
-          'ST: upnp:rootdevice\r\n'
-          'MX: 3\r\n\r\n';
-      
-      await socket.send(
-        ssdpMessage.codeUnits,
-        Endpoint.unicast(InternetAddress(ip), port: Port(1900)),
-      );
-      
-      // Listen for responses
-      final completer = Completer<ExternalCamera?>();
-      
-      socket.asStream(timeout: const Duration(seconds: 3)).listen(
-        (datagram) {
-          final response = String.fromCharCodes(datagram!.data);
-          final camera = _parseUPnPResponse(response, ip);
-          if (camera != null && !completer.isCompleted) {
-            completer.complete(camera);
-          }
-        },
-        onError: (e) {
-          if (!completer.isCompleted) {
-            completer.complete(null);
-          }
-        },
-        onDone: () {
-          if (!completer.isCompleted) {
-            completer.complete(null);
-          }
-        },
-      );
-      
-      Timer(const Duration(seconds: 3), () {
-        socket.close();
-        if (!completer.isCompleted) {
-          completer.complete(null);
-        }
-      });
-      
-      return await completer.future;
-      
-    } catch (e) {
-      debugPrint('ExternalCameraService: UPnP discovery error: $e');
-      return null;
-    }
-  }
 
-  ExternalCamera? _parseUPnPResponse(String response, String ip) {
-    // Parse UPnP response for camera device information
-    final lines = response.toLowerCase().split('\n');
-    
-    for (final line in lines) {
-      if (line.contains('camera') || line.contains('imaging')) {
-        return ExternalCamera(
-          id: 'upnp_$ip',
-          name: 'UPnP Camera',
-          model: 'Unknown UPnP Camera',
-          brand: CameraBrand.unknown,
-          type: CameraType.unknown,
-          connectionType: CameraConnectionType.wifi,
-          ipAddress: ip,
-          port: 1900,
-          isConnected: false,
-        );
-      }
-    }
-    
-    return null;
-  }
 
   Future<List<ExternalCamera>> _discoverUSBCameras() async {
     final cameras = <ExternalCamera>[];
@@ -1004,10 +757,8 @@ class ExternalCameraService {
   StreamController<Uint8List>? _bufferedLiveViewController;
   Timer? _liveViewTimer;
   bool _isLiveViewActive = false;
-  String? _activeLiveViewCameraId;
   
-  // Frame rate control for smoother streaming
-  static const int _targetFPS = 15;  // Limit to 15 FPS for smoother experience  
+  
   static const Duration _frameInterval = Duration(milliseconds: 66); // ~15 FPS
   DateTime? _lastFrameTime;
   Uint8List? _lastValidFrame;
@@ -1036,7 +787,6 @@ class ExternalCameraService {
       // Create both raw and buffered stream controllers
       _liveViewStreamController = StreamController<Uint8List>.broadcast();
       _bufferedLiveViewController = StreamController<Uint8List>.broadcast();
-      _activeLiveViewCameraId = cameraId;
       _isLiveViewActive = true;
       _lastFrameTime = null;
       _lastValidFrame = null;
@@ -1132,7 +882,6 @@ class ExternalCameraService {
     _lastValidFrame = null;
     
     _isLiveViewActive = false;
-    _activeLiveViewCameraId = null;
   }
 
   /// Start USB live view streaming (for Nikon D90, etc.)

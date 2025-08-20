@@ -5,7 +5,6 @@ import 'core/theme/app_theme.dart';
 // Unified State Management
 import 'core/state/app_state_provider.dart';
 import 'core/state/ui_state_provider.dart';
-import 'core/state/error_state_provider.dart';
 import 'core/state/state_manager.dart';
 import 'screens/splash_screen.dart';
 import 'screens/main_dashboard.dart';
@@ -93,49 +92,5 @@ class LensAIApp extends StatelessWidget {
     );
   }
   
-  Widget _buildErrorBanner(BuildContext context) {
-    final errorState = context.watch<ErrorStateProvider>();
-    
-    return Positioned(
-      top: MediaQuery.of(context).padding.top,
-      left: 0,
-      right: 0,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        color: errorState.currentErrorSeverity == ErrorSeverity.critical
-            ? Colors.red
-            : Colors.orange,
-        child: Row(
-          children: [
-            Icon(
-              errorState.currentErrorSeverity == ErrorSeverity.critical
-                  ? Icons.error
-                  : Icons.warning,
-              color: Colors.white,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                errorState.currentErrorMessage,
-                style: const TextStyle(color: Colors.white),
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.close, color: Colors.white),
-              onPressed: () => errorState.dismissErrorBanner(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
   
-  Widget _buildLoadingOverlay(BuildContext context) {
-    return Container(
-      color: Colors.black26,
-      child: const Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
-  }
 }

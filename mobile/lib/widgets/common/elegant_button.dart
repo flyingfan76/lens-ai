@@ -34,7 +34,6 @@ class _ElegantButtonState extends State<ElegantButton>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
-  bool _isPressed = false;
 
   @override
   void initState() {
@@ -60,19 +59,16 @@ class _ElegantButtonState extends State<ElegantButton>
 
   void _onTapDown(TapDownDetails details) {
     if (widget.onPressed != null && !widget.isLoading) {
-      setState(() => _isPressed = true);
       _animationController.forward();
       HapticFeedback.lightImpact();
     }
   }
 
   void _onTapUp(TapUpDetails details) {
-    setState(() => _isPressed = false);
     _animationController.reverse();
   }
 
   void _onTapCancel() {
-    setState(() => _isPressed = false);
     _animationController.reverse();
   }
 

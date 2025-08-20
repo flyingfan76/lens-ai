@@ -1876,30 +1876,6 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
     );
   }
 
-  /// Build WB mode chip (legacy)
-  Widget _buildWBModeChip(String label, bool isSelected, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.accent : Colors.white.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? AppColors.accent : Colors.white.withValues(alpha: 0.2),
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.8),
-            fontSize: 10,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    );
-  }
 
   /// Get current WB kelvin value
   int _getWBKelvin() {
@@ -1986,74 +1962,6 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
     );
   }
 
-  /// Build WB shift slider for fine tuning (legacy)
-  Widget _buildWBShiftSlider(
-    String label,
-    double value,
-    double min,  
-    double max,
-    Color negativeColor,
-    Color positiveColor,
-    Function(double) onChanged,
-  ) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 11,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: value == 0
-                    ? Colors.grey[700]
-                    : (value > 0 ? positiveColor : negativeColor).withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                value == 0
-                    ? '0'
-                    : '${value > 0 ? '+' : ''}${value.round()}',
-                style: TextStyle(
-                  color: value == 0
-                      ? Colors.white70
-                      : (value > 0 ? positiveColor : negativeColor),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            activeTrackColor: value >= 0 ? positiveColor : negativeColor,
-            inactiveTrackColor: Colors.white.withValues(alpha: 0.2),
-            thumbColor: value == 0 ? Colors.white70 : 
-                       (value > 0 ? positiveColor : negativeColor),
-            overlayColor: (value >= 0 ? positiveColor : negativeColor).withValues(alpha: 0.2),
-            trackHeight: 2,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-          ),
-          child: Slider(
-            value: value,
-            min: min,
-            max: max,
-            divisions: (max - min).round(),
-            onChanged: onChanged,
-          ),
-        ),
-      ],
-    );
-  }
 
   /// Build quick control button for frequently used settings
 
@@ -2145,39 +2053,6 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
     );
   }
 
-  /// Build functional slider for camera settings with real provider integration
-  Widget _buildFunctionalSlider(String label, double value, double min, double max, Function(double) onChanged) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '$label: ${_formatSliderValue(label, value)}',
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.9),
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 8),
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            activeTrackColor: AppColors.accent,
-            inactiveTrackColor: Colors.white.withValues(alpha: 0.2),
-            thumbColor: AppColors.accent,
-            overlayColor: AppColors.accent.withValues(alpha: 0.2),
-            trackHeight: 4,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
-          ),
-          child: Slider(
-            value: value.clamp(min, max),
-            min: min,
-            max: max,
-            onChanged: onChanged,
-          ),
-        ),
-      ],
-    );
-  }
 
   /// Build compact slider for camera settings
 
