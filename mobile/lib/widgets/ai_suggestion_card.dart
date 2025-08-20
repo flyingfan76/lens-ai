@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 import '../models/ai_suggestion.dart';
@@ -67,23 +68,37 @@ class _AISuggestionCardState extends State<AISuggestionCard>
       child: FadeTransition(
         opacity: _fadeAnimation,
         child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            gradient: _getGradientForType(widget.suggestion.type),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: _getColorForType(widget.suggestion.type).withValues(alpha: 0.3),
-              width: 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: _getGradientForType(widget.suggestion.type),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    width: 0.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _getColorForType(widget.suggestion.type).withValues(alpha: 0.2),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                      spreadRadius: -2,
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: widget.isCompact ? _buildCompactCard() : _buildFullCard(),
               ),
-            ],
+            ),
           ),
-          child: widget.isCompact ? _buildCompactCard() : _buildFullCard(),
         ),
       ),
     );
@@ -91,11 +106,11 @@ class _AISuggestionCardState extends State<AISuggestionCard>
 
   Widget _buildCompactCard() {
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       child: Row(
         children: [
           _buildIcon(),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -105,16 +120,18 @@ class _AISuggestionCardState extends State<AISuggestionCard>
                   widget.suggestion.title,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 14,
+                    fontSize: 15,
                     fontWeight: FontWeight.w600,
+                    letterSpacing: -0.2,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   widget.suggestion.message,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w400,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -122,7 +139,10 @@ class _AISuggestionCardState extends State<AISuggestionCard>
               ],
             ),
           ),
-          if (widget.suggestion.actionable) _buildApplyButton(),
+          if (widget.suggestion.actionable) ...[
+            _buildCompactApplyButton(),
+            const SizedBox(width: 8),
+          ],
           _buildDismissButton(),
         ],
       ),
@@ -131,14 +151,14 @@ class _AISuggestionCardState extends State<AISuggestionCard>
 
   Widget _buildFullCard() {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               _buildIcon(),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,8 +170,9 @@ class _AISuggestionCardState extends State<AISuggestionCard>
                             widget.suggestion.title,
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 16,
+                              fontSize: 17,
                               fontWeight: FontWeight.w600,
+                              letterSpacing: -0.3,
                             ),
                           ),
                         ),
@@ -159,12 +180,19 @@ class _AISuggestionCardState extends State<AISuggestionCard>
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      _getTypeLabel(widget.suggestion.type),
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.7),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _getColorForType(widget.suggestion.type).withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        _getTypeLabel(widget.suggestion.type),
+                        style: TextStyle(
+                          color: _getColorForType(widget.suggestion.type),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
@@ -173,67 +201,89 @@ class _AISuggestionCardState extends State<AISuggestionCard>
               _buildDismissButton(),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Text(
             widget.suggestion.message,
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.9),
-              fontSize: 14,
+              fontSize: 15,
               height: 1.4,
+              fontWeight: FontWeight.w400,
             ),
           ),
           if (widget.suggestion.explanation != null) ...[
-            const SizedBox(height: 8),
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  _isExpanded = !_isExpanded;
-                });
-              },
-              child: Row(
-                children: [
-                  Icon(
-                    _isExpanded ? Icons.expand_less : Icons.expand_more,
-                    color: Colors.white.withValues(alpha: 0.7),
-                    size: 16,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Why?',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.7),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
+            const SizedBox(height: 12),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  setState(() {
+                    _isExpanded = !_isExpanded;
+                  });
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.1),
+                      width: 0.5,
                     ),
                   ),
-                ],
-              ),
-            ),
-          ],
-          if (_isExpanded && widget.suggestion.explanation != null) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                widget.suggestion.explanation!,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.8),
-                  fontSize: 13,
-                  height: 1.3,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _isExpanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+                        color: Colors.white.withValues(alpha: 0.8),
+                        size: 18,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _isExpanded ? 'Hide details' : 'Why this suggestion?',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.8),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ],
-          const SizedBox(height: 12),
+          if (_isExpanded && widget.suggestion.explanation != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  width: 0.5,
+                ),
+              ),
+              child: Text(
+                widget.suggestion.explanation!,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.85),
+                  fontSize: 14,
+                  height: 1.4,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
           Row(
             children: [
               if (widget.suggestion.actionable) ...[
                 Expanded(child: _buildApplyButton()),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
               ],
               if (widget.suggestion.type == AISuggestionType.composition)
                 Expanded(child: _buildShowOverlayButton()),
@@ -246,11 +296,29 @@ class _AISuggestionCardState extends State<AISuggestionCard>
 
   Widget _buildIcon() {
     return Container(
-      width: 40,
-      height: 40,
+      width: 44,
+      height: 44,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            _getColorForType(widget.suggestion.type).withValues(alpha: 0.3),
+            _getColorForType(widget.suggestion.type).withValues(alpha: 0.2),
+          ],
+        ),
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.15),
+          width: 0.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _getColorForType(widget.suggestion.type).withValues(alpha: 0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Icon(
         _getIconForSuggestion(widget.suggestion),
@@ -261,80 +329,213 @@ class _AISuggestionCardState extends State<AISuggestionCard>
   }
 
   Widget _buildConfidenceBadge() {
+    final confidence = (widget.suggestion.confidence * 100).round();
+    Color badgeColor = confidence >= 80 
+        ? AppColors.success 
+        : confidence >= 60 
+            ? AppColors.warning 
+            : AppColors.error;
+            
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(8),
+        gradient: LinearGradient(
+          colors: [
+            badgeColor.withValues(alpha: 0.2),
+            badgeColor.withValues(alpha: 0.15),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: badgeColor.withValues(alpha: 0.3),
+          width: 0.5,
+        ),
       ),
-      child: Text(
-        '${(widget.suggestion.confidence * 100).round()}%',
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: badgeColor,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '$confidence%',
+            style: TextStyle(
+              color: badgeColor,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactApplyButton() {
+    return Container(
+      height: 32,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.white.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => widget.onApply?.call(widget.suggestion),
+          borderRadius: BorderRadius.circular(16),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.auto_fix_high_rounded,
+                size: 14,
+                color: _getColorForType(widget.suggestion.type),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Apply',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _getColorForType(widget.suggestion.type),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildApplyButton() {
-    return ElevatedButton.icon(
-      onPressed: () => widget.onApply?.call(widget.suggestion),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.white,
-        foregroundColor: _getColorForType(widget.suggestion.type),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+    return Container(
+      height: 44,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white,
+            Colors.white.withValues(alpha: 0.95),
+          ],
         ),
-        elevation: 0,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.white.withValues(alpha: 0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      icon: const Icon(Icons.tune, size: 16),
-      label: Text(
-        'Apply',
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => widget.onApply?.call(widget.suggestion),
+          borderRadius: BorderRadius.circular(22),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.auto_fix_high_rounded,
+                  size: 18,
+                  color: _getColorForType(widget.suggestion.type),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Apply Settings',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: _getColorForType(widget.suggestion.type),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
   Widget _buildShowOverlayButton() {
-    return OutlinedButton.icon(
-      onPressed: () {
-        // Show composition overlay
-        _showCompositionOverlay();
-      },
-      style: OutlinedButton.styleFrom(
-        foregroundColor: Colors.white,
-        side: const BorderSide(color: Colors.white, width: 1),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+    return Container(
+      height: 44,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.3),
+          width: 1,
         ),
       ),
-      icon: const Icon(Icons.grid_on, size: 16),
-      label: Text(
-        'Show Guide',
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            _showCompositionOverlay();
+          },
+          borderRadius: BorderRadius.circular(22),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.grid_on_rounded,
+                  size: 18,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Show Guide',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
   Widget _buildDismissButton() {
-    return GestureDetector(
-      onTap: () => widget.onDismiss?.call(widget.suggestion),
-      child: Container(
-        padding: const EdgeInsets.all(4),
-        child: Icon(
-          Icons.close,
-          color: Colors.white.withValues(alpha: 0.7),
-          size: 16,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => widget.onDismiss?.call(widget.suggestion),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(
+            Icons.close_rounded,
+            color: Colors.white.withValues(alpha: 0.8),
+            size: 16,
+          ),
         ),
       ),
     );
@@ -350,10 +551,11 @@ class _AISuggestionCardState extends State<AISuggestionCard>
     return LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
+      stops: const [0.0, 0.5, 1.0],
       colors: [
-        primaryColor.withValues(alpha: 0.8),
-        primaryColor.withValues(alpha: 0.6),
-        primaryColor.withValues(alpha: 0.4),
+        Colors.black.withValues(alpha: 0.7),
+        primaryColor.withValues(alpha: 0.15),
+        Colors.black.withValues(alpha: 0.8),
       ],
     );
   }
@@ -363,13 +565,13 @@ class _AISuggestionCardState extends State<AISuggestionCard>
       case AISuggestionType.cameraSettings:
         return AppColors.primary;
       case AISuggestionType.composition:
-        return Colors.purple;
+        return AppColors.purple;
       case AISuggestionType.technique:
-        return Colors.orange;
+        return AppColors.accent;
       case AISuggestionType.timing:
-        return Colors.teal;
+        return AppColors.teal;
       case AISuggestionType.creative:
-        return Colors.pink;
+        return AppColors.pink;
     }
   }
 

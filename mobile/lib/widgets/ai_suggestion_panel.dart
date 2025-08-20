@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 import '../models/ai_suggestion.dart';
@@ -112,36 +113,57 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
         ).animate(_panelAnimation),
         child: FadeTransition(
           opacity: _panelAnimation,
-          child: Container(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.6,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.9),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: AppColors.accent.withValues(alpha: 0.3),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.5),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.65,
                 ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildPanelHeader(),
-                if (_isLoading || _isAnalyzing) 
-                  _buildLoadingIndicator()
-                else if (_suggestions.isEmpty)
-                  _buildEmptyState()
-                else
-                  _buildSuggestionsList(),
-              ],
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.85),
+                      Colors.black.withValues(alpha: 0.75),
+                      Colors.black.withValues(alpha: 0.80),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    width: 0.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.4),
+                      blurRadius: 32,
+                      offset: const Offset(0, 16),
+                      spreadRadius: -4,
+                    ),
+                    BoxShadow(
+                      color: AppColors.accent.withValues(alpha: 0.1),
+                      blurRadius: 48,
+                      offset: const Offset(0, 0),
+                      spreadRadius: -8,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildPanelHeader(),
+                    if (_isLoading || _isAnalyzing) 
+                      _buildLoadingIndicator()
+                    else if (_suggestions.isEmpty)
+                      _buildEmptyState()
+                    else
+                      _buildSuggestionsList(),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -151,75 +173,116 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
 
   Widget _buildPanelHeader() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.accent.withValues(alpha: 0.8),
-            AppColors.accent.withValues(alpha: 0.4),
+            AppColors.accent.withValues(alpha: 0.15),
+            AppColors.primary.withValues(alpha: 0.12),
+            AppColors.accent.withValues(alpha: 0.08),
           ],
         ),
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
+          topLeft: Radius.circular(24),
+          topRight: Radius.circular(24),
+        ),
+        border: Border(
+          bottom: BorderSide(
+            color: Colors.white.withValues(alpha: 0.08),
+            width: 0.5,
+          ),
         ),
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.auto_awesome,
-            color: Colors.white,
-            size: 24,
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.accent.withValues(alpha: 0.8),
+                  AppColors.accent.withValues(alpha: 0.6),
+                ],
+              ),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.accent.withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.auto_awesome,
+              color: Colors.white,
+              size: 18,
+            ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'AI Suggestions',
+                  'AI Photography Assistant',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 18,
+                    fontSize: 17,
                     fontWeight: FontWeight.w600,
+                    letterSpacing: -0.3,
                   ),
                 ),
+                const SizedBox(height: 2),
                 if (_suggestions.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${_suggestions.length} ${_suggestions.length == 1 ? 'suggestion' : 'suggestions'}',
+                      style: TextStyle(
+                        color: AppColors.accent,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  )
+                else if (!_isLoading && !_isAnalyzing)
                   Text(
-                    '${_suggestions.length} recommendations',
+                    'Ready to analyze',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      fontSize: 12,
+                      color: Colors.white.withValues(alpha: 0.6),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
               ],
             ),
           ),
-          IconButton(
+          _buildHeaderButton(
+            icon: Icons.refresh_rounded,
             onPressed: _refreshSuggestions,
-            icon: const Icon(
-              Icons.refresh,
-              color: Colors.white,
-              size: 20,
-            ),
+            tooltip: 'Refresh',
           ),
-          IconButton(
+          const SizedBox(width: 4),
+          _buildHeaderButton(
+            icon: Icons.tune_rounded,
             onPressed: _openAISettings,
-            icon: const Icon(
-              Icons.tune,
-              color: Colors.white,
-              size: 20,
-            ),
+            tooltip: 'Settings',
           ),
-          IconButton(
+          const SizedBox(width: 4),
+          _buildHeaderButton(
+            icon: Icons.close_rounded,
             onPressed: () => widget.onVisibilityChanged?.call(false),
-            icon: const Icon(
-              Icons.close,
-              color: Colors.white,
-              size: 20,
-            ),
+            tooltip: 'Close',
           ),
         ],
       ),
@@ -228,23 +291,60 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
 
   Widget _buildLoadingIndicator() {
     return Container(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.all(40),
       child: Column(
         children: [
-          SizedBox(
-            width: 40,
-            height: 40,
-            child: CircularProgressIndicator(
-              strokeWidth: 3,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent),
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.accent.withValues(alpha: 0.1),
+                      AppColors.primary.withValues(alpha: 0.1),
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 44,
+                height: 44,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    AppColors.accent.withValues(alpha: 0.8),
+                  ),
+                  backgroundColor: Colors.white.withValues(alpha: 0.1),
+                ),
+              ),
+              Icon(
+                Icons.auto_awesome,
+                color: AppColors.accent.withValues(alpha: 0.7),
+                size: 20,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Text(
+            _isAnalyzing ? 'Analyzing scene composition...' : 'Loading AI suggestions...',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              letterSpacing: -0.2,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 6),
           Text(
-            _isAnalyzing ? 'Analyzing scene...' : 'Loading suggestions...',
+            _isAnalyzing ? 'This may take a moment' : 'Please wait',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.8),
-              fontSize: 14,
+              color: Colors.white.withValues(alpha: 0.6),
+              fontSize: 13,
+              fontWeight: FontWeight.w400,
             ),
           ),
         ],
@@ -254,31 +354,84 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
 
   Widget _buildEmptyState() {
     return Container(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.all(40),
       child: Column(
         children: [
-          Icon(
-            Icons.lightbulb_outline,
-            color: Colors.white.withValues(alpha: 0.5),
-            size: 48,
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.accent.withValues(alpha: 0.15),
+                  AppColors.primary.withValues(alpha: 0.1),
+                ],
+              ),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.1),
+                width: 1,
+              ),
+            ),
+            child: Icon(
+              Icons.psychology_rounded,
+              color: AppColors.accent.withValues(alpha: 0.7),
+              size: 36,
+            ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            'No suggestions available',
+          const SizedBox(height: 24),
+          const Text(
+            'Ready for AI Analysis',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.8),
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.3,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Tap the AI button to analyze the current scene',
+            'Get intelligent photography suggestions\nbased on your current scene',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.6),
+              color: Colors.white.withValues(alpha: 0.7),
               fontSize: 14,
+              height: 1.4,
+              fontWeight: FontWeight.w400,
             ),
             textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.accent.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppColors.accent.withValues(alpha: 0.2),
+                width: 0.5,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.touch_app_rounded,
+                  size: 16,
+                  color: AppColors.accent.withValues(alpha: 0.8),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Tap AI button to start',
+                  style: TextStyle(
+                    color: AppColors.accent,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -316,60 +469,95 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
               onTap: _togglePanel,
               onLongPress: _showAISettings,
               child: Container(
-                width: 56,
-                height: 56,
+                width: 60,
+                height: 60,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      AppColors.accent,
-                      AppColors.accent.withValues(alpha: 0.8),
+                      AppColors.accent.withValues(alpha: 0.95),
+                      AppColors.accent.withValues(alpha: 0.85),
+                      AppColors.primary.withValues(alpha: 0.8),
                     ],
                   ),
-                  borderRadius: BorderRadius.circular(28),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    width: 0.5,
+                  ),
                   boxShadow: [
                     BoxShadow(
                       color: AppColors.accent.withValues(alpha: 0.4),
-                      blurRadius: 12,
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                      spreadRadius: -2,
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 16,
                       offset: const Offset(0, 4),
                     ),
                   ],
                 ),
                 child: Stack(
                   children: [
-                    Center(
-                      child: Icon(
-                        widget.isVisible ? Icons.close : Icons.auto_awesome,
-                        color: Colors.white,
-                        size: 28,
-                      ),
-                    ),
                     if (_isAnalyzing)
                       Positioned.fill(
                         child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          strokeWidth: 2.5,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white.withValues(alpha: 0.9),
+                          ),
+                          backgroundColor: Colors.white.withValues(alpha: 0.2),
                         ),
                       ),
-                    if (_suggestions.isNotEmpty && !widget.isVisible)
+                    Center(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        child: Icon(
+                          widget.isVisible ? Icons.close_rounded : Icons.auto_awesome_rounded,
+                          key: ValueKey(widget.isVisible),
+                          color: Colors.white,
+                          size: 26,
+                        ),
+                      ),
+                    ),
+                    if (_suggestions.isNotEmpty && !widget.isVisible && !_isAnalyzing)
                       Positioned(
-                        top: 8,
-                        right: 8,
+                        top: 6,
+                        right: 6,
                         child: Container(
-                          width: 16,
-                          height: 16,
+                          min: 18,
+                          height: 18,
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
                           decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(8),
+                            gradient: LinearGradient(
+                              colors: [
+                                AppColors.error,
+                                AppColors.error.withValues(alpha: 0.8),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(9),
+                            border: Border.all(
+                              color: Colors.white,
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.error.withValues(alpha: 0.4),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
                           child: Center(
                             child: Text(
-                              '${_suggestions.length}',
+                              _suggestions.length > 9 ? '9+' : '${_suggestions.length}',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 10,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
@@ -545,6 +733,40 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
       context,
       MaterialPageRoute(
         builder: (context) => const AISettingsScreen(),
+      ),
+    );
+  }
+
+  Widget _buildHeaderButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+    required String tooltip,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.1),
+                width: 0.5,
+              ),
+            ),
+            child: Icon(
+              icon,
+              color: Colors.white.withValues(alpha: 0.9),
+              size: 16,
+            ),
+          ),
+        ),
       ),
     );
   }
