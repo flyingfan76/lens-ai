@@ -254,6 +254,20 @@ class UnifiedCameraProvider extends ChangeNotifier {
     }
   }
 
+  /// Clear any error state and attempt to recover
+  void clearError() {
+    _error = null;
+    debugPrint('UnifiedCameraProvider: Error state cleared');
+    // Also clear any cached cameras that might be causing issues
+    _externalCameraService.clearDiscoveredCameras();
+    notifyListeners();
+  }
+
+  /// Refresh cameras (alias for refreshExternalCameras for compatibility)
+  Future<void> refreshCameras() async {
+    await refreshExternalCameras();
+  }
+
   // Live view functionality
   Stream<Uint8List>? get liveViewStream => _externalCameraService.liveViewStream;
   bool get isLiveViewActive => _externalCameraService.isLiveViewActive;

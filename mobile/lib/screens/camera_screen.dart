@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:provider/provider.dart';
 import '../core/theme/app_colors.dart';
+import '../core/theme/app_typography.dart';
 import '../core/utils/disposal_mixin.dart';
 import '../widgets/white_balance_control.dart';
 import '../services/ai/ai_coordinator.dart';
@@ -294,7 +295,7 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
           return _buildErrorState(provider.error!);
         }
 
-        // TEMPORARY: Always show camera interface for AI testing, even without cameras
+        // Allow access to camera interface even without cameras for testing and demo
         // if (!provider.hasAnyCameras) {
         //   return _buildNoCamerasState();
         // }
@@ -341,7 +342,8 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
     } else if (provider.activeCameraType == CameraSourceType.external) {
       return _buildExternalCameraPreview(provider.activeExternalCamera!);
     } else {
-      return Container(color: Colors.black);
+      // Show elegant placeholder that allows access to controls
+      return _buildElegantCameraPlaceholder();
     }
   }
 
@@ -1015,34 +1017,215 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
   }
 
   Widget _buildErrorState(String error) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Icons.error_outline,
-            size: 64,
-            color: Colors.red,
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: const Text('Camera Error'),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            // Clear the error and try to recover
+            _cameraProvider.clearError();
+            // Or navigate to a safe state
+            setState(() {
+              _showCameraSelector = true;
+            });
+          },
+        ),
+        elevation: 0,
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.red.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: Colors.red,
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Camera Connection Failed',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                error,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 16,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 32),
+              
+              // Action buttons
+              Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        // Clear error and retry
+                        _cameraProvider.clearError();
+                        _cameraProvider.refreshCameras();
+                      },
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry Connection'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        // Clear error and show camera selector
+                        _cameraProvider.clearError();
+                        setState(() {
+                          _showCameraSelector = true;
+                        });
+                      },
+                      icon: const Icon(Icons.camera_alt),
+                      label: const Text('Choose Different Camera'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white30),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextButton.icon(
+                    onPressed: () {
+                      // Clear error and continue without camera (demo mode)
+                      _cameraProvider.clearError();
+                    },
+                    icon: const Icon(Icons.play_arrow),
+                    label: const Text('Continue in Demo Mode'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          const Text(
-            'Camera Error',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  /// Build elegant camera placeholder that allows access to all controls
+  Widget _buildElegantCameraPlaceholder() {
+    return Container(
+      color: Colors.grey[900],
+      width: double.infinity,
+      height: double.infinity,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: AppColors.accent.withOpacity(0.5),
+                  width: 2,
+                ),
+              ),
+              child: Icon(
+                Icons.camera_alt_outlined,
+                size: 64,
+                color: AppColors.accent,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            error,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 14,
+            const SizedBox(height: 24),
+            Text(
+              'Camera Preview',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              'Connect an external camera or use built-in camera\nAll controls are available for testing and setup',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Helpful hint about accessing controls
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.accent.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.accent.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.keyboard_arrow_up,
+                    color: AppColors.accent,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Tap the arrow below to access camera controls',
+                    style: TextStyle(
+                      color: AppColors.accent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1054,10 +1237,28 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
       children: [
         Row(
           children: [
-            IconButton(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
+            // App logo/title instead of back button
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.camera_alt_rounded,
+                    color: AppColors.accent,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Lens AI',
+                    style: AppTypography.headlineBold.copyWith(
+                      color: Colors.white,
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
             ),
+            const SizedBox(width: 16),
             // Camera selector button
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1167,166 +1368,265 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
 
   /// Build main control row with capture button and trigger
   Widget _buildMainControlRow() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        // Control panel trigger
-        IconButton(
-          onPressed: () {
-            setState(() {
-              _showControlPanel = !_showControlPanel;
-            });
-          },
-          icon: Icon(
-            _showControlPanel ? Icons.expand_less : Icons.expand_more,
-            color: Colors.white,
-            size: 30,
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          // Control panel trigger - elegant button
+          _buildElegantControlButton(
+            icon: _showControlPanel 
+                ? Icons.keyboard_arrow_down_rounded 
+                : Icons.keyboard_arrow_up_rounded,
+            onPressed: () {
+              setState(() {
+                _showControlPanel = !_showControlPanel;
+              });
+            },
+            tooltip: _showControlPanel ? 'Hide Controls' : 'Show Controls',
           ),
-        ),
-        
-        // Capture button - center and prominent
-        GestureDetector(
-          onTap: _capturePhoto,
-          child: Container(
-            width: 70,
-            height: 70,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white,
-              border: Border.all(color: AppColors.accent, width: 3),
+          
+          // Capture button - center and prominent with Apple-style design
+          GestureDetector(
+            onTap: _capturePhoto,
+            child: Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    Colors.white,
+                    Colors.white.withOpacity(0.9),
+                  ],
+                ),
+                border: Border.all(
+                  color: AppColors.accent, 
+                  width: 4,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.shadow,
+                    blurRadius: AppSpacing.shadowBlur,
+                    offset: const Offset(0, 4),
+                  ),
+                  BoxShadow(
+                    color: AppColors.accent.withOpacity(0.3),
+                    blurRadius: AppSpacing.lightShadowBlur,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.camera_alt_rounded,
+                color: AppColors.accent,
+                size: 32,
+              ),
             ),
-            child: const Icon(
-              Icons.camera_alt,
-              color: AppColors.accent,
-              size: 30,
-            ),
           ),
-        ),
-        
-        // Settings button
-        IconButton(
-          onPressed: () => _navigateToSettings(),
-          icon: const Icon(
-            Icons.settings,
-            color: Colors.white,
-            size: 30,
+          
+          // Settings button - elegant button
+          _buildElegantControlButton(
+            icon: Icons.settings_rounded,
+            onPressed: () => _navigateToSettings(),
+            tooltip: 'Settings',
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  /// Build comprehensive control panel with all functional camera settings
+  /// Build elegant control button with Apple-style design
+  Widget _buildElegantControlButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+    String? tooltip,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: AppColors.surfaceCard.withOpacity(0.8),
+        border: Border.all(
+          color: AppColors.borderDark,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadow,
+            blurRadius: AppSpacing.lightShadowBlur,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: IconButton(
+        onPressed: onPressed,
+        icon: Icon(
+          icon,
+          color: AppColors.textPrimaryDark,
+          size: 28,
+        ),
+        tooltip: tooltip,
+        padding: const EdgeInsets.all(AppSpacing.md),
+      ),
+    );
+  }
+
+  /// Build compact comprehensive control panel with all functional camera settings
   Widget _buildComprehensiveControlPanel() {
     return Consumer<CameraFeatureProvider>(
       builder: (context, cameraProvider, child) {
         return Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.85),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+            gradient: AppColors.cardGradient,
+            borderRadius: BorderRadius.circular(AppSpacing.surfaceRadius),
+            border: Border.all(color: AppColors.borderDark),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.shadowStrong,
+                blurRadius: AppSpacing.shadowBlur,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // White Balance Controls (direct, no nested expand)
-              _buildWhiteBalanceControls(),
-              const SizedBox(height: 20),
+              // Compact header
+              Row(
+                children: [
+                  Icon(
+                    Icons.tune_rounded,
+                    color: AppColors.accent,
+                    size: 18,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    'Camera Controls',
+                    style: AppTypography.bodyBold.copyWith(
+                      color: AppColors.textPrimaryDark,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
               
-              // Camera Settings Row 1: ISO and Aperture
+              // Camera Settings Grid: 2x2 layout for more compact arrangement
               Row(
                 children: [
                   Expanded(
-                    child: _buildFunctionalSlider(
+                    child: _buildElegantCameraSlider(
                       'ISO',
                       cameraProvider.iso,
                       100.0,
                       3200.0,
+                      Icons.iso,
                       (value) {
-                        // Update ISO in provider
                         cameraProvider.updateCameraSettings({'iso': value});
                       },
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: AppSpacing.xs),
                   Expanded(
-                    child: _buildFunctionalSlider(
+                    child: _buildElegantCameraSlider(
                       'f/',
                       cameraProvider.aperture,
                       1.4,
                       16.0,
+                      Icons.camera_alt_rounded,
                       (value) {
-                        // Update aperture in provider
                         cameraProvider.updateCameraSettings({'aperture': value});
                       },
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.xs),
               
-              // Camera Settings Row 2: Shutter Speed and Zoom
+              // Camera Settings Row 2: Shutter Speed and Zoom  
               Row(
                 children: [
                   Expanded(
-                    child: _buildFunctionalSlider(
+                    child: _buildElegantCameraSlider(
                       '1/',
                       cameraProvider.shutterSpeed,
                       1.0,
                       1000.0,
+                      Icons.shutter_speed_rounded,
                       (value) {
-                        // Update shutter speed in provider
                         cameraProvider.updateCameraSettings({'shutterSpeed': value});
                       },
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: AppSpacing.xs),
                   Expanded(
-                    child: _buildFunctionalSlider(
+                    child: _buildElegantCameraSlider(
                       'Zoom',
                       cameraProvider.zoomLevel,
                       cameraProvider.minZoomLevel,
                       cameraProvider.maxZoomLevel,
+                      Icons.zoom_in_rounded,
                       (value) {
-                        // Update zoom in provider
                         cameraProvider.updateCameraSettings({'zoomLevel': value});
                       },
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.md),
               
-              // Flash Toggle
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.flash_off,
-                    color: !cameraProvider.isFlashEnabled 
-                        ? AppColors.accent 
-                        : Colors.white.withValues(alpha: 0.5),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Switch(
-                    value: cameraProvider.isFlashEnabled,
-                    onChanged: (value) {
-                      // Update flash in provider
-                      cameraProvider.updateCameraSettings({'flashMode': value});
-                    },
-                    activeColor: AppColors.accent,
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(
-                    Icons.flash_on,
-                    color: cameraProvider.isFlashEnabled 
-                        ? AppColors.accent 
-                        : Colors.white.withValues(alpha: 0.5),
-                    size: 20,
-                  ),
-                ],
+              // White Balance Controls (compact)
+              _buildWhiteBalanceControls(),
+              const SizedBox(height: AppSpacing.md),
+              
+              // Compact Flash Toggle
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xs,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceCard.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(AppSpacing.smallRadius),
+                  border: Border.all(color: AppColors.borderDark),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.flash_on_rounded,
+                          color: AppColors.accent,
+                          size: 16,
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Text(
+                          'Flash',
+                          style: AppTypography.caption1Bold.copyWith(
+                            color: AppColors.textPrimaryDark,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Transform.scale(
+                      scale: 0.8, // Compact switch
+                      child: Switch.adaptive(
+                        value: cameraProvider.isFlashEnabled,
+                        onChanged: (value) {
+                          cameraProvider.updateCameraSettings({'flashMode': value});
+                        },
+                        activeColor: AppColors.accent,
+                        activeTrackColor: AppColors.accent.withOpacity(0.3),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -1337,198 +1637,246 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
 
   /// Build direct white balance controls without nested expand
   Widget _buildWhiteBalanceControls() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // WB Header
-        Row(
-          children: [
-            const Icon(Icons.wb_sunny, color: AppColors.accent, size: 18),
-            const SizedBox(width: 8),
-            const Text(
-              'White Balance',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceCard.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+        border: Border.all(color: AppColors.borderDark),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // WB Header
+          Row(
+            children: [
+              Icon(
+                Icons.wb_sunny, 
+                color: AppColors.accent, 
+                size: 18,
               ),
-            ),
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.accent.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                '${_getWBKelvin()}K',
-                style: const TextStyle(
-                  color: AppColors.accent,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                'White Balance',
+                style: AppTypography.bodyMedium.copyWith(
+                  color: AppColors.textPrimaryDark,
                 ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        
-        // WB Mode Selection (compact)
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            _buildWBModeChip('Auto', _wbSettings.mode == WBMode.auto, () {
-              setState(() {
-                _wbSettings.mode = WBMode.auto;
-              });
-            }),
-            _buildWBModeChip('Day', _wbSettings.mode == WBMode.daylight, () {
-              setState(() {
-                _wbSettings.mode = WBMode.daylight;
-              });
-            }),
-            _buildWBModeChip('Cloudy', _wbSettings.mode == WBMode.cloudy, () {
-              setState(() {
-                _wbSettings.mode = WBMode.cloudy;
-              });
-            }),
-            _buildWBModeChip('Tungsten', _wbSettings.mode == WBMode.tungsten, () {
-              setState(() {
-                _wbSettings.mode = WBMode.tungsten;
-              });
-            }),
-            _buildWBModeChip('Custom', _wbSettings.mode == WBMode.custom, () {
-              setState(() {
-                _wbSettings.mode = WBMode.custom;
-              });
-            }),
-          ],
-        ),
-        
-        // Custom temperature slider (only when custom mode)
-        if (_wbSettings.mode == WBMode.custom) ...[
-          const SizedBox(height: 12),
-          _buildFunctionalSlider(
-            'Temp',
-            _wbSettings.kelvin,
-            2000.0,
-            10000.0,
-            (value) {
-              setState(() {
-                _wbSettings.kelvin = value;
-              });
-            },
-          ),
-        ],
-        
-        const SizedBox(height: 16),
-        
-        // Fine Tuning Controls (from original advanced controls)
-        const Text(
-          'Fine Tuning',
-          style: TextStyle(
-            color: Colors.white70,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 8),
-        
-        // Magenta-Green shift
-        _buildWBShiftSlider(
-          'Magenta - Green',
-          _wbSettings.magentaGreenShift.toDouble(),
-          -9.0,
-          9.0,
-          Colors.pink,
-          Colors.green,
-          (value) {
-            setState(() {
-              _wbSettings.magentaGreenShift = value.round();
-            });
-          },
-        ),
-        const SizedBox(height: 12),
-        
-        // Blue-Amber shift  
-        _buildWBShiftSlider(
-          'Blue - Amber',
-          _wbSettings.blueAmberShift.toDouble(),
-          -9.0,
-          9.0,
-          Colors.blue,
-          Colors.orange,
-          (value) {
-            setState(() {
-              _wbSettings.blueAmberShift = value.round();
-            });
-          },
-        ),
-        const SizedBox(height: 16),
-        
-        // Auto WB Bias
-        Row(
-          children: [
-            const Text(
-              'Auto WB Bias',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.xs, 
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(AppSpacing.smallRadius),
+                ),
+                child: Text(
+                  '${_getWBKelvin()}K',
+                  style: AppTypography.caption1Bold.copyWith(
+                    color: AppColors.accent,
+                  ),
+                ),
               ),
-            ),
-            const Spacer(),
-            Switch(
-              value: _wbSettings.autoWBBiasEnabled,
-              onChanged: (value) {
-                setState(() {
-                  _wbSettings.autoWBBiasEnabled = value;
-                });
-              },
-              activeColor: AppColors.accent,
-            ),
-          ],
-        ),
-        
-        // WB Priority selection
-        if (_wbSettings.autoWBBiasEnabled) ...[
-          const SizedBox(height: 12),
-          const Text(
-            'Priority',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
+            ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.md),
+          
+          // WB Mode Selection (compact)
           Wrap(
-            spacing: 6,
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
             children: [
-              _buildWBModeChip('Standard', _wbSettings.priority == WBPriority.standard, () {
+              _buildElegantWBModeChip('Auto', _wbSettings.mode == WBMode.auto, () {
                 setState(() {
-                  _wbSettings.priority = WBPriority.standard;
+                  _wbSettings.mode = WBMode.auto;
                 });
               }),
-              _buildWBModeChip('White Priority', _wbSettings.priority == WBPriority.whitePriority, () {
+              _buildElegantWBModeChip('Day', _wbSettings.mode == WBMode.daylight, () {
                 setState(() {
-                  _wbSettings.priority = WBPriority.whitePriority;
+                  _wbSettings.mode = WBMode.daylight;
                 });
               }),
-              _buildWBModeChip('Atmosphere', _wbSettings.priority == WBPriority.atmospherePriority, () {
+              _buildElegantWBModeChip('Cloudy', _wbSettings.mode == WBMode.cloudy, () {
                 setState(() {
-                  _wbSettings.priority = WBPriority.atmospherePriority;
+                  _wbSettings.mode = WBMode.cloudy;
+                });
+              }),
+              _buildElegantWBModeChip('Tungsten', _wbSettings.mode == WBMode.tungsten, () {
+                setState(() {
+                  _wbSettings.mode = WBMode.tungsten;
+                });
+              }),
+              _buildElegantWBModeChip('Custom', _wbSettings.mode == WBMode.custom, () {
+                setState(() {
+                  _wbSettings.mode = WBMode.custom;
                 });
               }),
             ],
           ),
+          
+          // Custom temperature slider (only when custom mode)
+          if (_wbSettings.mode == WBMode.custom) ...[
+            const SizedBox(height: AppSpacing.md),
+            _buildElegantCameraSlider(
+              'Temp',
+              _wbSettings.kelvin,
+              2000.0,
+              10000.0,
+              Icons.thermostat,
+              (value) {
+                setState(() {
+                  _wbSettings.kelvin = value;
+                });
+              },
+            ),
+          ],
+          
+          const SizedBox(height: AppSpacing.md),
+          
+          // Fine Tuning Controls (from original advanced controls)
+          Text(
+            'Fine Tuning',
+            style: AppTypography.caption1Bold.copyWith(
+              color: AppColors.textSecondaryDark,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          
+          // Magenta-Green shift
+          _buildElegantWBShiftSlider(
+            'Magenta - Green',
+            _wbSettings.magentaGreenShift.toDouble(),
+            -9.0,
+            9.0,
+            AppColors.pink,
+            AppColors.success,
+            (value) {
+              setState(() {
+                _wbSettings.magentaGreenShift = value.round();
+              });
+            },
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          
+          // Blue-Amber shift  
+          _buildElegantWBShiftSlider(
+            'Blue - Amber',
+            _wbSettings.blueAmberShift.toDouble(),
+            -9.0,
+            9.0,
+            AppColors.primary,
+            AppColors.accent,
+            (value) {
+              setState(() {
+                _wbSettings.blueAmberShift = value.round();
+              });
+            },
+          ),
+          const SizedBox(height: AppSpacing.md),
+          
+          // Auto WB Bias
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Auto WB Bias',
+                style: AppTypography.bodyMedium.copyWith(
+                  color: AppColors.textSecondaryDark,
+                ),
+              ),
+              Switch.adaptive(
+                value: _wbSettings.autoWBBiasEnabled,
+                onChanged: (value) {
+                  setState(() {
+                    _wbSettings.autoWBBiasEnabled = value;
+                  });
+                },
+                activeColor: AppColors.accent,
+                activeTrackColor: AppColors.accent.withOpacity(0.3),
+              ),
+            ],
+          ),
+          
+          // WB Priority selection
+          if (_wbSettings.autoWBBiasEnabled) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Priority',
+              style: AppTypography.caption1Bold.copyWith(
+                color: AppColors.textSecondaryDark,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Wrap(
+              spacing: AppSpacing.xs,
+              children: [
+                _buildElegantWBModeChip('Standard', _wbSettings.priority == WBPriority.standard, () {
+                  setState(() {
+                    _wbSettings.priority = WBPriority.standard;
+                  });
+                }),
+                _buildElegantWBModeChip('White Priority', _wbSettings.priority == WBPriority.whitePriority, () {
+                  setState(() {
+                    _wbSettings.priority = WBPriority.whitePriority;
+                  });
+                }),
+                _buildElegantWBModeChip('Atmosphere', _wbSettings.priority == WBPriority.atmospherePriority, () {
+                  setState(() {
+                    _wbSettings.priority = WBPriority.atmospherePriority;
+                  });
+                }),
+              ],
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 
-  /// Build WB mode chip
+  /// Build elegant WB mode chip with Apple-style design
+  Widget _buildElegantWBModeChip(String label, bool isSelected, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm, 
+          vertical: AppSpacing.xs,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected 
+              ? AppColors.accent 
+              : AppColors.surfaceCard.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(AppSpacing.smallRadius),
+          border: Border.all(
+            color: isSelected 
+                ? AppColors.accent 
+                : AppColors.borderDark,
+          ),
+          boxShadow: isSelected ? [
+            BoxShadow(
+              color: AppColors.accent.withOpacity(0.3),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ] : null,
+        ),
+        child: Text(
+          label,
+          style: AppTypography.caption1Bold.copyWith(
+            color: isSelected 
+                ? Colors.white 
+                : AppColors.textSecondaryDark,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Build WB mode chip (legacy)
   Widget _buildWBModeChip(String label, bool isSelected, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
@@ -1569,7 +1917,76 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
     }
   }
 
-  /// Build WB shift slider for fine tuning
+  /// Build elegant WB shift slider for fine tuning
+  Widget _buildElegantWBShiftSlider(
+    String label,
+    double value,
+    double min,  
+    double max,
+    Color negativeColor,
+    Color positiveColor,
+    Function(double) onChanged,
+  ) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Text(
+              label,
+              style: AppTypography.caption1Regular.copyWith(
+                color: AppColors.textSecondaryDark,
+              ),
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xs, 
+                vertical: 2,
+              ),
+              decoration: BoxDecoration(
+                color: value == 0
+                    ? AppColors.disabled.withOpacity(0.3)
+                    : (value > 0 ? positiveColor : negativeColor).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(AppSpacing.smallRadius),
+              ),
+              child: Text(
+                value == 0
+                    ? '0'
+                    : '${value > 0 ? '+' : ''}${value.round()}',
+                style: AppTypography.caption2Bold.copyWith(
+                  color: value == 0
+                      ? AppColors.textSecondaryDark
+                      : (value > 0 ? positiveColor : negativeColor),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: value >= 0 ? positiveColor : negativeColor,
+            inactiveTrackColor: AppColors.borderDark,
+            thumbColor: value == 0 ? Colors.white : 
+                       (value > 0 ? positiveColor : negativeColor),
+            overlayColor: (value >= 0 ? positiveColor : negativeColor).withOpacity(0.2),
+            trackHeight: 3,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+          ),
+          child: Slider(
+            value: value,
+            min: min,
+            max: max,
+            divisions: (max - min).round(),
+            onChanged: onChanged,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Build WB shift slider for fine tuning (legacy)
   Widget _buildWBShiftSlider(
     String label,
     double value,
@@ -1640,6 +2057,94 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
 
   /// Build quick control button for frequently used settings
 
+  /// Build compact elegant camera slider with Apple-style design
+  Widget _buildElegantCameraSlider(
+    String label, 
+    double value, 
+    double min, 
+    double max, 
+    IconData icon,
+    Function(double) onChanged
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceCard.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(AppSpacing.smallRadius),
+        border: Border.all(color: AppColors.borderDark),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Compact header with icon and value
+          Row(
+            children: [
+              Icon(
+                icon,
+                color: AppColors.accent,
+                size: 14,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  label,
+                  style: AppTypography.caption2Bold.copyWith(
+                    color: AppColors.textSecondaryDark,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 1,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  _formatSliderValue(label, value),
+                  style: AppTypography.caption2Bold.copyWith(
+                    fontSize: 10,
+                    color: AppColors.accent,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          
+          // Compact elegant slider
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: AppColors.accent,
+              inactiveTrackColor: AppColors.borderDark,
+              thumbColor: Colors.white,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+              overlayColor: AppColors.accent.withOpacity(0.2),
+              trackHeight: 2,
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+            ),
+            child: SizedBox(
+              height: 20, // Compact height
+              child: Slider(
+                value: value.clamp(min, max),
+                min: min,
+                max: max,
+                onChanged: onChanged,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Build functional slider for camera settings with real provider integration
   Widget _buildFunctionalSlider(String label, double value, double min, double max, Function(double) onChanged) {
     return Column(
@@ -1681,53 +2186,67 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
   Widget _buildAISuggestionOverlay() {
     return Positioned.fill(
       child: Container(
-        color: Colors.black.withValues(alpha: 0.7),
+        color: AppColors.cameraOverlay,
         child: Center(
           child: Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.all(AppSpacing.lg),
+            padding: const EdgeInsets.all(AppSpacing.xl),
             decoration: BoxDecoration(
-              color: AppColors.primaryDark,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+              gradient: AppColors.cardGradient,
+              borderRadius: BorderRadius.circular(AppSpacing.surfaceRadius),
+              border: Border.all(color: AppColors.borderDark),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.shadowStrong,
+                  blurRadius: AppSpacing.strongShadowBlur,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Header with close button
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Row(
                       children: [
-                        Icon(
-                          Icons.auto_awesome,
-                          color: AppColors.accent,
-                          size: 24,
+                        Container(
+                          padding: const EdgeInsets.all(AppSpacing.xs),
+                          decoration: BoxDecoration(
+                            color: AppColors.accent.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(AppSpacing.smallRadius),
+                          ),
+                          child: Icon(
+                            Icons.auto_awesome_rounded,
+                            color: AppColors.accent,
+                            size: 20,
+                          ),
                         ),
-                        const SizedBox(width: 8),
-                        const Text(
+                        const SizedBox(width: AppSpacing.sm),
+                        Text(
                           'AI Analysis',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                          style: AppTypography.title3Bold.copyWith(
+                            color: AppColors.textPrimaryDark,
                           ),
                         ),
                       ],
                     ),
-                    IconButton(
+                    _buildElegantControlButton(
+                      icon: Icons.close_rounded,
                       onPressed: () {
                         setState(() {
                           _showAISuggestionDialog = false;
+                          _selectedSuggestionIds.clear();
                         });
                       },
-                      icon: const Icon(Icons.close, color: Colors.white),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpacing.lg),
                 
-                // Show analysis status with improved loading states
+                // Content based on state
                 if (_isAIAnalyzing)
                   _buildAnalysisLoadingState()
                 else if (_currentSuggestions.isEmpty)
@@ -1735,73 +2254,123 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
                 else
                   _buildSuggestionsList(),
                 
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpacing.lg),
                 
-                // Bulk apply button
+                // Bulk apply button - elegant style
                 if (_selectedSuggestionIds.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: ElevatedButton.icon(
-                      onPressed: _isAIAnalyzing ? null : () => _applySelectedSuggestions(),
-                      icon: _isAIAnalyzing 
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : const Icon(Icons.check_circle, color: Colors.white),
-                      label: Text(
-                        _isAIAnalyzing 
-                          ? 'Applying Settings...'
-                          : 'Apply Selected (${_selectedSuggestionIds.length})',
-                        style: const TextStyle(color: Colors.white),
+                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                    child: Container(
+                      width: double.infinity,
+                      height: AppSpacing.buttonHeight,
+                      decoration: BoxDecoration(
+                        gradient: AppColors.accentGradient,
+                        borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.accent.withOpacity(0.3),
+                            blurRadius: AppSpacing.lightShadowBlur,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _isAIAnalyzing 
-                          ? AppColors.accent.withOpacity(0.7)
-                          : AppColors.accent,
-                        minimumSize: const Size(double.infinity, 40),
+                      child: ElevatedButton.icon(
+                        onPressed: _isAIAnalyzing ? null : () => _applySelectedSuggestions(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+                          ),
+                        ),
+                        icon: _isAIAnalyzing 
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Icon(Icons.check_circle_rounded, color: Colors.white),
+                        label: Text(
+                          _isAIAnalyzing 
+                            ? 'Applying Settings...'
+                            : 'Apply Selected (${_selectedSuggestionIds.length})',
+                          style: AppTypography.buttonLabel.copyWith(
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 
-                // Action buttons
+                // Action buttons row
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    TextButton.icon(
-                      onPressed: _isAIAnalyzing ? null : () => _analyzeAgain(),
-                      icon: _isAIAnalyzing 
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent),
+                    Expanded(
+                      child: Container(
+                        height: AppSpacing.buttonHeight,
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceCard.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+                          border: Border.all(color: AppColors.borderDark),
+                        ),
+                        child: TextButton.icon(
+                          onPressed: _isAIAnalyzing ? null : () => _analyzeAgain(),
+                          style: TextButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
                             ),
-                          )
-                        : const Icon(Icons.refresh, color: AppColors.accent),
-                      label: Text(
-                        _isAIAnalyzing ? 'Analyzing...' : 'Analyze Again',
-                        style: TextStyle(
-                          color: _isAIAnalyzing ? Colors.grey : AppColors.accent,
+                          ),
+                          icon: _isAIAnalyzing 
+                            ? SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent),
+                                ),
+                              )
+                            : Icon(Icons.refresh_rounded, color: AppColors.accent),
+                          label: Text(
+                            _isAIAnalyzing ? 'Analyzing...' : 'Analyze Again',
+                            style: AppTypography.bodyMedium.copyWith(
+                              color: _isAIAnalyzing ? AppColors.disabled : AppColors.accent,
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                    TextButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          _showAISuggestionDialog = false;
-                          _selectedSuggestionIds.clear(); // Clear selections when closing
-                        });
-                      },
-                      icon: const Icon(Icons.close, color: Colors.white70),
-                      label: const Text(
-                        'Close',
-                        style: TextStyle(color: Colors.white70),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Container(
+                        height: AppSpacing.buttonHeight,
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceCard.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+                          border: Border.all(color: AppColors.borderDark),
+                        ),
+                        child: TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _showAISuggestionDialog = false;
+                              _selectedSuggestionIds.clear();
+                            });
+                          },
+                          style: TextButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+                            ),
+                          ),
+                          icon: Icon(Icons.close_rounded, color: AppColors.textSecondaryDark),
+                          label: Text(
+                            'Close',
+                            style: AppTypography.bodyMedium.copyWith(
+                              color: AppColors.textSecondaryDark,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ],

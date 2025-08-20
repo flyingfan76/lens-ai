@@ -77,12 +77,12 @@ class LensAIApp extends StatelessWidget {
                 child: Stack(
                   children: [
                     child!,
-                    // Global error banner
-                    if (context.watch<ErrorStateProvider>().showErrorBanner)
-                      _buildErrorBanner(context),
-                    // Global loading overlay
-                    if (uiState.isAnyLoading)
-                      _buildLoadingOverlay(context),
+                    // Global error banner - TEMPORARILY DISABLED FOR DEBUG
+                    // if (context.watch<ErrorStateProvider>().showErrorBanner)
+                    //   _buildErrorBanner(context),
+                    // Global loading overlay - TEMPORARILY DISABLED FOR DEBUG
+                    // if (uiState.isAnyLoading)
+                    //   _buildLoadingOverlay(context),
                   ],
                 ),
               );

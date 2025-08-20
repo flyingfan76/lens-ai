@@ -4,8 +4,9 @@ import 'dart:convert';
 
 import '../models/ai_provider_config.dart';
 import '../widgets/common/settings_row.dart';
-import '../widgets/common/section_header.dart';
-import '../widgets/common/configuration_card.dart';
+import '../widgets/common/elegant_slider.dart';
+import '../widgets/common/elegant_card.dart';
+import '../widgets/common/elegant_section_header.dart';
 import '../core/theme/app_colors.dart';
 
 /// Consolidated AI settings screen that unifies all AI configuration
@@ -301,7 +302,7 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: const Color(0xFF000000),
         appBar: AppBar(
           title: const Text('AI & Intelligence'),
           backgroundColor: Colors.transparent,
@@ -317,7 +318,7 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
     }
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF000000), // Pure black background
       appBar: AppBar(
         title: const Text('AI & Intelligence'),
         backgroundColor: Colors.transparent,
@@ -347,11 +348,11 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // AI Service Status
-            const SectionHeader(
+            const ElegantSectionHeader(
               title: 'Service Status',
               subtitle: 'Current AI service configuration and connectivity',
             ),
-            StatusCard(
+            ElegantStatusCard(
               title: 'Active Provider',
               status: _configuration.selectedProvider?.name ?? 'None',
               statusType: _configuration.selectedProvider != null 
@@ -361,11 +362,11 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
             ),
             
             // AI Features
-            const SectionHeader(
+            const ElegantSectionHeader(
               title: 'AI Features',
               subtitle: 'Enable or disable AI-powered features',
             ),
-            ConfigurationCard(
+            ElegantCard(
               children: [
                 SettingsSwitchRow(
                   title: 'AI Suggestions',
@@ -382,11 +383,11 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
             
             
             // AI Provider Selection
-            const SectionHeader(
+            const ElegantSectionHeader(
               title: 'AI Provider',
               subtitle: 'Choose your AI service',
             ),
-            ConfigurationCard(
+            ElegantCard(
               children: [
                 ..._configuration.providers.map((provider) => 
                   ListTile(
@@ -428,7 +429,7 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
             
             // Selected Provider Configuration
             if (_configuration.selectedProvider != null) ...[
-              SectionHeader(
+              ElegantSectionHeader(
                 title: 'Configuration',
                 subtitle: 'Configure ${_configuration.selectedProvider!.name}',
               ),
@@ -448,27 +449,21 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
               iconColor: AppColors.accent,
               collapsedIconColor: Colors.white70,
               children: [
-                ConfigurationCard(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                ElegantCard(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   children: [
-                    SettingsRow(
+                    SettingsSliderRow(
                       title: 'Confidence Threshold',
-                      subtitle: 'Minimum confidence for AI suggestions (${(_configuration.suggestionConfidenceThreshold * 100).toInt()}%)',
-                      trailing: SizedBox(
-                        width: 120,
-                        child: Slider(
-                          value: _configuration.suggestionConfidenceThreshold,
-                          min: 0.1,
-                          max: 1.0,
-                          divisions: 9,
-                          activeColor: AppColors.accent,
-                          onChanged: (value) {
-                            setState(() {
-                              _configuration = _configuration.copyWith(suggestionConfidenceThreshold: value);
-                            });
-                          },
-                        ),
-                      ),
+                      subtitle: 'Minimum confidence for AI suggestions',
+                      value: _configuration.suggestionConfidenceThreshold,
+                      min: 0.1,
+                      max: 1.0,
+                      divisions: 9,
+                      onChanged: (value) {
+                        setState(() {
+                          _configuration = _configuration.copyWith(suggestionConfidenceThreshold: value);
+                        });
+                      },
                     ),
                     SettingsDropdownRow<int>(
                       title: 'Max Suggestions',
@@ -493,11 +488,11 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
             ),
             
             // Custom Prompt Template
-            const SectionHeader(
+            const ElegantSectionHeader(
               title: 'Custom Prompt',
               subtitle: 'Customize AI instructions for better results',
             ),
-            ConfigurationCard(
+            ElegantCard(
               children: [
                 SettingsTextFieldRow(
                   title: 'Prompt Template',
@@ -543,7 +538,7 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
   }
 
   Widget _buildProviderCard(AIProviderConfig provider) {
-    return ConfigurationCard(
+    return ElegantCard(
       children: [
         // Provider info header
         Row(
@@ -601,7 +596,7 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
   
   List<Widget> _buildLocalAIConfiguration(AIProviderConfig provider) {
     return [
-      StatusCard(
+      ElegantStatusCard(
         title: 'Status',
         status: 'Ready',
         statusType: StatusType.success,
@@ -689,7 +684,7 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
         ),
       ],
       const SizedBox(height: 16),
-      ConnectionTestCard(
+      ElegantConnectionTestCard(
         title: 'Connection Test',
         endpoint: _controllers['${provider.id}_endpoint']?.text.isNotEmpty == true 
             ? _controllers['${provider.id}_endpoint']!.text 
@@ -739,7 +734,7 @@ class _ConsolidatedAISettingsScreenState extends State<ConsolidatedAISettingsScr
         ),
       ],
       const SizedBox(height: 16),
-      ConnectionTestCard(
+      ElegantConnectionTestCard(
         title: 'Connection Test',
         endpoint: _controllers['${provider.id}_endpoint']?.text.isNotEmpty == true 
             ? _controllers['${provider.id}_endpoint']!.text 

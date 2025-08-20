@@ -115,7 +115,11 @@
       "Bash(gcc:*)",
       "Bash(./test_d90:*)",
       "Bash(/Users/i052156/workspace/lens-ai/mobile/build/macos/Build/Products/Debug/lens_ai.app/Contents/MacOS/lens_ai)",
-      "Bash(./test_connection:*)"
+      "Bash(./test_connection:*)",
+      "Bash(dart:*)",
+      "Bash(sudo ls:*)",
+      "Bash(dmesg:*)",
+      "Bash(git restore:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

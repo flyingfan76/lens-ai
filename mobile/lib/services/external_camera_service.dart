@@ -142,6 +142,14 @@ class ExternalCameraService {
     await Future.delayed(const Duration(milliseconds: 500));
   }
 
+  /// Clear all discovered cameras (useful for removing false positives)
+  void clearDiscoveredCameras() {
+    debugPrint('ExternalCameraService: Clearing all discovered cameras');
+    _discoveredCameras.clear();
+    _cameraStreamController.add([]);
+    _saveDiscoveredCameras(_discoveredCameras);
+  }
+
   Future<void> _discoverCameras() async {
     if (!_isScanning) return;
     
@@ -175,6 +183,10 @@ class ExternalCameraService {
     final cameras = <ExternalCamera>[];
     
     try {
+      // TEMPORARY: Disable WiFi scanning to prevent false positives during development
+      debugPrint('ExternalCameraService: WiFi camera discovery temporarily disabled to prevent false positives');
+      return cameras;
+      
       // Get current WiFi network info
       final networkInfo = NetworkInfo();
       final wifiIP = await networkInfo.getWifiIP();
@@ -311,8 +323,9 @@ class ExternalCameraService {
       }
     }
     
-    // If we found camera indicators, create camera object
-    if (brand != CameraBrand.unknown || _containsCameraKeywords(contentLower)) {
+    // Only create camera object if we have strong indicators
+    // Either a known camera brand OR very specific camera keywords
+    if (brand != CameraBrand.unknown || (brand == CameraBrand.unknown && _containsCameraKeywords(contentLower))) {
       return ExternalCamera(
         id: 'wifi_${ip}_$port',
         name: '$model (WiFi)',
@@ -335,12 +348,25 @@ class ExternalCameraService {
   }
 
   bool _containsCameraKeywords(String content) {
-    const cameraKeywords = [
-      'camera', 'liveview', 'capture', 'shutter', 'iso', 'aperture',
-      'exposure', 'focus', 'zoom', 'photography', 'image', 'photo'
+    // Much stricter camera detection - require specific camera-related terms
+    // and multiple indicators to reduce false positives
+    const strictCameraKeywords = [
+      'dslr', 'mirrorless', 'liveview', 'ptpip', 'ccapi',
+      'remote control', 'camera control', 'eos utility',
+      'nikon transfer', 'canon eos', 'sony alpha', 'fujifilm x'
     ];
     
-    return cameraKeywords.any((keyword) => content.contains(keyword));
+    const cameraApiKeywords = [
+      '/camera/api', '/ccapi', '/v1/camera', '/remote',
+      'shutter_speed', 'iso_speed', 'aperture_value',
+      'white_balance', 'focus_mode'
+    ];
+    
+    // Require at least one strict camera keyword AND one API keyword
+    final hasStrictKeyword = strictCameraKeywords.any((keyword) => content.contains(keyword));
+    final hasApiKeyword = cameraApiKeywords.any((keyword) => content.contains(keyword));
+    
+    return hasStrictKeyword && hasApiKeyword;
   }
 
   Future<ExternalCamera?> _tryUPnPDiscovery(String ip, int port) async {

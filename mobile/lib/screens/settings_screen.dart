@@ -356,9 +356,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _scanForCameras() async {
     if (_isScanningCameras) return;
     
-    setState(() {
-      _isScanningCameras = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isScanningCameras = true;
+      });
+    }
     
     try {
       final cameraService = ExternalCameraService();
@@ -388,9 +390,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       );
     } finally {
-      setState(() {
-        _isScanningCameras = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isScanningCameras = false;
+        });
+      }
     }
   }
   
