@@ -413,7 +413,7 @@ class UnifiedCameraProvider extends ChangeNotifier {
       } else if (_activeCameraType == CameraSourceType.external && _activeExternalCamera != null) {
         // Implement external camera video recording
         debugPrint('UnifiedCameraProvider: External camera video recording requested');
-        // TODO: Implement external camera video recording logic
+        // Video recording not supported for external cameras - focusing on picture capture only
       }
     } catch (e) {
       _error = 'Video recording failed: $e';
@@ -431,7 +431,7 @@ class UnifiedCameraProvider extends ChangeNotifier {
       } else if (_activeCameraType == CameraSourceType.external && _activeExternalCamera != null) {
         // Implement external camera video stop
         debugPrint('UnifiedCameraProvider: External camera video recording stop requested');
-        // TODO: Implement external camera video stop logic
+        // Video recording not supported for external cameras - focusing on picture capture only
       }
     } catch (e) {
       _error = 'Stop video recording failed: $e';
