@@ -501,66 +501,222 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
       right: 16,
       child: Column(
         children: [
-          // AI Analysis button
+          // AI Analysis button with stunning Apple-style design
           Stack(
             children: [
-              FloatingActionButton.small(
-                onPressed: (_isAIAnalyzing || !_isBuiltinCameraAIEnabled()) ? null : () => _showAISuggestions(),
-                backgroundColor: (_isAIAnalyzing || !_isBuiltinCameraAIEnabled())
-                    ? AppColors.accent.withOpacity(0.6)
-                    : AppColors.accent,
-                heroTag: "ai_analysis_builtin",
-                child: _isAIAnalyzing
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: (_isAIAnalyzing || !_isBuiltinCameraAIEnabled()) ? [
+                      AppColors.accent.withOpacity(0.4),
+                      AppColors.accent.withOpacity(0.2),
+                    ] : [
+                      AppColors.accent,
+                      AppColors.accent.withOpacity(0.8),
+                    ],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.accent.withOpacity(0.4),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                      spreadRadius: 0,
+                    ),
+                    BoxShadow(
+                      color: AppColors.shadowStrong,
+                      blurRadius: 12,
+                      offset: const Offset(0, 2),
+                    ),
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.2),
+                      blurRadius: 4,
+                      offset: const Offset(-2, -2),
+                      spreadRadius: -2,
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: (_isAIAnalyzing || !_isBuiltinCameraAIEnabled()) ? null : () => _showAISuggestions(),
+                    borderRadius: BorderRadius.circular(24),
+                    splashColor: Colors.white.withOpacity(0.2),
+                    highlightColor: Colors.white.withOpacity(0.1),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          center: Alignment.topLeft,
+                          radius: 0.7,
+                          colors: [
+                            Colors.white.withOpacity(0.3),
+                            Colors.transparent,
+                          ],
                         ),
-                      )
-                    : Icon(
-                        Icons.auto_awesome, 
-                        color: _isBuiltinCameraAIEnabled() ? Colors.white : Colors.grey,
                       ),
+                      child: Center(
+                        child: _isAIAnalyzing
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : Icon(
+                                Icons.auto_awesome_rounded, 
+                                color: _isBuiltinCameraAIEnabled() ? Colors.white : Colors.white70,
+                                size: 22,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black.withOpacity(0.3),
+                                    offset: const Offset(0, 1),
+                                    blurRadius: 2,
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
-              // Suggestion badge
+              // Enhanced suggestion badge
               if (_hasPendingSuggestions || (_currentSuggestions.isNotEmpty && !_showAISuggestionDialog))
                 Positioned(
-                  top: 0,
-                  right: 0,
+                  top: -2,
+                  right: -2,
                   child: Container(
-                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(minWidth: 20),
+                    height: 20,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
                     decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    constraints: const BoxConstraints(
-                      minWidth: 18,
-                      minHeight: 18,
-                    ),
-                    child: Text(
-                      '${_currentSuggestions.length}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          AppColors.error,
+                          AppColors.error.withOpacity(0.8),
+                        ],
                       ),
-                      textAlign: TextAlign.center,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.4),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.error.withOpacity(0.5),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                        BoxShadow(
+                          color: Colors.white.withOpacity(0.3),
+                          blurRadius: 4,
+                          offset: const Offset(-1, -1),
+                          spreadRadius: -1,
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${_currentSuggestions.length}',
+                        style: AppTypography.caption2Bold.copyWith(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withOpacity(0.4),
+                              offset: const Offset(0, 1),
+                              blurRadius: 2,
+                            ),
+                          ],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: 8),
-          // Capture button
-          FloatingActionButton.small(
-            onPressed: () async {
-              await _capturePhoto();
-            },
-            backgroundColor: Colors.green,
-            heroTag: "capture_photo_builtin",
-            child: const Icon(Icons.camera_alt, color: Colors.white),
+          const SizedBox(height: 12),
+          // Capture button with Apple-style design
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.success,
+                  AppColors.success.withOpacity(0.8),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.success.withOpacity(0.4),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+                BoxShadow(
+                  color: AppColors.shadowStrong,
+                  blurRadius: 12,
+                  offset: const Offset(0, 2),
+                ),
+                BoxShadow(
+                  color: Colors.white.withOpacity(0.2),
+                  blurRadius: 4,
+                  offset: const Offset(-2, -2),
+                  spreadRadius: -2,
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () async {
+                  await _capturePhoto();
+                },
+                borderRadius: BorderRadius.circular(24),
+                splashColor: Colors.white.withOpacity(0.2),
+                highlightColor: Colors.white.withOpacity(0.1),
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      center: Alignment.topLeft,
+                      radius: 0.7,
+                      colors: [
+                        Colors.white.withOpacity(0.3),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      Icons.camera_alt_rounded,
+                      color: Colors.white,
+                      size: 20,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withOpacity(0.3),
+                          offset: const Offset(0, 1),
+                          blurRadius: 2,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -863,80 +1019,300 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
       right: 16,
       child: Column(
         children: [
-          // AI Analysis button with loading and badge
+          // AI Analysis button with stunning Apple-style design
           Stack(
             children: [
-              FloatingActionButton.small(
-                onPressed: (_isAIAnalyzing || !_isAISuggestionsEnabled()) ? null : () => _showAISuggestions(),
-                backgroundColor: (_isAIAnalyzing || !_isAISuggestionsEnabled())
-                    ? AppColors.accent.withOpacity(0.6)
-                    : AppColors.accent,
-                heroTag: "ai_analysis",
-                child: _isAIAnalyzing
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: (_isAIAnalyzing || !_isAISuggestionsEnabled()) ? [
+                      AppColors.accent.withOpacity(0.4),
+                      AppColors.accent.withOpacity(0.2),
+                    ] : [
+                      AppColors.accent,
+                      AppColors.accent.withOpacity(0.8),
+                    ],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.accent.withOpacity(0.4),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                      spreadRadius: 0,
+                    ),
+                    BoxShadow(
+                      color: AppColors.shadowStrong,
+                      blurRadius: 12,
+                      offset: const Offset(0, 2),
+                    ),
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.2),
+                      blurRadius: 4,
+                      offset: const Offset(-2, -2),
+                      spreadRadius: -2,
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: (_isAIAnalyzing || !_isAISuggestionsEnabled()) ? null : () => _showAISuggestions(),
+                    borderRadius: BorderRadius.circular(24),
+                    splashColor: Colors.white.withOpacity(0.2),
+                    highlightColor: Colors.white.withOpacity(0.1),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          center: Alignment.topLeft,
+                          radius: 0.7,
+                          colors: [
+                            Colors.white.withOpacity(0.3),
+                            Colors.transparent,
+                          ],
                         ),
-                      )
-                    : Icon(
-                        Icons.auto_awesome, 
-                        color: _isAISuggestionsEnabled() ? Colors.white : Colors.grey,
                       ),
+                      child: Center(
+                        child: _isAIAnalyzing
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : Icon(
+                                Icons.auto_awesome_rounded, 
+                                color: _isAISuggestionsEnabled() ? Colors.white : Colors.white70,
+                                size: 22,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black.withOpacity(0.3),
+                                    offset: const Offset(0, 1),
+                                    blurRadius: 2,
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
-              // Suggestion badge
+              // Enhanced suggestion badge
               if (_hasPendingSuggestions || (_currentSuggestions.isNotEmpty && !_showAISuggestionDialog))
                 Positioned(
-                  top: 0,
-                  right: 0,
+                  top: -2,
+                  right: -2,
                   child: Container(
-                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(minWidth: 20),
+                    height: 20,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
                     decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    constraints: const BoxConstraints(
-                      minWidth: 18,
-                      minHeight: 18,
-                    ),
-                    child: Text(
-                      '${_currentSuggestions.length}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          AppColors.error,
+                          AppColors.error.withOpacity(0.8),
+                        ],
                       ),
-                      textAlign: TextAlign.center,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.4),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.error.withOpacity(0.5),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                        BoxShadow(
+                          color: Colors.white.withOpacity(0.3),
+                          blurRadius: 4,
+                          offset: const Offset(-1, -1),
+                          spreadRadius: -1,
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${_currentSuggestions.length}',
+                        style: AppTypography.caption2Bold.copyWith(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withOpacity(0.4),
+                              offset: const Offset(0, 1),
+                              blurRadius: 2,
+                            ),
+                          ],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: 8),
-          FloatingActionButton.small(
-            onPressed: () async {
-              final provider = Provider.of<UnifiedCameraProvider>(context, listen: false);
-              await provider.stopLiveView();
-              // Clear cached overlays when stopping
-              _cachedLiveViewOverlays = null;
-              _cachedControlsOverlay = null;
-              _lastValidFrame = null;
-            },
-            backgroundColor: Colors.red,
-            heroTag: "stop_live_view",
-            child: const Icon(Icons.stop, color: Colors.white),
+          const SizedBox(height: 12),
+          // Stop Live View button with Apple-style design
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.error,
+                  AppColors.error.withOpacity(0.8),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.error.withOpacity(0.4),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+                BoxShadow(
+                  color: AppColors.shadowStrong,
+                  blurRadius: 12,
+                  offset: const Offset(0, 2),
+                ),
+                BoxShadow(
+                  color: Colors.white.withOpacity(0.2),
+                  blurRadius: 4,
+                  offset: const Offset(-2, -2),
+                  spreadRadius: -2,
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () async {
+                  final provider = Provider.of<UnifiedCameraProvider>(context, listen: false);
+                  await provider.stopLiveView();
+                  _cachedLiveViewOverlays = null;
+                  _cachedControlsOverlay = null;
+                  _lastValidFrame = null;
+                },
+                borderRadius: BorderRadius.circular(24),
+                splashColor: Colors.white.withOpacity(0.2),
+                highlightColor: Colors.white.withOpacity(0.1),
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      center: Alignment.topLeft,
+                      radius: 0.7,
+                      colors: [
+                        Colors.white.withOpacity(0.3),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      Icons.stop_rounded,
+                      color: Colors.white,
+                      size: 20,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withOpacity(0.3),
+                          offset: const Offset(0, 1),
+                          blurRadius: 2,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
-          const SizedBox(height: 8),
-          FloatingActionButton.small(
-            onPressed: () async {
-              final provider = Provider.of<UnifiedCameraProvider>(context, listen: false);
-              await provider.capturePhoto();
-            },
-            backgroundColor: Colors.green,
-            heroTag: "capture_photo",
-            child: const Icon(Icons.camera_alt, color: Colors.white),
+          const SizedBox(height: 12),
+          // Capture Photo button with Apple-style design
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.success,
+                  AppColors.success.withOpacity(0.8),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.success.withOpacity(0.4),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+                BoxShadow(
+                  color: AppColors.shadowStrong,
+                  blurRadius: 12,
+                  offset: const Offset(0, 2),
+                ),
+                BoxShadow(
+                  color: Colors.white.withOpacity(0.2),
+                  blurRadius: 4,
+                  offset: const Offset(-2, -2),
+                  spreadRadius: -2,
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () async {
+                  final provider = Provider.of<UnifiedCameraProvider>(context, listen: false);
+                  await provider.capturePhoto();
+                },
+                borderRadius: BorderRadius.circular(24),
+                splashColor: Colors.white.withOpacity(0.2),
+                highlightColor: Colors.white.withOpacity(0.1),
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      center: Alignment.topLeft,
+                      radius: 0.7,
+                      colors: [
+                        Colors.white.withOpacity(0.3),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      Icons.camera_alt_rounded,
+                      color: Colors.white,
+                      size: 20,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withOpacity(0.3),
+                          offset: const Offset(0, 1),
+                          blurRadius: 2,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -1237,63 +1613,201 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
       children: [
         Row(
           children: [
-            // App logo/title instead of back button
+            // App logo/title with stunning Apple-style design
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.black.withOpacity(0.3),
+                    Colors.black.withOpacity(0.1),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.1),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.camera_alt_rounded,
-                    color: AppColors.accent,
-                    size: 20,
+                  Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          AppColors.accent,
+                          AppColors.accent.withOpacity(0.8),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(6),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.accent.withOpacity(0.3),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      Icons.camera_alt_rounded,
+                      color: Colors.white,
+                      size: 14,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withOpacity(0.3),
+                          offset: const Offset(0, 1),
+                          blurRadius: 2,
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   Text(
                     'Lens AI',
                     style: AppTypography.headlineBold.copyWith(
                       color: Colors.white,
                       fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withOpacity(0.4),
+                          offset: const Offset(0, 1),
+                          blurRadius: 3,
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 16),
-            // Camera selector button
+            // Camera selector button with Apple-style design
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.black.withOpacity(0.4),
+                    Colors.black.withOpacity(0.2),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.15),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                  BoxShadow(
+                    color: Colors.white.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(-1, -1),
+                    spreadRadius: -1,
+                  ),
+                ],
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    provider.activeCameraType == CameraSourceType.external 
-                        ? Icons.camera_alt 
-                        : Icons.camera,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    provider.getActiveCameraName(),
-                    style: const TextStyle(
+                  Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          AppColors.primary,
+                          AppColors.primary.withOpacity(0.8),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(4),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withOpacity(0.3),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      provider.activeCameraType == CameraSourceType.external 
+                          ? Icons.camera_alt_rounded 
+                          : Icons.camera_rounded,
                       color: Colors.white,
-                      fontSize: 12,
+                      size: 12,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withOpacity(0.3),
+                          offset: const Offset(0, 1),
+                          blurRadius: 2,
+                        ),
+                      ],
                     ),
                   ),
-                  IconButton(
-                    onPressed: () {
-                      setState(() {
-                        _showCameraSelector = !_showCameraSelector;
-                      });
-                    },
-                    icon: Icon(
-                      _showCameraSelector ? Icons.expand_less : Icons.expand_more,
-                      color: Colors.white,
-                      size: 16,
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      provider.getActiveCameraName(),
+                      style: AppTypography.caption1Bold.copyWith(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withOpacity(0.4),
+                            offset: const Offset(0, 1),
+                            blurRadius: 2,
+                          ),
+                        ],
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          _showCameraSelector = !_showCameraSelector;
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(
+                          _showCameraSelector ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+                          color: Colors.white.withOpacity(0.8),
+                          size: 18,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withOpacity(0.3),
+                              offset: const Offset(0, 1),
+                              blurRadius: 2,
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -1301,44 +1815,152 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
             ),
           ],
         ),
-        // AI button with loading state and disabled state
+        // AI button with stunning Apple-style design and loading state
         Stack(
           children: [
-            IconButton(
-              onPressed: (_isAIAnalyzing || !_isAISuggestionsEnabled()) ? null : _showAISuggestions,
-              icon: _isAIAnalyzing
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent),
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: _isAISuggestionsEnabled() ? [
+                    AppColors.accent.withOpacity(0.15),
+                    AppColors.accent.withOpacity(0.05),
+                  ] : [
+                    Colors.grey.withOpacity(0.1),
+                    Colors.grey.withOpacity(0.05),
+                  ],
+                ),
+                border: Border.all(
+                  color: _isAISuggestionsEnabled() 
+                      ? AppColors.accent.withOpacity(0.3)
+                      : Colors.grey.withOpacity(0.2),
+                  width: 1,
+                ),
+                boxShadow: _isAISuggestionsEnabled() ? [
+                  BoxShadow(
+                    color: AppColors.accent.withOpacity(0.2),
+                    blurRadius: 12,
+                    offset: const Offset(0, 0),
+                    spreadRadius: 0,
+                  ),
+                  BoxShadow(
+                    color: AppColors.shadowStrong,
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ] : [
+                  BoxShadow(
+                    color: AppColors.shadow,
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: (_isAIAnalyzing || !_isAISuggestionsEnabled()) ? null : _showAISuggestions,
+                  borderRadius: BorderRadius.circular(22),
+                  splashColor: AppColors.accent.withOpacity(0.2),
+                  highlightColor: AppColors.accent.withOpacity(0.1),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        center: Alignment.topLeft,
+                        radius: 0.8,
+                        colors: [
+                          Colors.white.withOpacity(0.1),
+                          Colors.transparent,
+                        ],
                       ),
-                    )
-                  : Icon(
-                      Icons.auto_awesome, 
-                      color: _isAISuggestionsEnabled() ? AppColors.accent : Colors.grey,
                     ),
+                    child: Center(
+                      child: _isAIAnalyzing
+                          ? SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  AppColors.accent.withOpacity(0.8)
+                                ),
+                              ),
+                            )
+                          : Icon(
+                              Icons.auto_awesome_rounded, 
+                              color: _isAISuggestionsEnabled() 
+                                  ? AppColors.accent 
+                                  : Colors.grey,
+                              size: 20,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  offset: const Offset(0, 1),
+                                  blurRadius: 2,
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+                ),
+              ),
             ),
-            // Suggestion badge
+            // Enhanced suggestion badge with glassmorphism
             if (_hasPendingSuggestions || (_currentSuggestions.isNotEmpty && !_showAISuggestionDialog))
               Positioned(
-                top: 8,
-                right: 8,
+                top: -2,
+                right: -2,
                 child: Container(
-                  width: 12,
-                  height: 12,
+                  constraints: const BoxConstraints(minWidth: 18),
+                  height: 18,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
                   decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(6),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppColors.error,
+                        AppColors.error.withOpacity(0.8),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.3),
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.error.withOpacity(0.4),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                      BoxShadow(
+                        color: Colors.white.withOpacity(0.2),
+                        blurRadius: 4,
+                        offset: const Offset(-1, -1),
+                        spreadRadius: -1,
+                      ),
+                    ],
                   ),
                   child: Center(
                     child: Text(
                       '${_currentSuggestions.length > 9 ? '9+' : _currentSuggestions.length}',
-                      style: const TextStyle(
+                      style: AppTypography.caption2Bold.copyWith(
                         color: Colors.white,
-                        fontSize: 8,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withOpacity(0.3),
+                            offset: const Offset(0, 1),
+                            blurRadius: 2,
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -1389,41 +2011,76 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
             tooltip: _showControlPanel ? 'Hide Controls' : 'Show Controls',
           ),
           
-          // Capture button - center and prominent with Apple-style design
+          // Capture button - stunning Apple-style design with glassmorphism
           GestureDetector(
             onTap: _capturePhoto,
             child: Container(
-              width: 80,
-              height: 80,
+              width: 84,
+              height: 84,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
+                  center: Alignment.topLeft,
+                  radius: 1.2,
                   colors: [
                     Colors.white,
-                    Colors.white.withOpacity(0.9),
+                    Colors.white.withOpacity(0.95),
+                    Colors.white.withOpacity(0.85),
                   ],
+                  stops: const [0.0, 0.7, 1.0],
                 ),
                 border: Border.all(
-                  color: AppColors.accent, 
-                  width: 4,
+                  color: AppColors.accent.withOpacity(0.8), 
+                  width: 3.5,
                 ),
                 boxShadow: [
+                  // Main shadow
                   BoxShadow(
-                    color: AppColors.shadow,
-                    blurRadius: AppSpacing.shadowBlur,
-                    offset: const Offset(0, 4),
+                    color: AppColors.shadowStrong,
+                    blurRadius: 20,
+                    offset: const Offset(0, 6),
+                    spreadRadius: 1,
                   ),
+                  // Accent glow
                   BoxShadow(
-                    color: AppColors.accent.withOpacity(0.3),
-                    blurRadius: AppSpacing.lightShadowBlur,
-                    offset: const Offset(0, 2),
+                    color: AppColors.accent.withOpacity(0.4),
+                    blurRadius: 24,
+                    offset: const Offset(0, 0),
+                    spreadRadius: -2,
+                  ),
+                  // Inner highlight
+                  BoxShadow(
+                    color: Colors.white.withOpacity(0.8),
+                    blurRadius: 8,
+                    offset: const Offset(-2, -2),
+                    spreadRadius: -4,
                   ),
                 ],
               ),
-              child: Icon(
-                Icons.camera_alt_rounded,
-                color: AppColors.accent,
-                size: 32,
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    center: Alignment.topLeft,
+                    radius: 0.6,
+                    colors: [
+                      Colors.white.withOpacity(0.3),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+                child: Icon(
+                  Icons.camera_alt_rounded,
+                  color: AppColors.accent,
+                  size: 36,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black.withOpacity(0.2),
+                      offset: const Offset(0, 1),
+                      blurRadius: 2,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -1439,37 +2096,88 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
     );
   }
 
-  /// Build elegant control button with Apple-style design
+  /// Build elegant control button with stunning Apple-style design
   Widget _buildElegantControlButton({
     required IconData icon,
     required VoidCallback onPressed,
     String? tooltip,
   }) {
     return Container(
+      width: 56,
+      height: 56,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: AppColors.surfaceCard.withOpacity(0.8),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.surfaceCard.withOpacity(0.95),
+            AppColors.surfaceCard.withOpacity(0.85),
+          ],
+        ),
         border: Border.all(
-          color: AppColors.borderDark,
-          width: 1,
+          color: AppColors.borderDark.withOpacity(0.6),
+          width: 0.5,
         ),
         boxShadow: [
+          // Main shadow
           BoxShadow(
-            color: AppColors.shadow,
-            blurRadius: AppSpacing.lightShadowBlur,
-            offset: const Offset(0, 2),
+            color: AppColors.shadowStrong,
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+            spreadRadius: 0,
+          ),
+          // Inner highlight
+          BoxShadow(
+            color: Colors.white.withOpacity(0.15),
+            blurRadius: 4,
+            offset: const Offset(-1, -1),
+            spreadRadius: -2,
+          ),
+          // Subtle glow
+          BoxShadow(
+            color: AppColors.accent.withOpacity(0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 0),
+            spreadRadius: -1,
           ),
         ],
       ),
-      child: IconButton(
-        onPressed: onPressed,
-        icon: Icon(
-          icon,
-          color: AppColors.textPrimaryDark,
-          size: 28,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(28),
+          splashColor: AppColors.accent.withOpacity(0.2),
+          highlightColor: AppColors.accent.withOpacity(0.1),
+          child: Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                center: Alignment.topLeft,
+                radius: 1.0,
+                colors: [
+                  Colors.white.withOpacity(0.1),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+            child: Center(
+              child: Icon(
+                icon,
+                color: AppColors.textPrimaryDark,
+                size: 24,
+                shadows: [
+                  Shadow(
+                    color: Colors.black.withOpacity(0.3),
+                    offset: const Offset(0, 1),
+                    blurRadius: 2,
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
-        tooltip: tooltip,
-        padding: const EdgeInsets.all(AppSpacing.md),
       ),
     );
   }
