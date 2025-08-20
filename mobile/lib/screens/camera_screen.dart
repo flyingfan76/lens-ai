@@ -1479,6 +1479,9 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
     return Consumer<CameraFeatureProvider>(
       builder: (context, cameraProvider, child) {
         return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.6, // Limit height to 60% of screen
+          ),
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
             gradient: AppColors.cardGradient,
@@ -1492,8 +1495,10 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
               ),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(), // Smooth iOS-style scrolling
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
             children: [
               // Compact header
               Row(
@@ -1629,6 +1634,7 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
                 ),
               ),
             ],
+          ),
           ),
         );
       },
