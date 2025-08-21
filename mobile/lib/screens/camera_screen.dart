@@ -1240,310 +1240,13 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
     );
   }
   
-  /// Build static control overlay (cached to prevent rebuilds)
+  /// Build static control overlay (cached to prevent rebuilds) - Only essential stop live view button
   Widget _buildLiveViewControls() {
-    return Positioned(
+    // Return empty positioned widget since we moved the stop button to top controls
+    return const Positioned(
       bottom: 16,
       right: 16,
-      child: Column(
-        children: [
-          // AI Analysis button with stunning Apple-style design
-          Stack(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: (_isAIAnalyzing || !_isAISuggestionsEnabled()) ? [
-                      AppColors.accent.withOpacity(0.4),
-                      AppColors.accent.withOpacity(0.2),
-                    ] : [
-                      AppColors.accent,
-                      AppColors.accent.withOpacity(0.8),
-                    ],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.accent.withOpacity(0.4),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
-                      spreadRadius: 0,
-                    ),
-                    BoxShadow(
-                      color: AppColors.shadowStrong,
-                      blurRadius: 12,
-                      offset: const Offset(0, 2),
-                    ),
-                    BoxShadow(
-                      color: Colors.white.withOpacity(0.2),
-                      blurRadius: 4,
-                      offset: const Offset(-2, -2),
-                      spreadRadius: -2,
-                    ),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: (_isAIAnalyzing || !_isAISuggestionsEnabled()) ? null : () => _showAISuggestions(),
-                    borderRadius: BorderRadius.circular(24),
-                    splashColor: Colors.white.withOpacity(0.2),
-                    highlightColor: Colors.white.withOpacity(0.1),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          center: Alignment.topLeft,
-                          radius: 0.7,
-                          colors: [
-                            Colors.white.withOpacity(0.3),
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
-                      child: Center(
-                        child: _isAIAnalyzing
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                ),
-                              )
-                            : Icon(
-                                Icons.auto_awesome_rounded, 
-                                color: _isAISuggestionsEnabled() ? Colors.white : Colors.white70,
-                                size: 22,
-                                shadows: [
-                                  Shadow(
-                                    color: Colors.black.withOpacity(0.3),
-                                    offset: const Offset(0, 1),
-                                    blurRadius: 2,
-                                  ),
-                                ],
-                              ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              // Enhanced suggestion badge
-              if (_hasPendingSuggestions || (_currentSuggestions.isNotEmpty && !_showAISuggestionDialog))
-                Positioned(
-                  top: -2,
-                  right: -2,
-                  child: Container(
-                    constraints: const BoxConstraints(minWidth: 20),
-                    height: 20,
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          AppColors.error,
-                          AppColors.error.withOpacity(0.8),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.4),
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.error.withOpacity(0.5),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
-                        ),
-                        BoxShadow(
-                          color: Colors.white.withOpacity(0.3),
-                          blurRadius: 4,
-                          offset: const Offset(-1, -1),
-                          spreadRadius: -1,
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Text(
-                        '${_currentSuggestions.length}',
-                        style: AppTypography.caption2Bold.copyWith(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          shadows: [
-                            Shadow(
-                              color: Colors.black.withOpacity(0.4),
-                              offset: const Offset(0, 1),
-                              blurRadius: 2,
-                            ),
-                          ],
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Stop Live View button with Apple-style design
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.error,
-                  AppColors.error.withOpacity(0.8),
-                ],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.error.withOpacity(0.4),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-                BoxShadow(
-                  color: AppColors.shadowStrong,
-                  blurRadius: 12,
-                  offset: const Offset(0, 2),
-                ),
-                BoxShadow(
-                  color: Colors.white.withOpacity(0.2),
-                  blurRadius: 4,
-                  offset: const Offset(-2, -2),
-                  spreadRadius: -2,
-                ),
-              ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () async {
-                  final provider = Provider.of<UnifiedCameraProvider>(context, listen: false);
-                  await provider.stopLiveView();
-                  _cachedLiveViewOverlays = null;
-                  _cachedControlsOverlay = null;
-                  _lastValidFrame = null;
-                },
-                borderRadius: BorderRadius.circular(24),
-                splashColor: Colors.white.withOpacity(0.2),
-                highlightColor: Colors.white.withOpacity(0.1),
-                child: Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      center: Alignment.topLeft,
-                      radius: 0.7,
-                      colors: [
-                        Colors.white.withOpacity(0.3),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                  child: Center(
-                    child: Icon(
-                      Icons.stop_rounded,
-                      color: Colors.white,
-                      size: 20,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black.withOpacity(0.3),
-                          offset: const Offset(0, 1),
-                          blurRadius: 2,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Capture Photo button with Apple-style design
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.success,
-                  AppColors.success.withOpacity(0.8),
-                ],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.success.withOpacity(0.4),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-                BoxShadow(
-                  color: AppColors.shadowStrong,
-                  blurRadius: 12,
-                  offset: const Offset(0, 2),
-                ),
-                BoxShadow(
-                  color: Colors.white.withOpacity(0.2),
-                  blurRadius: 4,
-                  offset: const Offset(-2, -2),
-                  spreadRadius: -2,
-                ),
-              ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () async {
-                  final provider = Provider.of<UnifiedCameraProvider>(context, listen: false);
-                  await provider.capturePhoto();
-                },
-                borderRadius: BorderRadius.circular(24),
-                splashColor: Colors.white.withOpacity(0.2),
-                highlightColor: Colors.white.withOpacity(0.1),
-                child: Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      center: Alignment.topLeft,
-                      radius: 0.7,
-                      colors: [
-                        Colors.white.withOpacity(0.3),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                  child: Center(
-                    child: Icon(
-                      Icons.camera_alt_rounded,
-                      color: Colors.white,
-                      size: 20,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black.withOpacity(0.3),
-                          offset: const Offset(0, 1),
-                          blurRadius: 2,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+      child: SizedBox.shrink(),
     );
   }
 
@@ -2041,6 +1744,85 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
                 ],
               ),
             ),
+            // Stop Live View button (only when live view is active)
+            if (provider.isLiveViewActive) ...[
+              const SizedBox(width: 12),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.error,
+                      AppColors.error.withOpacity(0.8),
+                    ],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.error.withOpacity(0.4),
+                      blurRadius: 12,
+                      offset: const Offset(0, 3),
+                    ),
+                    BoxShadow(
+                      color: AppColors.shadowStrong,
+                      blurRadius: 8,
+                      offset: const Offset(0, 1),
+                    ),
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.2),
+                      blurRadius: 3,
+                      offset: const Offset(-1, -1),
+                      spreadRadius: -1,
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () async {
+                      await provider.stopLiveView();
+                      // Clear cached overlays when stopping live view
+                      _cachedLiveViewOverlays = null;
+                      _cachedControlsOverlay = null;
+                      _lastValidFrame = null;
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    splashColor: Colors.white.withOpacity(0.2),
+                    highlightColor: Colors.white.withOpacity(0.1),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          center: Alignment.topLeft,
+                          radius: 0.7,
+                          colors: [
+                            Colors.white.withOpacity(0.3),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                      child: Center(
+                        child: Icon(
+                          Icons.stop_rounded,
+                          color: Colors.white,
+                          size: 18,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withOpacity(0.3),
+                              offset: const Offset(0, 1),
+                              blurRadius: 2,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
         // AI button with stunning Apple-style design and loading state
