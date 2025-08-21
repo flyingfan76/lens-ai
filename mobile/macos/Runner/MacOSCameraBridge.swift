@@ -1,10 +1,11 @@
 import Cocoa
 import FlutterMacOS
 import AVFoundation
+import CoreImage
 
 /// macOS camera bridge that provides built-in camera functionality
 /// This addresses the limitation where Flutter's camera plugin doesn't work on macOS
-class MacOSCameraBridge: NSObject, FlutterPlugin {
+class MacOSCameraBridge: NSObject, FlutterPlugin, AVCaptureVideoDataOutputSampleBufferDelegate {
     private var channel: FlutterMethodChannel?
     private var eventChannel: FlutterEventChannel?
     private var eventSink: FlutterEventSink?
@@ -169,7 +170,6 @@ class MacOSCameraBridge: NSObject, FlutterPlugin {
             
             // Create video output for live stream
             videoOutput = AVCaptureVideoDataOutput()
-            videoOutput?.setSampleBufferDelegate(self, queue: DispatchQueue(label: "camera_video_queue"))
             
             if captureSession?.canAddOutput(videoOutput!) == true {
                 captureSession?.addOutput(videoOutput!)
@@ -205,11 +205,64 @@ class MacOSCameraBridge: NSObject, FlutterPlugin {
             return
         }
         
+        guard let videoOutput = videoOutput else {
+            result(FlutterError(code: "NO_VIDEO_OUTPUT", message: "Video output not configured", details: nil))
+            return
+        }
+        
+        // Configure video output for live streaming
+        let videoSettings: [String: Any] = [
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
+        ]
+        videoOutput.videoSettings = videoSettings
+        
+        // Set up delegate for receiving frames
+        let queue = DispatchQueue(label: "camera_frames")
+        videoOutput.setSampleBufferDelegate(self, queue: queue)
+        
+        // Start the capture session if not already running
+        if !captureSession!.isRunning {
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                self?.captureSession?.startRunning()
+            }
+        }
+        
+        print("MacOSCameraBridge: Image stream started")
         result(nil)
     }
     
     private func stopImageStream(result: @escaping FlutterResult) {
+        // Stop the delegate
+        videoOutput?.setSampleBufferDelegate(nil, queue: nil)
         result(nil)
+    }
+    
+    // MARK: - AVCaptureVideoDataOutputSampleBufferDelegate
+    
+    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        guard let eventSink = eventSink,
+              let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+            return
+        }
+        
+        // Convert CVImageBuffer to CGImage
+        let ciImage = CIImage(cvImageBuffer: imageBuffer)
+        let context = CIContext()
+        
+        guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else {
+            return
+        }
+        
+        // Convert CGImage to JPEG data
+        let bitmapRep = NSBitmapImageRep(cgImage: cgImage)
+        guard let jpegData = bitmapRep.representation(using: .jpeg, properties: [.compressionFactor: 0.8]) else {
+            return
+        }
+        
+        // Send frame data to Flutter
+        DispatchQueue.main.async {
+            eventSink(FlutterStandardTypedData(bytes: jpegData))
+        }
     }
     
     private func takePicture(result: @escaping FlutterResult) {

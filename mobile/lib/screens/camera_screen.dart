@@ -293,7 +293,7 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
         // Debug logging for macOS camera issue
         debugPrint('🔥 CameraScreen: isLoading=${provider.isLoading}, hasAnyCameras=${provider.hasAnyCameras}, error=${provider.error}');
         debugPrint('🔥 CameraScreen: builtinCameras=${provider.builtinCameras.length}, macOSCameras=${provider.macOSCameras.length}, externalCameras=${provider.externalCameras.length}');
-        debugPrint('🔥 CameraScreen: MacOS cameras: ${provider.macOSCameras.map((c) => '${c.name}').join(', ')}');
+        debugPrint('🔥 CameraScreen: MacOS cameras: ${provider.macOSCameras.map((c) => c.name).join(', ')}');
         debugPrint('🔥 CameraScreen: External cameras: ${provider.externalCameras.map((c) => '${c.name} (connected: ${c.isConnected})').join(', ')}');
         if (provider.error != null) {
           debugPrint('🚨 ERROR SOURCE DETECTED: ${provider.error}');
@@ -1094,8 +1094,6 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
           child: Image.memory(
             imageData,
             fit: BoxFit.contain,  // Show entire image while maintaining aspect ratio
-            width: double.infinity,
-            height: double.infinity,
             gaplessPlayback: true,  // Smooth frame transitions
             filterQuality: FilterQuality.medium,  // Better quality for full screen
           errorBuilder: (context, error, stackTrace) {

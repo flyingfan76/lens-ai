@@ -24,5 +24,9 @@ class MainFlutterWindow: NSWindow {
     // Enable LibGPhoto2Swift with bridging header approach
     LibGPhoto2Swift.register(with: registry.registrar(forPlugin: "LibGPhoto2Swift"))
     print("✅ LibGPhoto2Swift registered - Full D90 camera control enabled")
+    
+    // Register MacOSCameraBridge for built-in camera support
+    MacOSCameraBridge.register(with: registry.registrar(forPlugin: "MacOSCameraBridge"))
+    print("✅ MacOSCameraBridge registered - Built-in camera support enabled")
   }
 }

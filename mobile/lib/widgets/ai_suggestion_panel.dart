@@ -528,7 +528,7 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
                         top: 6,
                         right: 6,
                         child: Container(
-                          min: 18,
+                          constraints: const BoxConstraints(minWidth: 18),
                           height: 18,
                           padding: const EdgeInsets.symmetric(horizontal: 4),
                           decoration: BoxDecoration(
