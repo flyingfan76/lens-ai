@@ -900,7 +900,7 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
       children: [
         // LIVE indicator
         Positioned(
-          top: 12,
+          top: 60,
           left: 12,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -929,25 +929,6 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
                   ),
                 ),
               ],
-            ),
-          ),
-        ),
-        // Camera info
-        Positioned(
-          top: 12,
-          right: 12,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.7),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              '${camera.name} • macOS',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-              ),
             ),
           ),
         ),
@@ -1149,7 +1130,7 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
       children: [
         // LIVE indicator
         Positioned(
-          top: 12,
+          top: 60,
           left: 12,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
