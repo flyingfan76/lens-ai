@@ -5,6 +5,7 @@ import '../core/theme/app_colors.dart';
 import '../core/utils/responsive_utils.dart';
 import '../core/providers/unified_camera_provider.dart';
 import '../models/external_camera.dart';
+import '../models/builtin_camera.dart';
 import '../services/external_camera_service.dart';
 import 'consolidated_ai_settings_screen.dart';
 import 'dart:async';
@@ -27,6 +28,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   List<ExternalCamera> _discoveredCameras = [];
   StreamSubscription<List<ExternalCamera>>? _cameraStreamSubscription;
   
+  // Built-in camera state
+  BuiltInCamera? _activeMacOSCamera;
+  
   @override
   void initState() {
     super.initState();
@@ -41,7 +45,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
   
   void _initializeCameraState() {
+    // Get the UnifiedCameraProvider instance to access all camera types
+    final unifiedCameraProvider = Provider.of<UnifiedCameraProvider>(context, listen: false);
     final cameraService = ExternalCameraService();
+    
+    // Get active macOS camera from UnifiedCameraProvider
+    _activeMacOSCamera = unifiedCameraProvider.activeMacOSCamera;
     
     // Subscribe to camera discoveries
     _cameraStreamSubscription = cameraService.cameraStream.listen((cameras) {
@@ -95,34 +104,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildSection(
               'Camera Management',
               [
-                ListTile(
-                  leading: Icon(
-                    Icons.camera_alt,
-                    color: _connectedCamera != null ? Colors.green : Colors.grey,
-                  ),
-                  title: Text(_connectedCamera != null 
-                      ? 'Connected Camera' 
-                      : 'No Camera Connected'),
-                  subtitle: Text(_connectedCamera != null 
-                      ? '${_connectedCamera!.name} (${_connectedCamera!.brand.name.toUpperCase()})'
-                      : 'Scan for external cameras'),
-                  trailing: _connectedCamera != null 
-                      ? Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.green,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Text(
-                            'Connected',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        )
-                      : null,
+                Consumer<UnifiedCameraProvider>(
+                  builder: (context, cameraProvider, _) {
+                    // Determine active camera from UnifiedCameraProvider
+                    final activeMacOSCamera = cameraProvider.activeMacOSCamera;
+                    final activeExternalCamera = cameraProvider.activeExternalCamera;
+                    final activeCameraType = cameraProvider.activeCameraType;
+                    
+                    // Check if any camera is active
+                    final bool hasActiveCamera = (activeCameraType != null);
+                    
+                    // Get camera info based on active camera type
+                    String cameraTitle;
+                    String cameraSubtitle;
+                    Color iconColor;
+                    
+                    if (activeCameraType == CameraSourceType.builtinMacOS && activeMacOSCamera != null) {
+                      cameraTitle = 'Connected Camera (Built-in)';
+                      cameraSubtitle = activeMacOSCamera.name;
+                      iconColor = Colors.green;
+                    } else if (activeCameraType == CameraSourceType.external && activeExternalCamera != null) {
+                      cameraTitle = 'Connected Camera (External)';
+                      cameraSubtitle = '${activeExternalCamera.name} (${activeExternalCamera.brand.name.toUpperCase()})';
+                      iconColor = Colors.green;
+                    } else {
+                      cameraTitle = 'No Camera Connected';
+                      cameraSubtitle = 'Scan for cameras below';
+                      iconColor = Colors.grey;
+                    }
+                    
+                    return ListTile(
+                      leading: Icon(
+                        Icons.camera_alt,
+                        color: iconColor,
+                      ),
+                      title: Text(cameraTitle),
+                      subtitle: Text(cameraSubtitle),
+                      trailing: hasActiveCamera
+                          ? Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.green,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Text(
+                                'Connected',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            )
+                          : null,
+                    );
+                  }
                 ),
                 ListTile(
                   leading: Icon(
@@ -363,26 +399,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
     
     try {
-      final cameraService = ExternalCameraService();
+      // Use the unified camera provider to refresh ALL cameras (built-in + external)
+      final cameraProvider = Provider.of<UnifiedCameraProvider>(context, listen: false);
       
-      // Stop and restart discovery to ensure fresh scan
-      await cameraService.stopDiscovery();
-      await cameraService.startDiscovery();
+      debugPrint('Settings: Starting comprehensive camera scan...');
+      await cameraProvider.refreshCameras();
       
       // Show scanning feedback for minimum time
       await Future.delayed(const Duration(seconds: 2));
       
+      // Get updated camera counts for feedback
+      final externalCount = _discoveredCameras.length;
+      final builtinCount = cameraProvider.macOSCameras.length;
+      final totalCount = externalCount + builtinCount;
+      
+      // Update active macOS camera reference
+      setState(() {
+        _activeMacOSCamera = cameraProvider.activeMacOSCamera;
+      });
+      
+      String message;
+      if (totalCount == 0) {
+        message = 'No cameras found. Make sure cameras are connected and powered on.';
+      } else {
+        final parts = <String>[];
+        if (builtinCount > 0) parts.add('$builtinCount built-in');
+        if (externalCount > 0) parts.add('$externalCount external');
+        message = 'Found ${parts.join(' + ')} camera(s)';
+      }
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            _discoveredCameras.isEmpty 
-                ? 'No external cameras found. Make sure cameras are connected and powered on.'
-                : 'Found ${_discoveredCameras.length} camera(s)',
-          ),
-          backgroundColor: _discoveredCameras.isEmpty ? Colors.orange : AppColors.primary,
+          content: Text(message),
+          backgroundColor: totalCount == 0 ? Colors.orange : AppColors.primary,
         ),
       );
+      
+      debugPrint('Settings: Camera scan completed - Built-in: $builtinCount, External: $externalCount');
     } catch (e) {
+      debugPrint('Settings: Camera scan error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error scanning for cameras: $e'),

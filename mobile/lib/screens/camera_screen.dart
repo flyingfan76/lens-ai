@@ -14,6 +14,7 @@ import '../models/ai_provider_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/external_camera.dart';
+import '../models/builtin_camera.dart';
 import '../core/state/camera_feature_provider.dart';
 import '../core/providers/unified_camera_provider.dart';
 import 'settings_screen.dart';
@@ -49,6 +50,9 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
   bool _showControlPanel = false;
   bool _showCameraSelector = false;
   
+  // Camera state
+  bool _cameraSelectorVisible = false;
+  
   // UI state
 
   @override
@@ -64,6 +68,15 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
 
   Future<void> _switchToBuiltinCamera(CameraDescription camera) async {
     final success = await _cameraProvider.switchToBuiltinCamera(camera);
+    if (success) {
+      setState(() {
+        _showCameraSelector = false;
+      });
+    }
+  }
+
+  Future<void> _switchToMacOSCamera(BuiltInCamera camera) async {
+    final success = await _cameraProvider.switchToMacOSCamera(camera);
     if (success) {
       setState(() {
         _showCameraSelector = false;
@@ -279,7 +292,8 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
       builder: (context, provider, child) {
         // Debug logging for macOS camera issue
         debugPrint('🔥 CameraScreen: isLoading=${provider.isLoading}, hasAnyCameras=${provider.hasAnyCameras}, error=${provider.error}');
-        debugPrint('🔥 CameraScreen: builtinCameras=${provider.builtinCameras.length}, externalCameras=${provider.externalCameras.length}');
+        debugPrint('🔥 CameraScreen: builtinCameras=${provider.builtinCameras.length}, macOSCameras=${provider.macOSCameras.length}, externalCameras=${provider.externalCameras.length}');
+        debugPrint('🔥 CameraScreen: MacOS cameras: ${provider.macOSCameras.map((c) => '${c.name}').join(', ')}');
         debugPrint('🔥 CameraScreen: External cameras: ${provider.externalCameras.map((c) => '${c.name} (connected: ${c.isConnected})').join(', ')}');
         if (provider.error != null) {
           debugPrint('🚨 ERROR SOURCE DETECTED: ${provider.error}');
@@ -316,7 +330,7 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
             ),
             
             // Camera selector overlay
-            if (_showCameraSelector) 
+            if (_showCameraSelector || _cameraSelectorVisible) 
               _buildCameraSelectorOverlay(provider),
             
             // Bottom controls
@@ -339,6 +353,9 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
     if (provider.activeCameraType == CameraSourceType.builtin && 
         provider.builtinController != null) {
       return _buildBuiltinCameraPreview(provider.builtinController!);
+    } else if (provider.activeCameraType == CameraSourceType.builtinMacOS && 
+               provider.activeMacOSCamera != null) {
+      return _buildMacOSCameraPreview(provider.activeMacOSCamera!);
     } else if (provider.activeCameraType == CameraSourceType.external) {
       return _buildExternalCameraPreview(provider.activeExternalCamera!);
     } else {
@@ -352,7 +369,7 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
       builder: (context, provider, child) {
         // If live view is active, show the live stream
         if (provider.isLiveViewActive && provider.liveViewStream != null) {
-          return _buildLiveViewStream(provider.liveViewStream!, camera);
+          return _buildLiveViewStream(provider.liveViewStream!, externalCamera: camera);
         }
         
         // Otherwise show camera info with live view controls
@@ -729,14 +746,227 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
     return true;
   }
 
+  // macOS Camera Preview Methods
+  Widget _buildMacOSCameraPreview(BuiltInCamera camera) {
+    return Consumer<UnifiedCameraProvider>(
+      builder: (context, provider, child) {
+        // If live view is active, show the live stream
+        if (provider.isLiveViewActive && provider.liveViewStream != null) {
+          return _buildLiveViewStream(provider.liveViewStream!, macOSCamera: camera);
+        }
+        
+        // Otherwise show camera info with live view controls
+        return _buildMacOSCameraInfoWithControls(camera, provider);
+      },
+    );
+  }
+
+  Widget _buildMacOSCameraInfoWithControls(BuiltInCamera camera, UnifiedCameraProvider provider) {
+    return Container(
+      color: Colors.black,
+      width: double.infinity,
+      height: double.infinity,
+      child: Stack(
+        children: [
+          // Elegant macOS camera preview placeholder
+          _buildMacOSCameraPlaceholder(camera),
+          
+          // Live view controls
+          _buildMacOSLiveViewControls(camera, provider),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMacOSCameraPlaceholder(BuiltInCamera camera) {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.grey[900]!,
+            Colors.black,
+          ],
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.accent.withOpacity(0.1),
+                border: Border.all(
+                  color: AppColors.accent.withOpacity(0.3),
+                  width: 2,
+                ),
+              ),
+              child: Icon(
+                Icons.videocam,
+                size: 48,
+                color: AppColors.accent.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              camera.name,
+              style: AppTypography.title2Bold.copyWith(
+                color: Colors.white,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'macOS Camera • ${camera.lensDirection.toUpperCase()}',
+              style: AppTypography.bodyRegular.copyWith(
+                color: Colors.white70,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            Text(
+              'Tap "Start Live View" to begin camera preview',
+              style: AppTypography.caption1Regular.copyWith(
+                color: Colors.white54,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMacOSLiveViewControls(BuiltInCamera camera, UnifiedCameraProvider provider) {
+    return Positioned(
+      bottom: 120,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.8),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: AppColors.accent.withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Start Live View button
+              ElevatedButton.icon(
+                onPressed: () async {
+                  debugPrint('🎥 Starting macOS live view for ${camera.name}');
+                  final success = await provider.startLiveView();
+                  if (!success && provider.error != null) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Live view failed: ${provider.error}'),
+                          backgroundColor: AppColors.error,
+                        ),
+                      );
+                    }
+                  }
+                },
+                icon: const Icon(Icons.play_arrow, size: 18),
+                label: const Text('Start Live View'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMacOSLiveViewOverlays(BuiltInCamera camera) {
+    return Stack(
+      children: [
+        // LIVE indicator
+        Positioned(
+          top: 12,
+          left: 12,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: AppColors.accent,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Text(
+                  'LIVE',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        // Camera info
+        Positioned(
+          top: 12,
+          right: 12,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              '${camera.name} • macOS',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   // Cached overlay widgets to prevent rebuilds
   Widget? _cachedLiveViewOverlays;
   Widget? _cachedControlsOverlay;
   Uint8List? _lastValidFrame;
   
-  Widget _buildLiveViewStream(Stream<Uint8List> liveViewStream, ExternalCamera camera) {
+  Widget _buildLiveViewStream(Stream<Uint8List> liveViewStream, {ExternalCamera? externalCamera, BuiltInCamera? macOSCamera}) {
     // Build cached overlays once
-    _cachedLiveViewOverlays ??= _buildLiveViewOverlays(camera);
+    if (externalCamera != null) {
+      _cachedLiveViewOverlays ??= _buildLiveViewOverlays(externalCamera);
+    } else if (macOSCamera != null) {
+      _cachedLiveViewOverlays ??= _buildMacOSLiveViewOverlays(macOSCamera);
+    }
     _cachedControlsOverlay ??= _buildLiveViewControls();
     
     return Container(
@@ -799,7 +1029,7 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
                 
                 if (_isValidJpegFrame(frameData)) {
                   _lastValidFrame = frameData;
-                  return _buildOptimizedLiveViewDisplay(frameData, camera);
+                  return _buildOptimizedLiveViewDisplay(frameData, externalCamera);
                 } else {
                   debugPrint('📺 StreamBuilder: Invalid JPEG frame, showing loading...');
                   return Container(
@@ -849,7 +1079,7 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
   }
   
   /// Build optimized live view display with minimal rebuilds
-  Widget _buildOptimizedLiveViewDisplay(Uint8List imageData, ExternalCamera camera) {
+  Widget _buildOptimizedLiveViewDisplay(Uint8List imageData, ExternalCamera? camera) {
     return Container(
       color: Colors.black,
       width: double.infinity,
@@ -3824,7 +4054,7 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
                     ),
                   ),
                   IconButton(
-                    onPressed: () => provider.refreshExternalCameras(),
+                    onPressed: () => provider.refreshCameras(),
                     icon: const Icon(Icons.refresh, color: AppColors.accent),
                   ),
                 ],
@@ -3832,7 +4062,7 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
             ),
             const Divider(color: Colors.white24),
             
-            // Built-in cameras
+            // Built-in cameras (iOS/Android)
             if (provider.hasBuiltinCameras) ...[
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -3868,6 +4098,47 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
                         ? const Icon(Icons.check_circle, color: AppColors.accent)
                         : null,
                     onTap: () => _switchToBuiltinCamera(camera),
+                  )),
+            ],
+
+            // macOS built-in cameras
+            if (provider.hasMacOSCameras) ...[
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'macOS Cameras',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              ...provider.macOSCameras.map((camera) => ListTile(
+                    leading: Icon(
+                      camera.lensDirection == 'front'
+                          ? Icons.camera_front
+                          : camera.lensDirection == 'back'
+                          ? Icons.camera_rear
+                          : Icons.videocam,
+                      color: Colors.white,
+                    ),
+                    title: Text(
+                      camera.name,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    subtitle: Text(
+                      '${camera.lensDirection.toUpperCase()} • macOS',
+                      style: const TextStyle(color: Colors.white54),
+                    ),
+                    trailing: provider.activeCameraType == CameraSourceType.builtinMacOS &&
+                            provider.activeMacOSCamera?.id == camera.id
+                        ? const Icon(Icons.check_circle, color: AppColors.accent)
+                        : null,
+                    onTap: () => _switchToMacOSCamera(camera),
                   )),
             ],
             

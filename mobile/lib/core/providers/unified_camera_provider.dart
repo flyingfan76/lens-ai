@@ -2,12 +2,16 @@ import 'package:flutter/foundation.dart';
 import 'package:camera/camera.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/external_camera.dart';
+import '../../models/builtin_camera.dart';
 import '../../services/external_camera_service.dart';
 import '../../services/photo_capture_service.dart';
+import '../../services/macos_camera_service.dart';
 import 'dart:async';
+import 'dart:io';
 
 enum CameraSourceType {
   builtin,
+  builtinMacOS, // macOS built-in cameras via platform channel
   external,
 }
 
@@ -19,10 +23,16 @@ class UnifiedCameraProvider extends ChangeNotifier {
   }
 
   final ExternalCameraService _externalCameraService = ExternalCameraService();
+  final MacOSCameraService _macOSCameraService = MacOSCameraService();
   
-  // Built-in cameras
+  // Built-in cameras (iOS/Android via camera plugin)
   List<CameraDescription> _builtinCameras = [];
   CameraController? _builtinController;
+  
+  // macOS built-in cameras (via platform channel)
+  List<BuiltInCamera> _macOSCameras = [];
+  BuiltInCamera? _activeMacOSCamera;
+  Stream<Uint8List>? _macOSCameraStream;
   
   // External cameras
   List<ExternalCamera> _externalCameras = [];
@@ -38,8 +48,10 @@ class UnifiedCameraProvider extends ChangeNotifier {
 
   // Getters
   List<CameraDescription> get builtinCameras => _builtinCameras;
+  List<BuiltInCamera> get macOSCameras => _macOSCameras;
   List<ExternalCamera> get externalCameras => _externalCameras;
   CameraController? get builtinController => _builtinController;
+  BuiltInCamera? get activeMacOSCamera => _activeMacOSCamera;
   ExternalCamera? get activeExternalCamera => _activeExternalCamera;
   CameraSourceType? get activeCameraType => _activeCameraType;
   bool get isInitialized => _isInitialized;
@@ -47,17 +59,22 @@ class UnifiedCameraProvider extends ChangeNotifier {
   String? get error => _error;
   
   bool get hasBuiltinCameras => _builtinCameras.isNotEmpty;
+  bool get hasMacOSCameras => _macOSCameras.isNotEmpty;
   bool get hasExternalCameras => _externalCameras.isNotEmpty;
-  bool get hasAnyCameras => hasBuiltinCameras || hasExternalCameras;
+  bool get hasAnyCameras => hasBuiltinCameras || hasMacOSCameras || hasExternalCameras;
   
-  int get totalCameraCount => _builtinCameras.length + _externalCameras.length;
+  int get totalCameraCount => _builtinCameras.length + _macOSCameras.length + _externalCameras.length;
 
   Future<void> _initialize() async {
     try {
       debugPrint('UnifiedCameraProvider: Initializing...');
       
-      // Initialize built-in cameras
-      await _initializeBuiltinCameras();
+      // Initialize built-in cameras based on platform
+      if (Platform.isMacOS) {
+        await _initializeMacOSCameras();
+      } else {
+        await _initializeBuiltinCameras();
+      }
       
       // Initialize external camera discovery
       await _initializeExternalCameras();
@@ -68,6 +85,7 @@ class UnifiedCameraProvider extends ChangeNotifier {
       
       debugPrint('UnifiedCameraProvider: Initialization complete');
       debugPrint('  - Built-in cameras: ${_builtinCameras.length}');
+      debugPrint('  - macOS cameras: ${_macOSCameras.length}');
       debugPrint('  - External cameras: ${_externalCameras.length}');
       
     } catch (e) {
@@ -89,6 +107,30 @@ class UnifiedCameraProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('UnifiedCameraProvider: Built-in camera error: $e');
       // Don't throw - external cameras might still work
+    }
+  }
+
+  Future<void> _initializeMacOSCameras() async {
+    try {
+      debugPrint('UnifiedCameraProvider: Initializing macOS cameras...');
+      
+      final success = await _macOSCameraService.initialize();
+      if (success) {
+        _macOSCameras = _macOSCameraService.availableCameras;
+        debugPrint('UnifiedCameraProvider: Found ${_macOSCameras.length} macOS cameras');
+        
+        for (final camera in _macOSCameras) {
+          debugPrint('  - ${camera.name} (${camera.lensDirection})');
+        }
+      } else {
+        debugPrint('UnifiedCameraProvider: macOS camera initialization failed');
+        
+        debugPrint('UnifiedCameraProvider: macOS camera initialization complete');
+      }
+    } catch (e) {
+      debugPrint('UnifiedCameraProvider: macOS camera error: $e');
+      
+      debugPrint('UnifiedCameraProvider: macOS camera error: $e');
     }
   }
 
@@ -134,13 +176,8 @@ class UnifiedCameraProvider extends ChangeNotifier {
     try {
       debugPrint('UnifiedCameraProvider: Switching to built-in camera: ${camera.name}');
       
-      // Disconnect from external camera if active
-      if (_activeExternalCamera != null) {
-        await disconnectFromExternalCamera();
-      }
-      
-      // Dispose current built-in controller
-      await _builtinController?.dispose();
+      // Disconnect from other cameras if active
+      await _disconnectFromAllCameras();
       
       // Initialize new built-in camera controller
       _builtinController = CameraController(
@@ -169,15 +206,48 @@ class UnifiedCameraProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> switchToMacOSCamera(BuiltInCamera camera) async {
+    try {
+      debugPrint('UnifiedCameraProvider: Switching to macOS camera: ${camera.name}');
+      
+      // Disconnect from other cameras if active
+      await _disconnectFromAllCameras();
+      
+      // Initialize macOS camera
+      final success = await _macOSCameraService.initializeCamera(camera.id);
+      
+      if (success) {
+        _activeMacOSCamera = camera;
+        _activeCameraType = CameraSourceType.builtinMacOS;
+        _isInitialized = true;
+        _error = null;
+        
+        notifyListeners();
+        
+        debugPrint('UnifiedCameraProvider: Successfully switched to macOS camera');
+        return true;
+      } else {
+        _error = 'Failed to initialize macOS camera: ${camera.name}';
+        debugPrint('UnifiedCameraProvider: macOS camera initialization failed');
+        notifyListeners();
+        return false;
+      }
+      
+    } catch (e) {
+      _error = 'Failed to switch to macOS camera: $e';
+      _isInitialized = false;
+      debugPrint('UnifiedCameraProvider: macOS camera switch error: $e');
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<bool> switchToExternalCamera(ExternalCamera camera) async {
     try {
       debugPrint('UnifiedCameraProvider: Switching to external camera: ${camera.name}');
       
-      // Dispose built-in controller if active
-      if (_builtinController != null) {
-        await _builtinController!.dispose();
-        _builtinController = null;
-      }
+      // Disconnect from other cameras if active
+      await _disconnectFromAllCameras();
       
       // Disconnect from current external camera if different
       if (_activeExternalCamera != null && _activeExternalCamera!.id != camera.id) {
@@ -244,6 +314,27 @@ class UnifiedCameraProvider extends ChangeNotifier {
     }
   }
 
+  /// Helper method to disconnect from all active cameras
+  Future<void> _disconnectFromAllCameras() async {
+    // Dispose built-in controller
+    if (_builtinController != null) {
+      await _builtinController!.dispose();
+      _builtinController = null;
+    }
+    
+    // Dispose macOS camera
+    if (_activeMacOSCamera != null) {
+      await _macOSCameraService.dispose();
+      _activeMacOSCamera = null;
+      _macOSCameraStream = null;
+    }
+    
+    // Disconnect external camera
+    if (_activeExternalCamera != null) {
+      await disconnectFromExternalCamera();
+    }
+  }
+
   Future<void> refreshExternalCameras() async {
     try {
       debugPrint('UnifiedCameraProvider: Refreshing external camera discovery...');
@@ -263,45 +354,110 @@ class UnifiedCameraProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Refresh cameras (alias for refreshExternalCameras for compatibility)
+  /// Refresh all cameras (external and macOS)
   Future<void> refreshCameras() async {
+    debugPrint('UnifiedCameraProvider: Refreshing all cameras...');
+    
+    // Refresh external cameras
     await refreshExternalCameras();
+    
+    // Refresh macOS cameras if on macOS platform
+    if (Platform.isMacOS) {
+      await _initializeMacOSCameras();
+      notifyListeners();
+      debugPrint('UnifiedCameraProvider: macOS cameras refreshed - Found ${_macOSCameras.length} cameras');
+    }
   }
 
   // Live view functionality
-  Stream<Uint8List>? get liveViewStream => _externalCameraService.liveViewStream;
-  bool get isLiveViewActive => _externalCameraService.isLiveViewActive;
+  Stream<Uint8List>? get liveViewStream {
+    if (_activeCameraType == CameraSourceType.builtinMacOS) {
+      return _macOSCameraStream;
+    }
+    return _externalCameraService.liveViewStream;
+  }
+  
+  bool get isLiveViewActive {
+    if (_activeCameraType == CameraSourceType.builtinMacOS) {
+      return _macOSCameraStream != null;
+    }
+    return _externalCameraService.isLiveViewActive;
+  }
 
-  /// Start live view for the active external camera
+  /// Start live view for the active camera
   Future<bool> startLiveView() async {
     debugPrint('======================================');
     debugPrint('UnifiedCameraProvider: startLiveView called');
-    debugPrint('UnifiedCameraProvider: _activeExternalCamera = $_activeExternalCamera');
     debugPrint('UnifiedCameraProvider: _activeCameraType = $_activeCameraType');
+    debugPrint('UnifiedCameraProvider: _activeExternalCamera = $_activeExternalCamera');
+    debugPrint('UnifiedCameraProvider: _activeMacOSCamera = $_activeMacOSCamera');
     debugPrint('UnifiedCameraProvider: Current error state = $_error');
     debugPrint('======================================');
     
+    if (_activeCameraType == CameraSourceType.builtinMacOS) {
+      return await _startMacOSLiveView();
+    } else if (_activeCameraType == CameraSourceType.external) {
+      return await _startExternalLiveView();
+    } else {
+      debugPrint('UnifiedCameraProvider: ERROR - No compatible camera is active for live view');
+      _error = 'No compatible camera is active for live view';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> _startMacOSLiveView() async {
+    if (_activeMacOSCamera == null) {
+      debugPrint('UnifiedCameraProvider: ERROR - No macOS camera is active');
+      _error = 'No macOS camera is active';
+      notifyListeners();
+      return false;
+    }
+
+    try {
+      debugPrint('UnifiedCameraProvider: Starting macOS live view for ${_activeMacOSCamera!.name}');
+      _macOSCameraStream = _macOSCameraService.startImageStream();
+      
+      if (_macOSCameraStream != null) {
+        debugPrint('UnifiedCameraProvider: macOS live view started successfully for ${_activeMacOSCamera!.name}');
+        notifyListeners();
+        return true;
+      } else {
+        debugPrint('UnifiedCameraProvider: macOS live view failed to start for ${_activeMacOSCamera!.name}');
+        _error = 'Failed to start macOS live view';
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _error = 'macOS live view error: $e';
+      debugPrint('UnifiedCameraProvider: macOS live view error: $e');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> _startExternalLiveView() async {
     if (_activeExternalCamera == null) {
-      debugPrint('UnifiedCameraProvider: ERROR - No external camera is active - cannot start live view');
+      debugPrint('UnifiedCameraProvider: ERROR - No external camera is active');
       _error = 'No external camera is active';
       notifyListeners();
       return false;
     }
 
     try {
-      debugPrint('UnifiedCameraProvider: Starting live view for ${_activeExternalCamera!.name} (id: ${_activeExternalCamera!.id})');
+      debugPrint('UnifiedCameraProvider: Starting external live view for ${_activeExternalCamera!.name} (id: ${_activeExternalCamera!.id})');
       final success = await _externalCameraService.startLiveView(_activeExternalCamera!.id);
       if (success) {
-        debugPrint('UnifiedCameraProvider: Live view started successfully for ${_activeExternalCamera!.name}');
+        debugPrint('UnifiedCameraProvider: External live view started successfully for ${_activeExternalCamera!.name}');
       } else {
-        debugPrint('UnifiedCameraProvider: Live view failed to start for ${_activeExternalCamera!.name}');
-        _error = 'Failed to start live view';
+        debugPrint('UnifiedCameraProvider: External live view failed to start for ${_activeExternalCamera!.name}');
+        _error = 'Failed to start external live view';
         notifyListeners();
       }
       return success;
     } catch (e) {
-      _error = 'Live view error: $e';
-      debugPrint('UnifiedCameraProvider: Live view error: $e');
+      _error = 'External live view error: $e';
+      debugPrint('UnifiedCameraProvider: External live view error: $e');
       notifyListeners();
       return false;
     }
@@ -310,8 +466,15 @@ class UnifiedCameraProvider extends ChangeNotifier {
   /// Stop live view
   Future<void> stopLiveView() async {
     try {
-      await _externalCameraService.stopLiveView();
-      debugPrint('UnifiedCameraProvider: Live view stopped');
+      if (_activeCameraType == CameraSourceType.builtinMacOS) {
+        await _macOSCameraService.stopImageStream();
+        _macOSCameraStream = null;
+        debugPrint('UnifiedCameraProvider: macOS live view stopped');
+      } else {
+        await _externalCameraService.stopLiveView();
+        debugPrint('UnifiedCameraProvider: External live view stopped');
+      }
+      notifyListeners();
     } catch (e) {
       debugPrint('UnifiedCameraProvider: Stop live view error: $e');
     }
@@ -343,10 +506,20 @@ class UnifiedCameraProvider extends ChangeNotifier {
         debugPrint('UnifiedCameraProvider: Built-in photo captured: ${image.path}');
         return true;
         
+      } else if (_activeCameraType == CameraSourceType.builtinMacOS && _activeMacOSCamera != null) {
+        final imagePath = await _macOSCameraService.takePicture();
+        if (imagePath != null) {
+          debugPrint('UnifiedCameraProvider: macOS photo captured: $imagePath');
+          return true;
+        } else {
+          debugPrint('UnifiedCameraProvider: macOS photo capture failed');
+          _error = 'macOS photo capture failed';
+          notifyListeners();
+          return false;
+        }
+        
       } else if (_activeCameraType == CameraSourceType.external && _activeExternalCamera != null) {
-        // Implement external camera capture
         debugPrint('UnifiedCameraProvider: External camera capture requested');
-        // TODO: Call external camera service capture method
         return await _captureExternalPhoto();
       }
       
@@ -443,6 +616,8 @@ class UnifiedCameraProvider extends ChangeNotifier {
   String getActiveCameraName() {
     if (_activeCameraType == CameraSourceType.builtin && _builtinController != null) {
       return _builtinController!.description.name;
+    } else if (_activeCameraType == CameraSourceType.builtinMacOS && _activeMacOSCamera != null) {
+      return _activeMacOSCamera!.name;
     } else if (_activeCameraType == CameraSourceType.external && _activeExternalCamera != null) {
       return _activeExternalCamera!.name;
     }
@@ -457,6 +632,13 @@ class UnifiedCameraProvider extends ChangeNotifier {
         'name': desc.name,
         'lensDirection': desc.lensDirection.name,
         'sensorOrientation': desc.sensorOrientation,
+      };
+    } else if (_activeCameraType == CameraSourceType.builtinMacOS && _activeMacOSCamera != null) {
+      return {
+        'type': 'builtinMacOS',
+        'name': _activeMacOSCamera!.name,
+        'lensDirection': _activeMacOSCamera!.lensDirection,
+        'sensorOrientation': _activeMacOSCamera!.sensorOrientation,
       };
     } else if (_activeCameraType == CameraSourceType.external && _activeExternalCamera != null) {
       return {
@@ -486,6 +668,7 @@ class UnifiedCameraProvider extends ChangeNotifier {
   void dispose() {
     _externalCameraSubscription?.cancel();
     _builtinController?.dispose();
+    _macOSCameraService.dispose();
     _externalCameraService.dispose();
     super.dispose();
   }
