@@ -89,30 +89,74 @@ class MacOSCameraService {
     try {
       debugPrint('MacOSCameraService: Starting image stream...');
       
-      // Start native image stream
-      _channel.invokeMethod('startImageStream');
-      
       // Create stream controller if not exists
       _imageStreamController ??= StreamController<Uint8List>.broadcast();
       
-      // Subscribe to native event channel
+      // Subscribe to native event channel first
       _imageStreamSubscription = _eventChannel.receiveBroadcastStream().cast<Uint8List>().listen(
         (data) {
-          if (_imageStreamController != null) {
+          if (_imageStreamController != null && !_imageStreamController!.isClosed) {
+            debugPrint('MacOSCameraService: Received frame data: ${data.length} bytes');
             _imageStreamController!.add(data);
           }
         },
         onError: (error) {
           debugPrint('MacOSCameraService: Image stream error: $error');
+          // Try to recover from stream errors
+          _handleStreamError(error);
+        },
+        onDone: () {
+          debugPrint('MacOSCameraService: Image stream completed');
         },
       );
       
-      debugPrint('MacOSCameraService: Image stream started');
+      // Start native image stream with timeout handling
+      _channel.invokeMethod('startImageStream').timeout(
+        Duration(seconds: 10),
+        onTimeout: () {
+          debugPrint('MacOSCameraService: Start image stream timed out');
+          throw TimeoutException('Image stream start timed out', Duration(seconds: 10));
+        },
+      ).catchError((error) {
+        debugPrint('MacOSCameraService: Start image stream method error: $error');
+        _handleStreamError(error);
+        throw error;
+      });
+      
+      debugPrint('MacOSCameraService: Image stream setup completed');
       return _imageStreamController!.stream;
     } catch (e) {
       debugPrint('MacOSCameraService: Start image stream error: $e');
+      _cleanupImageStream();
       return null;
     }
+  }
+  
+  /// Handle stream errors and attempt recovery
+  void _handleStreamError(dynamic error) {
+    debugPrint('MacOSCameraService: Handling stream error: $error');
+    
+    // Close current stream
+    _cleanupImageStream();
+    
+    // Optionally attempt reconnection after a delay
+    Future.delayed(Duration(seconds: 1), () {
+      if (_isInitialized) {
+        debugPrint('MacOSCameraService: Attempting stream recovery...');
+        // Could attempt to restart stream here if needed
+      }
+    });
+  }
+  
+  /// Clean up image stream resources
+  void _cleanupImageStream() {
+    _imageStreamSubscription?.cancel();
+    _imageStreamSubscription = null;
+    
+    if (_imageStreamController != null && !_imageStreamController!.isClosed) {
+      _imageStreamController!.close();
+    }
+    _imageStreamController = null;
   }
   
   /// Stop image stream
@@ -120,13 +164,16 @@ class MacOSCameraService {
     try {
       debugPrint('MacOSCameraService: Stopping image stream...');
       
-      await _imageStreamSubscription?.cancel();
-      _imageStreamSubscription = null;
+      // Clean up stream resources
+      _cleanupImageStream();
       
-      await _imageStreamController?.close();
-      _imageStreamController = null;
-      
-      await _channel.invokeMethod('stopImageStream');
+      // Stop native image stream
+      await _channel.invokeMethod('stopImageStream').timeout(
+        Duration(seconds: 5),
+        onTimeout: () {
+          debugPrint('MacOSCameraService: Stop image stream timed out');
+        },
+      );
       
       debugPrint('MacOSCameraService: Image stream stopped');
     } catch (e) {

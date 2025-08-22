@@ -909,22 +909,29 @@ class ExternalCameraService {
     }
   }
   
-  /// Start live view using libgphoto2 (primary) or Nikon SDK (fallback)
+  /// Start live view using Nikon SDK (primary) or libgphoto2 (fallback)
   Future<bool> _startNikonLiveView(ExternalCamera camera) async {
     try {
       debugPrint('ExternalCameraService: Starting camera live view for ${camera.model}');
       
-      // Try libgphoto2 first (purpose-built for D90 PTP cameras)
-      debugPrint('ExternalCameraService: Attempting libgphoto2 live view (PTP camera support)');
-      final libgphoto2Success = await _startLibGPhoto2LiveView(camera);
-      if (libgphoto2Success) {
-        debugPrint('ExternalCameraService: ✅ libgphoto2 live view successful - using real D90 camera');
+      // 🚀 PRIORITY CHANGED: Try NikonSDK FIRST (uses command-line gphoto2 - works better on macOS)
+      debugPrint('ExternalCameraService: 🎯 ATTEMPTING NIKON SDK FIRST - uses command-line gphoto2 approach');
+      final nikonSDKSuccess = await _startNikonSDKLiveView(camera);
+      if (nikonSDKSuccess) {
+        debugPrint('ExternalCameraService: ✅ NikonSDK live view successful - using command-line gphoto2 approach');
         return true;
       }
       
-      // Fallback to Nikon SDK (AVFoundation) - will likely use Mac camera
-      debugPrint('ExternalCameraService: ⚠️ libgphoto2 failed, falling back to AVFoundation (likely Mac camera)');
-      return await _startNikonSDKLiveView(camera);
+      // Fallback to libgphoto2 library (complex Swift integration) - ONLY if SDK fails
+      debugPrint('ExternalCameraService: ⚠️ NikonSDK failed, falling back to libgphoto2 library approach');
+      final libgphoto2Success = await _startLibGPhoto2LiveView(camera);
+      if (libgphoto2Success) {
+        debugPrint('ExternalCameraService: ✅ libgphoto2 library live view successful - using Swift integration');
+        return true;
+      }
+      
+      debugPrint('ExternalCameraService: ❌ Both NikonSDK and libgphoto2 approaches failed');
+      return false;
       
     } catch (e) {
       debugPrint('ExternalCameraService: Camera live view error: $e');
@@ -1000,37 +1007,12 @@ class ExternalCameraService {
       // Initialize the Nikon SDK service
       await _nikonSDK.initialize();
       
-      // Test method channel connectivity first with timeout
-      debugPrint('ExternalCameraService: Testing method channel connection...');
-      bool testResult = false;
-      try {
-        testResult = await _nikonSDK.testConnection().timeout(Duration(seconds: 15));
-        debugPrint('ExternalCameraService: Method channel test result: $testResult');
-      } catch (e) {
-        debugPrint('ExternalCameraService: Method channel test timeout or error: $e');
-        return false;
-      }
+      // 🚀 SKIP TEST - Go directly to startLiveView (test only checks AVFoundation cameras)
+      debugPrint('ExternalCameraService: 💥 BYPASSING TEST - directly attempting startLiveView with command-line gphoto2');
+      // The test() method only checks AVFoundation cameras, but startLiveView() tries command-line gphoto2 first!
       
-      if (!testResult) {
-        debugPrint('ExternalCameraService: Method channel test failed - SDK bridge not working');
-        return false;
-      }
-      
-      // Check if camera is connected via SDK with timeout
-      bool isConnected = false;
-      try {
-        isConnected = await _nikonSDK.isCameraConnected().timeout(Duration(seconds: 15));
-        debugPrint('ExternalCameraService: Camera connection check: $isConnected');
-      } catch (e) {
-        debugPrint('ExternalCameraService: Camera connection check timeout or error: $e');
-        return false;
-      }
-      
-      if (!isConnected) {
-        debugPrint('ExternalCameraService: Nikon camera not connected via SDK');
-        return false;
-      }
-      
+      // 🎯 DIRECTLY ATTEMPT LIVE VIEW - NikonSDK will try command-line gphoto2 internally
+      debugPrint('ExternalCameraService: 🚀 DIRECTLY calling startLiveView() - bypassing connection checks');
       // Start live view via SDK with timeout
       bool success = false;
       try {

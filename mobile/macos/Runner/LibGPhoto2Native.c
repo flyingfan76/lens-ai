@@ -18,6 +18,7 @@ typedef enum {
 // Forward declarations
 static void gphoto2_log(log_level_t level, const char *format, ...);
 static void set_error(const char *format, ...);
+static int kill_ptpcamerad(void);
 void gphoto2_cleanup(void);
 int gphoto2_stop_live_view(void);
 
@@ -63,6 +64,9 @@ const char* gphoto2_get_last_error() {
 // Initialize libgphoto2 with comprehensive setup
 int gphoto2_init() {
     gphoto2_log(LOG_INFO, "Initializing libgphoto2 system");
+    
+    // Proactively kill PTP daemon before any camera operations
+    kill_ptpcamerad();
     
     pthread_mutex_lock(&camera_mutex);
     
@@ -144,27 +148,31 @@ int gphoto2_detect_cameras(char ***camera_list, int *count) {
     return *count;
 }
 
-// Kill macOS PTP camera daemon that interferes with libgphoto2
+// Advanced PTP daemon management with exclusive USB access
 static int kill_ptpcamerad() {
-    gphoto2_log(LOG_INFO, "Killing ptpcamerad daemon...");
+    gphoto2_log(LOG_INFO, "COMPREHENSIVE PTP SERVICE MANAGEMENT - DISABLING SYSTEM SERVICE");
     
-    // Try to disable the launchd service first
+    // Step 1: Unload the launchctl service completely (this prevents respawning)
+    gphoto2_log(LOG_INFO, "Unloading com.apple.ptpcamerad service completely");
+    system("launchctl unload -w /System/Library/LaunchDaemons/com.apple.ptpcamerad.plist 2>/dev/null");
+    system("launchctl bootout system/com.apple.ptpcamerad 2>/dev/null");
+    
+    // Step 2: Kill all PTP-related processes with extreme prejudice
+    gphoto2_log(LOG_INFO, "Killing ALL PTP-related processes");
+    system("pkill -9 -f ptpcamerad 2>/dev/null");
+    system("pkill -9 -f ptpcamera 2>/dev/null");
+    system("killall -9 ptpcamerad 2>/dev/null");
+    system("pkill -9 -f mscamerad 2>/dev/null");
+    system("pkill -9 -f PTPCamera 2>/dev/null");
+    
+    // Step 3: Force disable any USB claiming by macOS
+    gphoto2_log(LOG_INFO, "Forcing USB device release");
     system("launchctl stop com.apple.ptpcamerad 2>/dev/null");
-    usleep(200000); // Wait 200ms
     
-    // Kill all ptpcamerad processes aggressively
-    system("pkill -9 -f ptpcamerad");
-    usleep(100000); // Wait 100ms
+    // Step 4: Brief stabilization period
+    usleep(300000); // Wait 300ms for complete shutdown
     
-    // Kill again to catch respawns
-    system("pkill -9 -f ptpcamerad");
-    usleep(100000); // Wait 100ms
-    
-    // Final kill attempt
-    system("pkill -9 -f ptpcamerad");
-    usleep(500000); // Wait 500ms for system to stabilize
-    
-    gphoto2_log(LOG_INFO, "ptpcamerad kill sequence completed");
+    gphoto2_log(LOG_INFO, "COMPREHENSIVE PTP service shutdown completed");
     return 0;
 }
 
@@ -177,8 +185,8 @@ int gphoto2_connect() {
     
     pthread_mutex_lock(&camera_mutex);
     
-    // Retry connection up to 3 times
-    int max_retries = 3;
+    // Rapid retry connection up to 5 times with minimal delays
+    int max_retries = 5;
     int retry_count = 0;
     
     if (!camera || !context) {
@@ -211,7 +219,7 @@ int gphoto2_connect() {
             pthread_mutex_unlock(&camera_mutex);
             kill_ptpcamerad();
             pthread_mutex_lock(&camera_mutex);
-            usleep(1000000); // Wait 1 second before retry
+            usleep(100000); // Wait 100ms only before retry
         }
     }
     

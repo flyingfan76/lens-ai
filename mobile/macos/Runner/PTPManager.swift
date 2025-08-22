@@ -14,10 +14,10 @@ public class PTPManager: NSObject {
     public static func disablePTPDaemon() -> Bool {
         print("PTPManager: Attempting to disable PTP daemon")
         
-        // Method 1: Use launchctl to unload the daemon
+        // Method 1: Use modern launchctl bootout to disable the daemon
         let task = Process()
         task.launchPath = "/bin/launchctl"
-        task.arguments = ["unload", "/System/Library/LaunchDaemons/com.apple.ptpcamerad.plist"]
+        task.arguments = ["bootout", "system/com.apple.ptpcamerad"]
         
         let pipe = Pipe()
         task.standardOutput = pipe
@@ -64,7 +64,7 @@ public class PTPManager: NSObject {
         
         let task = Process()
         task.launchPath = "/bin/launchctl"
-        task.arguments = ["load", "/System/Library/LaunchDaemons/com.apple.ptpcamerad.plist"]
+        task.arguments = ["bootstrap", "system", "/System/Library/LaunchDaemons/com.apple.ptpcamerad.plist"]
         
         do {
             try task.run()

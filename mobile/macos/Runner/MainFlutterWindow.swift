@@ -21,7 +21,7 @@ class MainFlutterWindow: NSWindow {
     NikonSDKBridge.register(with: registry.registrar(forPlugin: "NikonSDKBridge"))
     print("✅ NikonSDKBridge registered - Camera detection working")
     
-    // Enable LibGPhoto2Swift with bridging header approach
+    // Enable LibGPhoto2Swift with enhanced PTP handling
     LibGPhoto2Swift.register(with: registry.registrar(forPlugin: "LibGPhoto2Swift"))
     print("✅ LibGPhoto2Swift registered - Full D90 camera control enabled")
     

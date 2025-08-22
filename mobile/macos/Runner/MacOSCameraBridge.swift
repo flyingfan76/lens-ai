@@ -102,14 +102,26 @@ class MacOSCameraBridge: NSObject, FlutterPlugin, AVCaptureVideoDataOutputSample
         case .authorized:
             completion(true)
         case .notDetermined:
+            print("MacOSCameraBridge: Requesting camera permissions...")
+            
+            // Add timeout for permission request
+            let timeoutTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) { _ in
+                print("MacOSCameraBridge: Camera permission request timed out")
+                completion(false)
+            }
+            
             AVCaptureDevice.requestAccess(for: .video) { granted in
+                timeoutTimer.invalidate()
                 DispatchQueue.main.async {
+                    print("MacOSCameraBridge: Camera permission granted: \(granted)")
                     completion(granted)
                 }
             }
         case .denied, .restricted:
+            print("MacOSCameraBridge: Camera permission denied or restricted")
             completion(false)
         @unknown default:
+            print("MacOSCameraBridge: Unknown camera permission status")
             completion(false)
         }
     }
@@ -141,6 +153,8 @@ class MacOSCameraBridge: NSObject, FlutterPlugin, AVCaptureVideoDataOutputSample
     }
     
     private func initializeCamera(cameraId: String, result: @escaping FlutterResult) {
+        print("MacOSCameraBridge: Initializing camera with ID: \(cameraId)")
+        
         // Clean up existing session
         cleanupCaptureSession()
         
@@ -150,85 +164,162 @@ class MacOSCameraBridge: NSObject, FlutterPlugin, AVCaptureVideoDataOutputSample
             return
         }
         
-        do {
-            // Create capture session
-            captureSession = AVCaptureSession()
-            captureSession?.sessionPreset = .high
-            
-            // Create device input
-            videoDeviceInput = try AVCaptureDeviceInput(device: device)
-            guard let videoInput = videoDeviceInput else {
-                throw NSError(domain: "MacOSCameraBridge", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to create video input"])
+        // Add timeout for camera initialization
+        let timeoutTimer = Timer.scheduledTimer(withTimeInterval: 15.0, repeats: false) { _ in
+            print("MacOSCameraBridge: Camera initialization timed out")
+            self.cleanupCaptureSession()
+            result(FlutterError(code: "CAMERA_TIMEOUT", message: "Camera initialization timed out after 15 seconds", details: nil))
+        }
+        
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            do {
+                guard let self = self else { return }
+                
+                print("MacOSCameraBridge: Creating capture session...")
+                
+                // Create capture session
+                self.captureSession = AVCaptureSession()
+                self.captureSession?.sessionPreset = .high
+                
+                // Create device input
+                self.videoDeviceInput = try AVCaptureDeviceInput(device: device)
+                guard let videoInput = self.videoDeviceInput else {
+                    throw NSError(domain: "MacOSCameraBridge", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to create video input"])
+                }
+                
+                if self.captureSession?.canAddInput(videoInput) == true {
+                    self.captureSession?.addInput(videoInput)
+                    self.videoDevice = device
+                    print("MacOSCameraBridge: Video input added successfully")
+                } else {
+                    throw NSError(domain: "MacOSCameraBridge", code: 2, userInfo: [NSLocalizedDescriptionKey: "Cannot add video input to session"])
+                }
+                
+                // Create video output for live stream
+                self.videoOutput = AVCaptureVideoDataOutput()
+                
+                if self.captureSession?.canAddOutput(self.videoOutput!) == true {
+                    self.captureSession?.addOutput(self.videoOutput!)
+                    print("MacOSCameraBridge: Video output added successfully")
+                }
+                
+                // Create photo output
+                self.photoOutput = AVCapturePhotoOutput()
+                if self.captureSession?.canAddOutput(self.photoOutput!) == true {
+                    self.captureSession?.addOutput(self.photoOutput!)
+                    print("MacOSCameraBridge: Photo output added successfully")
+                }
+                
+                // Start the session with timeout protection
+                print("MacOSCameraBridge: Starting capture session...")
+                self.captureSession?.startRunning()
+                
+                // Wait a moment for session to stabilize
+                Thread.sleep(forTimeInterval: 0.5)
+                
+                DispatchQueue.main.async {
+                    timeoutTimer.invalidate()
+                    
+                    if self.captureSession?.isRunning == true {
+                        self.isInitialized = true
+                        print("MacOSCameraBridge: Camera initialized successfully")
+                        
+                        let cameraInfo = [
+                            "textureId": 0, // Not used for macOS implementation
+                            "previewWidth": 1920.0,
+                            "previewHeight": 1080.0
+                        ]
+                        
+                        result(cameraInfo)
+                    } else {
+                        print("MacOSCameraBridge: Capture session failed to start")
+                        self.cleanupCaptureSession()
+                        result(FlutterError(code: "CAMERA_ERROR", message: "Capture session failed to start", details: nil))
+                    }
+                }
+                
+            } catch {
+                DispatchQueue.main.async {
+                    timeoutTimer.invalidate()
+                    print("MacOSCameraBridge: Camera initialization error: \(error.localizedDescription)")
+                    self.cleanupCaptureSession()
+                    result(FlutterError(code: "CAMERA_ERROR", message: "Failed to initialize camera: \(error.localizedDescription)", details: nil))
+                }
             }
-            
-            if captureSession?.canAddInput(videoInput) == true {
-                captureSession?.addInput(videoInput)
-                videoDevice = device
-            } else {
-                throw NSError(domain: "MacOSCameraBridge", code: 2, userInfo: [NSLocalizedDescriptionKey: "Cannot add video input to session"])
-            }
-            
-            // Create video output for live stream
-            videoOutput = AVCaptureVideoDataOutput()
-            
-            if captureSession?.canAddOutput(videoOutput!) == true {
-                captureSession?.addOutput(videoOutput!)
-            }
-            
-            // Create photo output
-            photoOutput = AVCapturePhotoOutput()
-            if captureSession?.canAddOutput(photoOutput!) == true {
-                captureSession?.addOutput(photoOutput!)
-            }
-            
-            // Start the session
-            captureSession?.startRunning()
-            
-            isInitialized = true
-            
-            let cameraInfo = [
-                "textureId": 0, // Not used for macOS implementation
-                "previewWidth": 1920.0,
-                "previewHeight": 1080.0
-            ]
-            
-            result(cameraInfo)
-            
-        } catch {
-            result(FlutterError(code: "CAMERA_ERROR", message: "Failed to initialize camera: \(error.localizedDescription)", details: nil))
         }
     }
     
     private func startImageStream(result: @escaping FlutterResult) {
+        print("MacOSCameraBridge: Starting image stream...")
+        
         guard isInitialized else {
+            print("MacOSCameraBridge: Camera not initialized for image stream")
             result(FlutterError(code: "NOT_INITIALIZED", message: "Camera not initialized", details: nil))
             return
         }
         
         guard let videoOutput = videoOutput else {
+            print("MacOSCameraBridge: Video output not configured")
             result(FlutterError(code: "NO_VIDEO_OUTPUT", message: "Video output not configured", details: nil))
             return
         }
         
-        // Configure video output for live streaming
-        let videoSettings: [String: Any] = [
-            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
-        ]
-        videoOutput.videoSettings = videoSettings
-        
-        // Set up delegate for receiving frames
-        let queue = DispatchQueue(label: "camera_frames")
-        videoOutput.setSampleBufferDelegate(self, queue: queue)
-        
-        // Start the capture session if not already running
-        if !captureSession!.isRunning {
-            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-                self?.captureSession?.startRunning()
-            }
+        guard eventSink != nil else {
+            print("MacOSCameraBridge: Event sink not ready")
+            result(FlutterError(code: "EVENT_SINK_NOT_READY", message: "Event sink not initialized", details: nil))
+            return
         }
         
-        print("MacOSCameraBridge: Image stream started")
-        result(nil)
+        // Add timeout for stream start
+        let timeoutTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: false) { _ in
+            print("MacOSCameraBridge: Image stream start timed out")
+            result(FlutterError(code: "STREAM_TIMEOUT", message: "Image stream failed to start within 10 seconds", details: nil))
+        }
+        
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            
+            do {
+                // Configure video output for live streaming
+                let videoSettings: [String: Any] = [
+                    kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
+                ]
+                videoOutput.videoSettings = videoSettings
+                
+                // Set up delegate for receiving frames
+                let queue = DispatchQueue(label: "camera_frames", qos: .userInitiated)
+                videoOutput.setSampleBufferDelegate(self, queue: queue)
+                
+                // Ensure capture session is running
+                if let session = self.captureSession {
+                    if !session.isRunning {
+                        print("MacOSCameraBridge: Starting capture session for image stream...")
+                        session.startRunning()
+                        
+                        // Wait for session to stabilize
+                        Thread.sleep(forTimeInterval: 1.0)
+                    }
+                    
+                    DispatchQueue.main.async {
+                        timeoutTimer.invalidate()
+                        
+                        if session.isRunning {
+                            print("MacOSCameraBridge: Image stream started successfully")
+                            result(nil)
+                        } else {
+                            print("MacOSCameraBridge: Failed to start capture session for image stream")
+                            result(FlutterError(code: "STREAM_ERROR", message: "Failed to start capture session", details: nil))
+                        }
+                    }
+                } else {
+                    DispatchQueue.main.async {
+                        timeoutTimer.invalidate()
+                        print("MacOSCameraBridge: No capture session available")
+                        result(FlutterError(code: "NO_SESSION", message: "No capture session available", details: nil))
+                    }
+                }
+            }
+        }
     }
     
     private func stopImageStream(result: @escaping FlutterResult) {
@@ -320,26 +411,43 @@ class MacOSCameraBridge: NSObject, FlutterPlugin, AVCaptureVideoDataOutputSample
     }
     
     private func cleanupCaptureSession() {
-        captureSession?.stopRunning()
+        print("MacOSCameraBridge: Cleaning up capture session...")
         
-        if let inputs = captureSession?.inputs {
-            for input in inputs {
-                captureSession?.removeInput(input)
+        // Stop video output delegate first
+        videoOutput?.setSampleBufferDelegate(nil, queue: nil)
+        
+        // Stop the capture session
+        if let session = captureSession {
+            if session.isRunning {
+                print("MacOSCameraBridge: Stopping capture session...")
+                session.stopRunning()
+            }
+            
+            // Remove all inputs
+            if let inputs = session.inputs {
+                for input in inputs {
+                    session.removeInput(input)
+                }
+            }
+            
+            // Remove all outputs
+            if let outputs = session.outputs {
+                for output in outputs {
+                    session.removeOutput(output)
+                }
             }
         }
         
-        if let outputs = captureSession?.outputs {
-            for output in outputs {
-                captureSession?.removeOutput(output)
-            }
-        }
-        
+        // Clear all references
         captureSession = nil
         videoDevice = nil
         videoDeviceInput = nil
         videoOutput = nil
         photoOutput = nil
         previewLayer = nil
+        isInitialized = false
+        
+        print("MacOSCameraBridge: Capture session cleanup completed")
     }
 }
 

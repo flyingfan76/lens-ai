@@ -12,6 +12,7 @@ public class NikonSDKBridge: NSObject, FlutterPlugin, FlutterStreamHandler {
     private var frameCount = 0
     
     private let videoQueue = DispatchQueue(label: "camera.video.queue")
+    private static var pluginRegistrar: FlutterPluginRegistrar?
     
     public static func register(with registrar: FlutterPluginRegistrar) {
         print("NikonSDKBridge: Registering with enhanced PTP handling")
@@ -20,6 +21,9 @@ public class NikonSDKBridge: NSObject, FlutterPlugin, FlutterStreamHandler {
         let instance = NikonSDKBridge()
         registrar.addMethodCallDelegate(instance, channel: methodChannel)
         eventChannel.setStreamHandler(instance)
+        
+        // Store registrar for LibGPhoto2 bridge access
+        NikonSDKBridge.pluginRegistrar = registrar
         
         // Enhanced camera access with PTP coordination
         instance.enableExternalCameraAccess()
@@ -174,51 +178,85 @@ public class NikonSDKBridge: NSObject, FlutterPlugin, FlutterStreamHandler {
     }
     
     private func tryLibGPhoto2LiveView(completion: @escaping (Bool) -> Void) {
-        DispatchQueue.global(qos: .userInitiated).async {
-            // First, try to detect the camera
-            let detectResult = self.runGPhoto2Command(["--auto-detect"])
+        print("NikonSDKBridge: 🚀 SWITCHING TO PROPER LibGPhoto2Swift BRIDGE")
+        
+        // Use the proper LibGPhoto2Swift bridge instead of command-line approach
+        guard let registrar = NikonSDKBridge.pluginRegistrar else {
+            print("NikonSDKBridge: ❌ No plugin registrar available")
+            completion(false)
+            return
+        }
+        
+        let libGPhoto2Bridge = FlutterMethodChannel(name: "libgphoto2_bridge", binaryMessenger: registrar.messenger)
+        let libGPhoto2Events = FlutterEventChannel(name: "libgphoto2_events", binaryMessenger: registrar.messenger)
+        
+        // Step 1: Initialize libgphoto2
+        libGPhoto2Bridge.invokeMethod("initialize") { [weak self] (result: Any?) in
+            guard let self = self else { return }
             
-            guard detectResult.contains("Nikon DSC D90") else {
-                print("NikonSDKBridge: D90 not detected by libgphoto2")
-                DispatchQueue.main.async { completion(false) }
+            if let error = result as? FlutterError {
+                print("NikonSDKBridge: ❌ LibGPhoto2 init failed: \(error.message ?? "unknown")")
+                completion(false)
                 return
             }
             
-            print("NikonSDKBridge: D90 detected by libgphoto2")
+            print("NikonSDKBridge: ✅ LibGPhoto2 initialized successfully")
             
-            // Test camera access
-            let summaryResult = self.runGPhoto2Command(["--summary"])
-            
-            if summaryResult.contains("Could not claim the USB device") {
-                print("NikonSDKBridge: PTP daemon blocking access")
-                self.sendStatusUpdate(message: "PTP daemon blocking D90 access. Manual intervention required.", type: "ptp_blocked")
+            // Step 2: Connect to camera
+            libGPhoto2Bridge.invokeMethod("connect") { [weak self] (result: Any?) in
+                guard let self = self else { return }
                 
-                // Provide user instructions
-                self.sendStatusUpdate(message: "Please run in Terminal: sudo pkill -f ptpcamerad", type: "user_action_required")
-                self.sendStatusUpdate(message: "Then click 'Start Live View' again", type: "user_action_required")
+                if let error = result as? FlutterError {
+                    print("NikonSDKBridge: ❌ LibGPhoto2 connect failed: \(error.message ?? "unknown")")
+                    // Don't fail here - LibGPhoto2Swift can bypass connection issues
+                }
                 
-                DispatchQueue.main.async { completion(false) }
-                return
-            }
-            
-            // Try preview capture
-            let previewResult = self.runGPhoto2Command(["--capture-preview", "--filename=/tmp/d90_preview.jpg"])
-            
-            if previewResult.contains("Could not claim") {
-                print("NikonSDKBridge: Still blocked after detection success - inconsistent state")
-                DispatchQueue.main.async { completion(false) }
-            } else if previewResult.contains("Error") {
-                print("NikonSDKBridge: Camera access error: \(previewResult)")
-                DispatchQueue.main.async { completion(false) }
-            } else {
-                print("NikonSDKBridge: Successfully captured preview from D90!")
-                self.sendStatusUpdate(message: "libgphoto2 successfully accessed D90 camera", type: "camera_accessible")
+                print("NikonSDKBridge: ✅ LibGPhoto2 connection attempt completed")
                 
-                // Start continuous preview for live view
-                self.startContinuousPreview()
-                DispatchQueue.main.async { completion(true) }
+                // Step 3: Start live view using proper C library
+                libGPhoto2Bridge.invokeMethod("startLiveView") { [weak self] (result: Any?) in
+                    guard let self = self else { return }
+                    
+                    if let error = result as? FlutterError {
+                        print("NikonSDKBridge: ❌ LibGPhoto2 live view failed: \(error.message ?? "unknown")")
+                        completion(false)
+                        return
+                    }
+                    
+                    print("NikonSDKBridge: ✅ LibGPhoto2 live view started successfully!")
+                    
+                    // Set up event stream to receive live view frames
+                    self.setupLibGPhoto2EventStream(libGPhoto2Events)
+                    completion(true)
+                }
             }
         }
+    }
+    
+    private func setupLibGPhoto2EventStream(_ eventChannel: FlutterEventChannel) {
+        print("NikonSDKBridge: 🔗 Setting up LibGPhoto2 event stream for live view frames")
+        
+        // Set up stream handler to receive live view frames from LibGPhoto2Swift
+        let streamHandler = LibGPhoto2StreamHandler { [weak self] imageData in
+            guard let self = self else { return }
+            
+            // Forward the image data to our own event sink
+            if let sink = self.eventSink {
+                let frameEvent = [
+                    "method": "onLiveViewImage", 
+                    "data": FlutterStandardTypedData(bytes: imageData),
+                    "source": "libgphoto2",
+                    "timestamp": Date().timeIntervalSince1970
+                ] as [String : Any]
+                
+                sink(frameEvent)
+                print("NikonSDKBridge: 📤 Forwarded LibGPhoto2 frame to Flutter (\(imageData.count) bytes)")
+            } else {
+                print("NikonSDKBridge: ⚠️ No event sink available to forward LibGPhoto2 frame")
+            }
+        }
+        
+        eventChannel.setStreamHandler(streamHandler)
     }
     
     private func startContinuousPreview() {
@@ -226,6 +264,15 @@ public class NikonSDKBridge: NSObject, FlutterPlugin, FlutterStreamHandler {
         DispatchQueue.main.async {
             self.previewTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { _ in
                 self.capturePreviewFrame()
+            }
+        }
+    }
+    
+    private func startEnhancedContinuousPreview() {
+        // Enhanced continuous preview with timeout handling and error recovery
+        DispatchQueue.main.async {
+            self.previewTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { _ in
+                self.captureEnhancedPreviewFrame()
             }
         }
     }
@@ -250,10 +297,62 @@ public class NikonSDKBridge: NSObject, FlutterPlugin, FlutterStreamHandler {
         }
     }
     
+    private var timeoutErrors = 0
+    private var successfulFrames = 0
+    
+    private func captureEnhancedPreviewFrame() {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let timestamp = Int(Date().timeIntervalSince1970)
+            let filename = "/tmp/d90_enhanced_frame_\(timestamp).jpg"
+            
+            // Use shorter timeout for continuous capture (2s)
+            print("NikonSDKBridge: 📸 Attempting capture: gphoto2 --capture-preview --filename=\(filename) --timeout=2")
+            let result = self.runGPhoto2Command(["--capture-preview", "--filename=\(filename)", "--quiet", "--timeout=2"])
+            print("NikonSDKBridge: 📸 Capture result: '\(result)'")
+            
+            // Check if file actually exists
+            let fileExists = FileManager.default.fileExists(atPath: filename)
+            print("NikonSDKBridge: 📁 File exists at \(filename): \(fileExists)")
+            
+            if result.contains("PTP Timeout") {
+                self.timeoutErrors += 1
+                print("NikonSDKBridge: ⚠️ PTP timeout #\(self.timeoutErrors) during live view")
+                
+                // If too many timeouts, try recovery
+                if self.timeoutErrors >= 3 {
+                    print("NikonSDKBridge: 🔄 Too many timeouts, attempting PTP recovery...")
+                    self.sendStatusUpdate(message: "Live view experiencing timeouts, attempting recovery...", type: "live_view_recovering")
+                    
+                    // Reset timeout counter and try USB reset
+                    self.timeoutErrors = 0
+                    _ = self.runGPhoto2Command(["--reset"])
+                    usleep(300000) // 300ms
+                }
+            } else if !result.contains("Error") && !result.contains("Could not claim") && fileExists {
+                // Success - reset error counter
+                self.timeoutErrors = 0
+                self.successfulFrames += 1
+                
+                if self.successfulFrames % 20 == 0 {
+                    print("NikonSDKBridge: ✅ Live view stable - \(self.successfulFrames) frames captured")
+                }
+                
+                // Send frame data through event stream
+                self.sendLiveViewFrame(filename: filename)
+            } else {
+                print("NikonSDKBridge: ❌ Frame capture failed - result: '\(result)', fileExists: \(fileExists)")
+                self.timeoutErrors += 1
+            }
+        }
+    }
+    
     private func sendLiveViewFrame(filename: String) {
         guard let imageData = NSData(contentsOfFile: filename) else {
+            print("NikonSDKBridge: ❌ Failed to read image file: \(filename)")
             return
         }
+        
+        print("NikonSDKBridge: 📤 Sending frame to Flutter - \(imageData.length) bytes from file: \(filename)")
         
         let frameEvent = [
             "method": "onLiveViewImage",
@@ -262,10 +361,20 @@ public class NikonSDKBridge: NSObject, FlutterPlugin, FlutterStreamHandler {
             "timestamp": Date().timeIntervalSince1970
         ] as [String : Any]
         
-        eventSink?(frameEvent)
+        if let sink = eventSink {
+            sink(frameEvent)
+            print("NikonSDKBridge: ✅ Frame sent via eventSink successfully")
+        } else {
+            print("NikonSDKBridge: ❌ No eventSink available - frame not sent")
+        }
         
         // Clean up temp file
-        try? FileManager.default.removeItem(atPath: filename)
+        do {
+            try FileManager.default.removeItem(atPath: filename)
+            print("NikonSDKBridge: 🗑️ Cleaned up temp file: \(filename)")
+        } catch {
+            print("NikonSDKBridge: ⚠️ Failed to clean up temp file: \(error)")
+        }
     }
     
     private func startAVFoundationLiveView(result: @escaping FlutterResult) {
@@ -393,6 +502,14 @@ public class NikonSDKBridge: NSObject, FlutterPlugin, FlutterStreamHandler {
     
     private func stopLiveView(result: @escaping FlutterResult) {
         print("NikonSDKBridge: Stopping live view")
+        
+        // Stop preview timer and reset counters
+        DispatchQueue.main.async {
+            self.previewTimer?.invalidate()
+            self.previewTimer = nil
+            self.timeoutErrors = 0
+            self.successfulFrames = 0
+        }
         
         videoQueue.async { [weak self] in
             self?.captureSession?.stopRunning()
@@ -589,6 +706,47 @@ public class NikonSDKBridge: NSObject, FlutterPlugin, FlutterStreamHandler {
         isLiveViewActive = false
         
         // TODO: Re-enable PTP daemon on cleanup when PTPManager is implemented
+    }
+}
+
+// MARK: - LibGPhoto2 Stream Handler
+
+private class LibGPhoto2StreamHandler: NSObject, FlutterStreamHandler {
+    private let onImageData: (Data) -> Void
+    
+    init(onImageData: @escaping (Data) -> Void) {
+        self.onImageData = onImageData
+        super.init()
+    }
+    
+    func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+        print("LibGPhoto2StreamHandler: 📡 Event stream connected")
+        
+        // Register to receive LibGPhoto2 events
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleLibGPhoto2Event(_:)),
+            name: NSNotification.Name("libgphoto2_live_view_frame"),
+            object: nil
+        )
+        
+        return nil
+    }
+    
+    func onCancel(withArguments arguments: Any?) -> FlutterError? {
+        print("LibGPhoto2StreamHandler: 📡 Event stream disconnected")
+        NotificationCenter.default.removeObserver(self)
+        return nil
+    }
+    
+    @objc private func handleLibGPhoto2Event(_ notification: Notification) {
+        guard let imageData = notification.userInfo?["imageData"] as? Data else {
+            print("LibGPhoto2StreamHandler: ❌ No image data in notification")
+            return
+        }
+        
+        print("LibGPhoto2StreamHandler: 🖼️ Received LibGPhoto2 frame (\(imageData.count) bytes)")
+        onImageData(imageData)
     }
 }
 

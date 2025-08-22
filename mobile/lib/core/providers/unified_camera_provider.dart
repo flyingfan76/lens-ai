@@ -246,16 +246,39 @@ class UnifiedCameraProvider extends ChangeNotifier {
     try {
       debugPrint('UnifiedCameraProvider: Switching to external camera: ${camera.name}');
       
-      // Disconnect from other cameras if active
+      // Disconnect from other cameras if active (but preserve external camera connections)
       await _disconnectFromAllCameras();
       
-      // Disconnect from current external camera if different
+      // CRITICAL FIX: Only disconnect from external camera if it's ACTUALLY a different camera
+      // Previously this was breaking D90 reconnection by disconnecting the same camera
       if (_activeExternalCamera != null && _activeExternalCamera!.id != camera.id) {
+        debugPrint('UnifiedCameraProvider: Switching to different external camera, disconnecting previous: ${_activeExternalCamera!.name}');
         await disconnectFromExternalCamera();
+      } else if (_activeExternalCamera != null && _activeExternalCamera!.id == camera.id) {
+        debugPrint('UnifiedCameraProvider: Same external camera selected (${camera.name}), preserving connection and reusing');
+        // Don't disconnect - we're switching back to the same camera!
+        _activeExternalCamera = camera; // Update reference
+        _activeCameraType = CameraSourceType.external;
+        _isInitialized = true;
+        _error = null;
+        notifyListeners();
+        debugPrint('UnifiedCameraProvider: Successfully reactivated same external camera: ${camera.name}');
+        return true;
       }
       
-      // Connect to external camera
-      final connected = await _externalCameraService.connectToCamera(camera.id);
+      // Check if camera is already connected (preserved from previous session)
+      final currentCamera = _externalCameraService.discoveredCameras
+          .firstWhere((c) => c.id == camera.id, orElse: () => camera);
+      
+      bool connected = currentCamera.isConnected;
+      
+      // Only attempt connection if not already connected
+      if (!connected) {
+        debugPrint('UnifiedCameraProvider: Camera not connected, attempting connection...');
+        connected = await _externalCameraService.connectToCamera(camera.id);
+      } else {
+        debugPrint('UnifiedCameraProvider: Camera already connected, reusing connection');
+      }
       
       if (connected) {
         // Get the updated camera object from the service to ensure we have the latest connection state
@@ -268,7 +291,7 @@ class UnifiedCameraProvider extends ChangeNotifier {
         
         notifyListeners();
         
-        debugPrint('UnifiedCameraProvider: Successfully switched to external camera');
+        debugPrint('UnifiedCameraProvider: Successfully switched to external camera (connection preserved)');
         return true;
       } else {
         // Provide more specific error message based on camera type
@@ -329,10 +352,15 @@ class UnifiedCameraProvider extends ChangeNotifier {
       _macOSCameraStream = null;
     }
     
-    // Disconnect external camera
-    if (_activeExternalCamera != null) {
-      await disconnectFromExternalCamera();
+    // CRITICAL FIX: Stop live view without disconnecting external camera 
+    // This preserves the camera connection state for faster switching
+    if (_activeExternalCamera != null && _externalCameraService.isLiveViewActive) {
+      debugPrint('UnifiedCameraProvider: Stopping external camera live view without disconnecting');
+      await _externalCameraService.stopLiveView();
     }
+    
+    // Don't disconnect external camera - this was causing the switching issue!
+    // External cameras should remain connected for faster switching
   }
 
   Future<void> refreshExternalCameras() async {
@@ -386,13 +414,20 @@ class UnifiedCameraProvider extends ChangeNotifier {
 
   /// Start live view for the active camera
   Future<bool> startLiveView() async {
-    debugPrint('======================================');
-    debugPrint('UnifiedCameraProvider: startLiveView called');
+    debugPrint('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+    debugPrint('🚀 LIVE VIEW START ATTEMPT - UnifiedCameraProvider.startLiveView() CALLED');
     debugPrint('UnifiedCameraProvider: _activeCameraType = $_activeCameraType');
     debugPrint('UnifiedCameraProvider: _activeExternalCamera = $_activeExternalCamera');
     debugPrint('UnifiedCameraProvider: _activeMacOSCamera = $_activeMacOSCamera');
     debugPrint('UnifiedCameraProvider: Current error state = $_error');
-    debugPrint('======================================');
+    debugPrint('UnifiedCameraProvider: isLiveViewActive = $isLiveViewActive');
+    debugPrint('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+    
+    // CRITICAL FIX: Prevent infinite loop by checking if live view is already active
+    if (isLiveViewActive) {
+      debugPrint('UnifiedCameraProvider: ⚠️ Live view already active - skipping start attempt');
+      return true; // Already active, return success
+    }
     
     if (_activeCameraType == CameraSourceType.builtinMacOS) {
       return await _startMacOSLiveView();
@@ -414,26 +449,66 @@ class UnifiedCameraProvider extends ChangeNotifier {
       return false;
     }
 
-    try {
-      debugPrint('UnifiedCameraProvider: Starting macOS live view for ${_activeMacOSCamera!.name}');
-      _macOSCameraStream = _macOSCameraService.startImageStream();
-      
-      if (_macOSCameraStream != null) {
-        debugPrint('UnifiedCameraProvider: macOS live view started successfully for ${_activeMacOSCamera!.name}');
+    // Retry logic for macOS live view
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      try {
+        debugPrint('UnifiedCameraProvider: Starting macOS live view attempt $attempt/3 for ${_activeMacOSCamera!.name}');
+        
+        // Clear any previous error
+        _error = null;
         notifyListeners();
-        return true;
-      } else {
-        debugPrint('UnifiedCameraProvider: macOS live view failed to start for ${_activeMacOSCamera!.name}');
-        _error = 'Failed to start macOS live view';
-        notifyListeners();
-        return false;
+        
+        // Initialize the camera if not already done
+        if (!_macOSCameraService.isInitialized) {
+          debugPrint('UnifiedCameraProvider: Initializing macOS camera service...');
+          final initSuccess = await _macOSCameraService.initialize();
+          if (!initSuccess) {
+            throw Exception('Failed to initialize macOS camera service');
+          }
+          
+          // Initialize the specific camera
+          final cameraInitSuccess = await _macOSCameraService.initializeCamera(_activeMacOSCamera!.id);
+          if (!cameraInitSuccess) {
+            throw Exception('Failed to initialize camera ${_activeMacOSCamera!.id}');
+          }
+        }
+        
+        // Start the image stream with timeout
+        _macOSCameraStream = _macOSCameraService.startImageStream();
+        
+        if (_macOSCameraStream != null) {
+          debugPrint('UnifiedCameraProvider: macOS live view started successfully for ${_activeMacOSCamera!.name}');
+          _error = null;
+          notifyListeners();
+          return true;
+        } else {
+          throw Exception('Image stream returned null');
+        }
+        
+      } catch (e) {
+        debugPrint('UnifiedCameraProvider: macOS live view attempt $attempt failed: $e');
+        
+        if (attempt < 3) {
+          // Wait before retry
+          await Future.delayed(Duration(seconds: 2));
+          
+          // Clean up before retry
+          try {
+            await _macOSCameraService.stopImageStream();
+          } catch (cleanupError) {
+            debugPrint('UnifiedCameraProvider: Cleanup error during retry: $cleanupError');
+          }
+        } else {
+          // Final attempt failed
+          _error = 'Failed to start macOS live view after 3 attempts: $e';
+          debugPrint('UnifiedCameraProvider: ${_error}');
+          notifyListeners();
+          return false;
+        }
       }
-    } catch (e) {
-      _error = 'macOS live view error: $e';
-      debugPrint('UnifiedCameraProvider: macOS live view error: $e');
-      notifyListeners();
-      return false;
     }
+    
+    return false;
   }
 
   Future<bool> _startExternalLiveView() async {
@@ -449,6 +524,8 @@ class UnifiedCameraProvider extends ChangeNotifier {
       final success = await _externalCameraService.startLiveView(_activeExternalCamera!.id);
       if (success) {
         debugPrint('UnifiedCameraProvider: External live view started successfully for ${_activeExternalCamera!.name}');
+        _error = null;
+        notifyListeners(); // CRITICAL FIX: Notify UI that live view state changed
       } else {
         debugPrint('UnifiedCameraProvider: External live view failed to start for ${_activeExternalCamera!.name}');
         _error = 'Failed to start external live view';

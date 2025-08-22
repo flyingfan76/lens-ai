@@ -746,6 +746,49 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
     return true;
   }
 
+  /// Build connection status widget for retry attempts
+  Widget _buildConnectionStatus(String errorMessage) {
+    final attemptMatch = RegExp(r'attempt (\d+)/3').firstMatch(errorMessage);
+    final attemptText = attemptMatch != null ? 'Attempt ${attemptMatch.group(1)} of 3' : 'Connecting...';
+    
+    return Container(
+      color: Colors.black,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(
+              color: AppColors.accent,
+              strokeWidth: 3,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Connecting to Camera',
+              style: AppTypography.title3Bold.copyWith(
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              attemptText,
+              style: AppTypography.bodyMedium.copyWith(
+                color: Colors.white70,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Please wait while we establish the connection...',
+              style: AppTypography.footnoteRegular.copyWith(
+                color: Colors.white60,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // macOS Camera Preview Methods
   Widget _buildMacOSCameraPreview(BuiltInCamera camera) {
     return Consumer<UnifiedCameraProvider>(
@@ -753,6 +796,11 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
         // If live view is active, show the live stream
         if (provider.isLiveViewActive && provider.liveViewStream != null) {
           return _buildLiveViewStream(provider.liveViewStream!, macOSCamera: camera);
+        }
+        
+        // Show connection status if there's an error
+        if (provider.error != null && provider.error!.contains('attempt')) {
+          return _buildConnectionStatus(provider.error!);
         }
         
         // Otherwise show camera info with live view controls
@@ -861,32 +909,105 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Start Live View button
-              ElevatedButton.icon(
-                onPressed: () async {
-                  debugPrint('🎥 Starting macOS live view for ${camera.name}');
-                  final success = await provider.startLiveView();
-                  if (!success && provider.error != null) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Live view failed: ${provider.error}'),
-                          backgroundColor: AppColors.error,
-                        ),
-                      );
-                    }
-                  }
+              // Start Live View button with progress indicator
+              Consumer<UnifiedCameraProvider>(
+                builder: (context, liveViewProvider, child) {
+                  final isStartingLiveView = liveViewProvider.error?.contains('attempt') == true;
+                  
+                  return ElevatedButton.icon(
+                    onPressed: isStartingLiveView ? null : () async {
+                      debugPrint('🎥 Starting macOS live view for ${camera.name}');
+                      
+                      // Show progress dialog
+                      if (mounted) {
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const CircularProgressIndicator(),
+                                  const SizedBox(height: 16),
+                                  const Text('Connecting to camera...'),
+                                  const SizedBox(height: 8),
+                                  Consumer<UnifiedCameraProvider>(
+                                    builder: (context, progressProvider, child) {
+                                      if (progressProvider.error?.contains('attempt') == true) {
+                                        final match = RegExp(r'attempt (\d+)/3').firstMatch(progressProvider.error ?? '');
+                                        if (match != null) {
+                                          return Text('Retry ${match.group(1)} of 3', style: TextStyle(fontSize: 12));
+                                        }
+                                      }
+                                      return const Text('Please wait...', style: TextStyle(fontSize: 12));
+                                    },
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        );
+                      }
+                      
+                      try {
+                        final success = await provider.startLiveView();
+                        
+                        // Close progress dialog
+                        if (mounted) {
+                          Navigator.of(context).pop();
+                        }
+                        
+                        if (!success && provider.error != null) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Live view failed: ${provider.error}'),
+                                backgroundColor: AppColors.error,
+                                duration: const Duration(seconds: 5),
+                                action: SnackBarAction(
+                                  label: 'Retry',
+                                  textColor: Colors.white,
+                                  onPressed: () {
+                                    // Retry live view
+                                    provider.startLiveView();
+                                  },
+                                ),
+                              ),
+                            );
+                          }
+                        }
+                      } catch (e) {
+                        // Close progress dialog on error
+                        if (mounted) {
+                          Navigator.of(context).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Unexpected error: $e'),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    icon: isStartingLiveView 
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.play_arrow, size: 18),
+                    label: Text(isStartingLiveView ? 'Connecting...' : 'Start Live View'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                  );
                 },
-                icon: const Icon(Icons.play_arrow, size: 18),
-                label: const Text('Start Live View'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
               ),
             ],
           ),
