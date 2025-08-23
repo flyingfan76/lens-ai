@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 import '../services/ai_response_parser.dart';
-import '../services/ai_backend_service.dart';
 
 /// Widget to display AI analysis results with camera settings and composition suggestions
 class AISuggestionResult extends StatefulWidget {
@@ -403,12 +402,10 @@ class _AISuggestionResultState extends State<AISuggestionResult> {
     });
 
     try {
-      final success = await CameraSettingsApplicator.applyCameraSettings(
-        widget.response.cameraSettings,
-        widget.onApplyCameraSettings!,
-      );
+      // Apply camera settings directly through the callback
+      widget.onApplyCameraSettings!(widget.response.cameraSettings);
 
-      if (success && mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Camera settings applied'),

@@ -8,6 +8,7 @@ import '../core/theme/app_typography.dart';
 import '../core/utils/disposal_mixin.dart';
 import '../widgets/white_balance_control.dart';
 import '../services/ai/ai_coordinator.dart';
+import '../services/ai/enhanced_ai_coordinator.dart';
 import '../services/ai/cloud_ai_service.dart';
 import '../models/ai_suggestion.dart';
 import '../models/ai_provider_config.dart';
@@ -34,8 +35,8 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
   late WhiteBalanceSettings _wbSettings;
   late UnifiedCameraProvider _cameraProvider;
   
-  // AI suggestion state
-  late AICoordinator _aiCoordinator;
+  // AI suggestion state - Enhanced with capability awareness
+  late EnhancedAICoordinator _aiCoordinator;
   List<AISuggestion> _currentSuggestions = [];
   Set<String> _selectedSuggestionIds = {}; // Track selected suggestions for bulk apply
   bool _showAISuggestionDialog = false;
@@ -72,6 +73,8 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
       setState(() {
         _showCameraSelector = false;
       });
+      // Validate AI state after camera switch
+      _validateAIState();
     }
   }
 
@@ -81,6 +84,8 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
       setState(() {
         _showCameraSelector = false;
       });
+      // Validate AI state after camera switch
+      _validateAIState();
     }
   }
 
@@ -90,6 +95,8 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
       setState(() {
         _showCameraSelector = false;
       });
+      // Validate AI state after camera switch
+      _validateAIState();
     }
   }
 
@@ -97,8 +104,8 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
     try {
       debugPrint('🔧 Loading AI configuration from settings...');
       
-      // Initialize with default configuration first
-      _aiCoordinator = AICoordinator();
+      // Initialize with enhanced capability-aware AI coordinator
+      _aiCoordinator = EnhancedAICoordinator();
       
       // Load AI configuration from settings
       final aiConfig = await _loadAIConfigurationFromSettings();
@@ -112,7 +119,7 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
         // Force re-initialization to pick up new configuration
         debugPrint('🔄 Force re-initializing AI Coordinator...');
         AICoordinator.resetSingleton();
-        _aiCoordinator = AICoordinator(configuration: coordinatorConfig);
+        _aiCoordinator = EnhancedAICoordinator(configuration: coordinatorConfig);
         await _aiCoordinator.initialize();
         debugPrint('✅ AI Coordinator re-initialized with new settings');
       } else {
@@ -1131,6 +1138,10 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
                 
                 if (_isValidJpegFrame(frameData)) {
                   _lastValidFrame = frameData;
+                  // Validate AI state when new frame becomes available
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) _validateAIState();
+                  });
                   return _buildOptimizedLiveViewDisplay(frameData, externalCamera);
                 } else {
                   debugPrint('📺 StreamBuilder: Invalid JPEG frame, showing loading...');
@@ -3280,11 +3291,11 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
         final sceneAnalysis = await _aiCoordinator.analyzeImage(frameData);
         debugPrint('📊 Scene analysis: ${sceneAnalysis.sceneType}, brightness: ${sceneAnalysis.brightness}, colors: ${sceneAnalysis.dominantColors}');
         
-        // Then generate suggestions using both scene analysis and image data
-        final result = await _aiCoordinator.generateSuggestions(
+        // Generate capability-aware suggestions using enhanced AI coordinator
+        final result = await _aiCoordinator.generateEnhancedSuggestions(
           sceneAnalysis: sceneAnalysis,
+          cameraProvider: _cameraProvider, // New: enables capability filtering
           imageBytes: frameData,
-          cameraModel: _cameraProvider.activeExternalCamera?.name ?? 'Unknown Camera',
         );
         
         debugPrint('✅ AI Analysis complete: ${result.suggestions.length} suggestions (confidence: ${result.confidence})');
@@ -3295,13 +3306,14 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
       } else {
         // Fallback to basic scene analysis if no frame available
         debugPrint('⚠️ No live view frame available, using basic scene analysis');
-        final result = await _aiCoordinator.generateSuggestions(
+        final result = await _aiCoordinator.generateEnhancedSuggestions(
           sceneAnalysis: SceneAnalysis(
             sceneType: 'general',
             lightingCondition: 'normal',
             subjectDistance: 'medium',
             movementDetected: false,
           ),
+          cameraProvider: _cameraProvider, // New: enables capability filtering even without frame
         );
         
         setState(() {
@@ -3317,35 +3329,69 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
   bool _isAISuggestionsEnabled() {
     final provider = Provider.of<UnifiedCameraProvider>(context, listen: false);
     
-    // Enable if we have a live view frame available
+    // First check: Do we have a live view frame available? (Best case)
     if (provider.isLiveViewActive && _lastValidFrame != null) {
+      debugPrint('AI enabled: Live view active with frame available');
       return true;
     }
     
-    // Enable if we have any camera active (builtin or external connected)
-    if (provider.activeCameraType == CameraSourceType.builtin && 
-        provider.builtinController != null) {
-      return true;
+    // Second check: Do we have any active camera that can provide image data?
+    switch (provider.activeCameraType) {
+      case CameraSourceType.builtin:
+        final enabled = provider.builtinController != null;
+        debugPrint('AI enabled for builtin camera: $enabled');
+        return enabled;
+        
+      case CameraSourceType.builtinMacOS:
+        final enabled = provider.activeMacOSCamera != null;
+        debugPrint('AI enabled for macOS camera: $enabled (camera: ${provider.activeMacOSCamera?.name})');
+        return enabled;
+        
+      case CameraSourceType.external:
+        final enabled = provider.activeExternalCamera != null && provider.activeExternalCamera!.isConnected;
+        debugPrint('AI enabled for external camera: $enabled (camera: ${provider.activeExternalCamera?.name})');
+        return enabled;
+        
+      case null:
+        debugPrint('AI disabled: No active camera type');
+        return false;
+    }
+  }
+
+  /// Validate and update AI state consistency
+  void _validateAIState() {
+    final wasEnabled = _isAISuggestionsEnabled();
+    
+    // Force rebuild to ensure UI reflects current state
+    if (mounted) {
+      setState(() {
+        // This ensures the UI rebuilds with the latest state
+      });
     }
     
-    if (provider.activeCameraType == CameraSourceType.external && 
-        provider.activeExternalCamera != null && 
-        provider.activeExternalCamera!.isConnected) {
-      return true;
-    }
-    
-    return false;
+    debugPrint('AI state validation: enabled=$wasEnabled');
   }
 
   /// Show AI suggestion dialog (non-blocking)
   void _showAISuggestions() {
+    // Validate state first
+    _validateAIState();
+    
     // Check if AI suggestions should be enabled
     if (!_isAISuggestionsEnabled()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('AI suggestions require an active camera connection'),
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.warning, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text('AI suggestions require an active camera connection'),
+              ),
+            ],
+          ),
           backgroundColor: Colors.orange,
-          duration: Duration(seconds: 3),
+          duration: const Duration(seconds: 3),
         ),
       );
       return;
@@ -3427,11 +3473,10 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
       final sceneAnalysis = await _aiCoordinator.analyzeImage(frameData);
       debugPrint('✅ Scene analysis complete');
       
-      // Phase 2: Generate suggestions (3-10 seconds)
-      final result = await _aiCoordinator.generateSuggestions(
+      // Phase 2: Generate capability-aware suggestions (3-10 seconds)
+      final result = await _aiCoordinator.generateEnhancedSuggestions(
         sceneAnalysis: sceneAnalysis,
-        cameraModel: _cameraProvider.getActiveCameraInfo()['model'],
-        currentSettings: _getCurrentCameraSettings(),
+        cameraProvider: _cameraProvider, // New: enables capability filtering
         userRequest: 'Analyze this live view and provide photography suggestions',
         imageBytes: frameData,
       );
@@ -3567,18 +3612,6 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
     return null;
   }
   
-  /// Get current camera settings for AI context
-  Map<String, dynamic> _getCurrentCameraSettings() {
-    return {
-      'iso': Provider.of<CameraFeatureProvider>(context, listen: false).iso,
-      'aperture': Provider.of<CameraFeatureProvider>(context, listen: false).aperture,
-      'shutterSpeed': Provider.of<CameraFeatureProvider>(context, listen: false).shutterSpeed,
-      'whiteBalance': _wbSettings.mode.name,
-      'whiteBalanceKelvin': _getWBKelvin(),
-      'flashEnabled': Provider.of<CameraFeatureProvider>(context, listen: false).isFlashEnabled,
-      'zoomLevel': Provider.of<CameraFeatureProvider>(context, listen: false).zoomLevel,
-    };
-  }
 
   /// Build categorized suggestions with proper scrolling
   Widget _buildCategorizedSuggestions() {

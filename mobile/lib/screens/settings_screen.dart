@@ -5,7 +5,6 @@ import '../core/theme/app_colors.dart';
 import '../core/utils/responsive_utils.dart';
 import '../core/providers/unified_camera_provider.dart';
 import '../models/external_camera.dart';
-import '../models/builtin_camera.dart';
 import '../services/external_camera_service.dart';
 import 'consolidated_ai_settings_screen.dart';
 import 'dart:async';
@@ -24,12 +23,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   
   // Camera management state
   bool _isScanningCameras = false;
-  ExternalCamera? _connectedCamera;
   List<ExternalCamera> _discoveredCameras = [];
   StreamSubscription<List<ExternalCamera>>? _cameraStreamSubscription;
-  
-  // Built-in camera state
-  BuiltInCamera? _activeMacOSCamera;
   
   @override
   void initState() {
@@ -49,23 +44,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final unifiedCameraProvider = Provider.of<UnifiedCameraProvider>(context, listen: false);
     final cameraService = ExternalCameraService();
     
-    // Get active macOS camera from UnifiedCameraProvider
-    _activeMacOSCamera = unifiedCameraProvider.activeMacOSCamera;
+    // Get active macOS camera from UnifiedCameraProvider (no need to store locally)
     
     // Subscribe to camera discoveries
     _cameraStreamSubscription = cameraService.cameraStream.listen((cameras) {
       setState(() {
         _discoveredCameras = cameras;
-        // Check if any camera is connected
-        final connectedCameras = cameras.where((c) => c.isConnected);
-        _connectedCamera = connectedCameras.isNotEmpty ? connectedCameras.first : null;
+        // Update discovered cameras list
+        // (Connected camera status is tracked in the camera service)
       });
     });
     
     // Get initial camera state
     _discoveredCameras = cameraService.discoveredCameras;
-    final connectedCameras = _discoveredCameras.where((c) => c.isConnected);
-    _connectedCamera = connectedCameras.isNotEmpty ? connectedCameras.first : null;
+    // Connected camera status is tracked in the camera service
   }
 
   @override
@@ -413,9 +405,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final builtinCount = cameraProvider.macOSCameras.length;
       final totalCount = externalCount + builtinCount;
       
-      // Update active macOS camera reference
+      // Active macOS camera reference is maintained in UnifiedCameraProvider
       setState(() {
-        _activeMacOSCamera = cameraProvider.activeMacOSCamera;
+        // UI state updated
       });
       
       String message;
