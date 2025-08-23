@@ -1195,51 +1195,51 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
           constrained: false,  // Allow the image to be larger than the viewport
           child: Image.memory(
             imageData,
-            fit: BoxFit.contain,  // Show entire image while maintaining aspect ratio
+            fit: BoxFit.cover,  // Fill the entire screen while maintaining aspect ratio
             gaplessPlayback: true,  // Smooth frame transitions
             filterQuality: FilterQuality.medium,  // Better quality for full screen
-          errorBuilder: (context, error, stackTrace) {
-            debugPrint('❌ Image.memory DECODE ERROR: $error');
-            debugPrint('❌ Stack trace: $stackTrace');
-            debugPrint('❌ Frame info: ${imageData.length} bytes, starts with [${imageData[0]}, ${imageData[1]}]');
-            
-            // Show more detailed error info
-            if (kDebugMode) {
-              debugPrint('❌ Full error: $error');
-              debugPrint('❌ Problematic frame data (first 50 bytes): ${imageData.take(50).toList()}');
-              debugPrint('❌ Last 10 bytes: ${imageData.skip(imageData.length - 10).toList()}');
-            }
-            
-            return Container(
-              color: Colors.orange.withOpacity(0.3),
-              width: double.infinity,
-              height: double.infinity,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.warning_amber_outlined, color: Colors.white, size: 48),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Frame Decode Error',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      'Error: ${error.toString().length > 50 ? '${error.toString().substring(0, 50)}...' : error.toString()}',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.white70, fontSize: 10),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${imageData.length} bytes received',
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ],
+            errorBuilder: (context, error, stackTrace) {
+                    debugPrint('❌ Image.memory DECODE ERROR: $error');
+                    debugPrint('❌ Stack trace: $stackTrace');
+                    debugPrint('❌ Frame info: ${imageData.length} bytes, starts with [${imageData[0]}, ${imageData[1]}]');
+                    
+                    // Show more detailed error info
+                    if (kDebugMode) {
+                      debugPrint('❌ Full error: $error');
+                      debugPrint('❌ Problematic frame data (first 50 bytes): ${imageData.take(50).toList()}');
+                      debugPrint('❌ Last 10 bytes: ${imageData.skip(imageData.length - 10).toList()}');
+                    }
+                    
+                    return Container(
+                      color: Colors.orange.withOpacity(0.3),
+                      width: double.infinity,
+                      height: double.infinity,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.warning_amber_outlined, color: Colors.white, size: 48),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Frame Decode Error',
+                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              'Error: ${error.toString().length > 50 ? '${error.toString().substring(0, 50)}...' : error.toString()}',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Colors.white70, fontSize: 10),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${imageData.length} bytes received',
+                              style: const TextStyle(color: Colors.white70, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
-              ),
-            );
-          },
-          ),
         ),
       ),
     );
