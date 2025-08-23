@@ -12,6 +12,7 @@ import '../services/ai/enhanced_ai_coordinator.dart';
 import '../services/ai/cloud_ai_service.dart';
 import '../models/ai_suggestion.dart';
 import '../models/ai_provider_config.dart';
+import '../widgets/ai_suggestion_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/external_camera.dart';
@@ -936,7 +937,7 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   const CircularProgressIndicator(),
-                                  const SizedBox(height: 16),
+                                  const SizedBox(height: 12),
                                   const Text('Connecting to camera...'),
                                   const SizedBox(height: 8),
                                   Consumer<UnifiedCameraProvider>(
@@ -1115,7 +1116,7 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const CircularProgressIndicator(color: Colors.white),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
                           Text(
                             snapshot.connectionState == ConnectionState.waiting 
                                 ? 'Connecting to live view...'
@@ -2896,7 +2897,11 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
   /// Build action button for main controls
 
   Widget _buildAISuggestionOverlay() {
-    return Positioned.fill(
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: MediaQuery.of(context).padding.bottom + 60, // Fix: Add bottom safe area + more margin
       child: Container(
         color: AppColors.cameraOverlay,
         child: Center(
@@ -2915,9 +2920,10 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
                 ),
               ],
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                 // Header with close button
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -3088,6 +3094,7 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
                   ],
                 ),
               ],
+              ),
             ),
           ),
         ),
@@ -3652,29 +3659,89 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
             // Camera Parameters Section
             if (cameraSettings.isNotEmpty) ...[
               _buildCategoryHeader('📷 Camera Parameters', cameraSettings.length),
-              ...cameraSettings.map((s) => _buildSuggestionCard(s, showCameraIcon: true)),
-              const SizedBox(height: 16),
+              ...cameraSettings.map((s) => AISuggestionCard(
+                suggestion: s,
+                isSelected: _selectedSuggestionIds.contains(s.id),
+                onApply: (suggestion) {
+                  setState(() {
+                    if (_selectedSuggestionIds.contains(suggestion.id)) {
+                      _selectedSuggestionIds.remove(suggestion.id);
+                    } else {
+                      _selectedSuggestionIds.add(suggestion.id);
+                    }
+                  });
+                },
+                onDismiss: (suggestion) {
+                  // Handle dismiss if needed
+                },
+              )),
+              const SizedBox(height: 12),
             ],
             
             // Composition Section  
             if (composition.isNotEmpty) ...[
               _buildCategoryHeader('🎨 Composition & Framing', composition.length),
-              ...composition.map((s) => _buildSuggestionCard(s, showCompositionIcon: true)),
-              const SizedBox(height: 16),
+              ...composition.map((s) => AISuggestionCard(
+                suggestion: s,
+                isSelected: _selectedSuggestionIds.contains(s.id),
+                onApply: (suggestion) {
+                  setState(() {
+                    if (_selectedSuggestionIds.contains(suggestion.id)) {
+                      _selectedSuggestionIds.remove(suggestion.id);
+                    } else {
+                      _selectedSuggestionIds.add(suggestion.id);
+                    }
+                  });
+                },
+                onDismiss: (suggestion) {
+                  // Handle dismiss if needed
+                },
+              )),
+              const SizedBox(height: 12),
             ],
             
             // Technical Section
             if (technical.isNotEmpty) ...[
               _buildCategoryHeader('⚙️ Technical Settings', technical.length),
-              ...technical.map((s) => _buildSuggestionCard(s, showTechnicalIcon: true)),
-              const SizedBox(height: 16),
+              ...technical.map((s) => AISuggestionCard(
+                suggestion: s,
+                isSelected: _selectedSuggestionIds.contains(s.id),
+                onApply: (suggestion) {
+                  setState(() {
+                    if (_selectedSuggestionIds.contains(suggestion.id)) {
+                      _selectedSuggestionIds.remove(suggestion.id);
+                    } else {
+                      _selectedSuggestionIds.add(suggestion.id);
+                    }
+                  });
+                },
+                onDismiss: (suggestion) {
+                  // Handle dismiss if needed
+                },
+              )),
+              const SizedBox(height: 12),
             ],
             
             // Creative Section
             if (creative.isNotEmpty) ...[
               _buildCategoryHeader('💡 Creative Ideas', creative.length),
-              ...creative.map((s) => _buildSuggestionCard(s, showCreativeIcon: true)),
-              const SizedBox(height: 16),
+              ...creative.map((s) => AISuggestionCard(
+                suggestion: s,
+                isSelected: _selectedSuggestionIds.contains(s.id),
+                onApply: (suggestion) {
+                  setState(() {
+                    if (_selectedSuggestionIds.contains(suggestion.id)) {
+                      _selectedSuggestionIds.remove(suggestion.id);
+                    } else {
+                      _selectedSuggestionIds.add(suggestion.id);
+                    }
+                  });
+                },
+                onDismiss: (suggestion) {
+                  // Handle dismiss if needed
+                },
+              )),
+              const SizedBox(height: 12),
             ],
           ],
         ),
@@ -3717,94 +3784,6 @@ class _CameraScreenState extends State<CameraScreen> with DisposalMixin {
     );
   }
 
-  Widget _buildSuggestionCard(AISuggestion suggestion, {
-    bool showCameraIcon = false,
-    bool showCompositionIcon = false, 
-    bool showTechnicalIcon = false,
-    bool showCreativeIcon = false,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.primaryLight,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                _getSuggestionIcon(showCameraIcon, showCompositionIcon, showTechnicalIcon, showCreativeIcon),
-                color: AppColors.accent,
-                size: 16,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  suggestion.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            suggestion.message,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.8),
-              fontSize: 12,
-            ),
-          ),
-          if (suggestion.actionable) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Checkbox(
-                  value: _selectedSuggestionIds.contains(suggestion.id),
-                  onChanged: (bool? value) {
-                    setState(() {
-                      if (value == true) {
-                        _selectedSuggestionIds.add(suggestion.id);
-                      } else {
-                        _selectedSuggestionIds.remove(suggestion.id);
-                      }
-                    });
-                  },
-                  activeColor: AppColors.accent,
-                ),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    'Select to apply this suggestion',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  /// Get appropriate icon for suggestion category
-  IconData _getSuggestionIcon(bool showCameraIcon, bool showCompositionIcon, bool showTechnicalIcon, bool showCreativeIcon) {
-    if (showCameraIcon) return Icons.camera_alt;
-    if (showCompositionIcon) return Icons.crop_free;
-    if (showTechnicalIcon) return Icons.settings;
-    if (showCreativeIcon) return Icons.lightbulb_outline;
-    return Icons.info_outline; // Default fallback
-  }
 
 
   /// Apply all selected suggestions in bulk

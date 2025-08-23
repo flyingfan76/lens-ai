@@ -102,52 +102,70 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
   }
 
   Widget _buildSuggestionPanel() {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final safeAreaTop = MediaQuery.of(context).padding.top;
+    final safeAreaBottom = MediaQuery.of(context).padding.bottom;
+    
     return Positioned(
-      top: 80,
+      top: safeAreaTop + 80,
       right: 16,
       left: 16,
+      bottom: safeAreaBottom + 100, // Add bottom padding to prevent overlap
       child: SlideTransition(
         position: Tween<Offset>(
           begin: const Offset(0, -1),
           end: Offset.zero,
-        ).animate(_panelAnimation),
+        ).animate(CurvedAnimation(
+          parent: _panelAnimation,
+          curve: Curves.easeOutCubic,
+        )),
         child: FadeTransition(
-          opacity: _panelAnimation,
+          opacity: CurvedAnimation(
+            parent: _panelAnimation,
+            curve: Curves.easeInOut,
+          ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(28),
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
               child: Container(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.65,
-                ),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Colors.black.withValues(alpha: 0.85),
-                      Colors.black.withValues(alpha: 0.75),
-                      Colors.black.withValues(alpha: 0.80),
+                      Colors.black.withValues(alpha: 0.92),
+                      Colors.black.withValues(alpha: 0.88),
+                      Colors.black.withValues(alpha: 0.90),
                     ],
+                    stops: const [0.0, 0.5, 1.0],
                   ),
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(28),
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    width: 0.5,
+                    color: Colors.white.withValues(alpha: 0.2),
+                    width: 0.8,
                   ),
                   boxShadow: [
+                    // Primary shadow
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.4),
-                      blurRadius: 32,
-                      offset: const Offset(0, 16),
-                      spreadRadius: -4,
-                    ),
-                    BoxShadow(
-                      color: AppColors.accent.withValues(alpha: 0.1),
-                      blurRadius: 48,
-                      offset: const Offset(0, 0),
+                      color: Colors.black.withValues(alpha: 0.6),
+                      blurRadius: 40,
+                      offset: const Offset(0, 20),
                       spreadRadius: -8,
+                    ),
+                    // Accent glow
+                    BoxShadow(
+                      color: AppColors.accent.withValues(alpha: 0.15),
+                      blurRadius: 60,
+                      offset: const Offset(0, 0),
+                      spreadRadius: -12,
+                    ),
+                    // Inner highlight
+                    BoxShadow(
+                      color: Colors.white.withValues(alpha: 0.05),
+                      blurRadius: 2,
+                      offset: const Offset(0, 1),
+                      spreadRadius: 0,
                     ),
                   ],
                 ),
@@ -179,52 +197,59 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.accent.withValues(alpha: 0.15),
-            AppColors.primary.withValues(alpha: 0.12),
-            AppColors.accent.withValues(alpha: 0.08),
+            AppColors.accent.withValues(alpha: 0.18),
+            AppColors.primary.withValues(alpha: 0.15),
+            AppColors.accent.withValues(alpha: 0.10),
           ],
+          stops: const [0.0, 0.5, 1.0],
         ),
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(24),
-          topRight: Radius.circular(24),
+          topLeft: Radius.circular(28),
+          topRight: Radius.circular(28),
         ),
         border: Border(
           bottom: BorderSide(
-            color: Colors.white.withValues(alpha: 0.08),
-            width: 0.5,
+            color: Colors.white.withValues(alpha: 0.12),
+            width: 0.8,
           ),
         ),
       ),
       child: Row(
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppColors.accent.withValues(alpha: 0.8),
-                  AppColors.accent.withValues(alpha: 0.6),
+                  AppColors.accent.withValues(alpha: 0.9),
+                  AppColors.accent.withValues(alpha: 0.7),
                 ],
               ),
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.accent.withValues(alpha: 0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+                  color: AppColors.accent.withValues(alpha: 0.4),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                  spreadRadius: -2,
+                ),
+                BoxShadow(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  blurRadius: 2,
+                  offset: const Offset(0, 1),
                 ),
               ],
             ),
             child: const Icon(
               Icons.auto_awesome,
               color: Colors.white,
-              size: 18,
+              size: 20,
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,24 +258,33 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
                   'AI Photography Assistant',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 17,
+                    fontSize: 18,
                     fontWeight: FontWeight.w600,
                     letterSpacing: -0.3,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 if (_suggestions.isNotEmpty)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                     decoration: BoxDecoration(
-                      color: AppColors.accent.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(10),
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.accent.withValues(alpha: 0.25),
+                          AppColors.accent.withValues(alpha: 0.15),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.accent.withValues(alpha: 0.3),
+                        width: 0.5,
+                      ),
                     ),
                     child: Text(
                       '${_suggestions.length} ${_suggestions.length == 1 ? 'suggestion' : 'suggestions'}',
                       style: TextStyle(
                         color: AppColors.accent,
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -259,8 +293,8 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
                   Text(
                     'Ready to analyze',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.6),
-                      fontSize: 13,
+                      color: Colors.white.withValues(alpha: 0.7),
+                      fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -272,13 +306,13 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
             onPressed: _refreshSuggestions,
             tooltip: 'Refresh',
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 6),
           _buildHeaderButton(
             icon: Icons.tune_rounded,
             onPressed: _openAISettings,
             tooltip: 'Settings',
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 6),
           _buildHeaderButton(
             icon: Icons.close_rounded,
             onPressed: () => widget.onVisibilityChanged?.call(false),
@@ -294,56 +328,63 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
       padding: const EdgeInsets.all(40),
       child: Column(
         children: [
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.accent.withValues(alpha: 0.1),
-                      AppColors.primary.withValues(alpha: 0.1),
-                    ],
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.accent.withValues(alpha: 0.15),
+                  AppColors.primary.withValues(alpha: 0.12),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.accent.withValues(alpha: 0.2),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      AppColors.accent.withValues(alpha: 0.8),
+                    ),
+                    backgroundColor: Colors.white.withValues(alpha: 0.1),
                   ),
                 ),
-              ),
-              SizedBox(
-                width: 44,
-                height: 44,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    AppColors.accent.withValues(alpha: 0.8),
-                  ),
-                  backgroundColor: Colors.white.withValues(alpha: 0.1),
+                Icon(
+                  Icons.auto_awesome,
+                  color: AppColors.accent.withValues(alpha: 0.7),
+                  size: 22,
                 ),
-              ),
-              Icon(
-                Icons.auto_awesome,
-                color: AppColors.accent.withValues(alpha: 0.7),
-                size: 20,
-              ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           Text(
             _isAnalyzing ? 'Analyzing scene composition...' : 'Loading AI suggestions...',
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
               letterSpacing: -0.2,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             _isAnalyzing ? 'This may take a moment' : 'Please wait',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.6),
-              fontSize: 13,
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 14,
               fontWeight: FontWeight.w400,
             ),
           ),
@@ -358,59 +399,71 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
       child: Column(
         children: [
           Container(
-            width: 80,
-            height: 80,
+            width: 88,
+            height: 88,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppColors.accent.withValues(alpha: 0.15),
-                  AppColors.primary.withValues(alpha: 0.1),
+                  AppColors.accent.withValues(alpha: 0.18),
+                  AppColors.primary.withValues(alpha: 0.12),
                 ],
               ),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.1),
-                width: 1,
+                color: Colors.white.withValues(alpha: 0.15),
+                width: 1.2,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.accent.withValues(alpha: 0.1),
+                  blurRadius: 32,
+                  offset: const Offset(0, 12),
+                ),
+              ],
             ),
             child: Icon(
               Icons.psychology_rounded,
-              color: AppColors.accent.withValues(alpha: 0.7),
-              size: 36,
+              color: AppColors.accent.withValues(alpha: 0.8),
+              size: 40,
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
           const Text(
             'Ready for AI Analysis',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 18,
+              fontSize: 20,
               fontWeight: FontWeight.w600,
               letterSpacing: -0.3,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
             'Get intelligent photography suggestions\nbased on your current scene',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 14,
+              color: Colors.white.withValues(alpha: 0.75),
+              fontSize: 15,
               height: 1.4,
               fontWeight: FontWeight.w400,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
             decoration: BoxDecoration(
-              color: AppColors.accent.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(16),
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.accent.withValues(alpha: 0.15),
+                  AppColors.accent.withValues(alpha: 0.08),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: AppColors.accent.withValues(alpha: 0.2),
-                width: 0.5,
+                color: AppColors.accent.withValues(alpha: 0.25),
+                width: 0.8,
               ),
             ),
             child: Row(
@@ -418,16 +471,16 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
               children: [
                 Icon(
                   Icons.touch_app_rounded,
-                  size: 16,
-                  color: AppColors.accent.withValues(alpha: 0.8),
+                  size: 18,
+                  color: AppColors.accent.withValues(alpha: 0.9),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Text(
                   'Tap AI button to start',
                   style: TextStyle(
                     color: AppColors.accent,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -469,8 +522,8 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
               onTap: _togglePanel,
               onLongPress: _showAISettings,
               child: Container(
-                width: 60,
-                height: 60,
+                width: 64,
+                height: 64,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
@@ -483,20 +536,20 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
                   ),
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    width: 0.5,
+                    color: Colors.white.withValues(alpha: 0.25),
+                    width: 0.8,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.accent.withValues(alpha: 0.4),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                      spreadRadius: -2,
+                      color: AppColors.accent.withValues(alpha: 0.5),
+                      blurRadius: 24,
+                      offset: const Offset(0, 10),
+                      spreadRadius: -4,
                     ),
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
+                      color: Colors.black.withValues(alpha: 0.4),
+                      blurRadius: 20,
+                      offset: const Offset(0, 6),
                     ),
                   ],
                 ),
@@ -505,7 +558,7 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
                     if (_isAnalyzing)
                       Positioned.fill(
                         child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
+                          strokeWidth: 2.8,
                           valueColor: AlwaysStoppedAnimation<Color>(
                             Colors.white.withValues(alpha: 0.9),
                           ),
@@ -514,23 +567,23 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
                       ),
                     Center(
                       child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 200),
+                        duration: const Duration(milliseconds: 300),
                         child: Icon(
                           widget.isVisible ? Icons.close_rounded : Icons.auto_awesome_rounded,
                           key: ValueKey(widget.isVisible),
                           color: Colors.white,
-                          size: 26,
+                          size: 28,
                         ),
                       ),
                     ),
                     if (_suggestions.isNotEmpty && !widget.isVisible && !_isAnalyzing)
                       Positioned(
-                        top: 6,
-                        right: 6,
+                        top: 8,
+                        right: 8,
                         child: Container(
-                          constraints: const BoxConstraints(minWidth: 18),
-                          height: 18,
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          constraints: const BoxConstraints(minWidth: 20),
+                          height: 20,
+                          padding: const EdgeInsets.symmetric(horizontal: 5),
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [
@@ -538,16 +591,16 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
                                 AppColors.error.withValues(alpha: 0.8),
                               ],
                             ),
-                            borderRadius: BorderRadius.circular(9),
+                            borderRadius: BorderRadius.circular(10),
                             border: Border.all(
                               color: Colors.white,
-                              width: 1.5,
+                              width: 1.8,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.error.withValues(alpha: 0.4),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
+                                color: AppColors.error.withValues(alpha: 0.5),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
                               ),
                             ],
                           ),
@@ -556,7 +609,7 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
                               _suggestions.length > 9 ? '9+' : '${_suggestions.length}',
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 10,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -672,7 +725,6 @@ class _AISuggestionPanelState extends State<AISuggestionPanel>
     });
 
     try {
-      // Simulate scene analysis
       final sceneAnalysis = SceneAnalysis(
         sceneType: 'portrait',
         lightingCondition: 'normal',

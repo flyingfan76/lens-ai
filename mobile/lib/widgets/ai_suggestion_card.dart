@@ -9,6 +9,7 @@ class AISuggestionCard extends StatefulWidget {
   final Function(AISuggestion)? onApply;
   final Function(AISuggestion)? onDismiss;
   final bool isCompact;
+  final bool isSelected;
 
   const AISuggestionCard({
     super.key,
@@ -16,6 +17,7 @@ class AISuggestionCard extends StatefulWidget {
     this.onApply,
     this.onDismiss,
     this.isCompact = false,
+    this.isSelected = false,
   });
 
   @override
@@ -68,30 +70,37 @@ class _AISuggestionCardState extends State<AISuggestionCard>
       child: FadeTransition(
         opacity: _fadeAnimation,
         child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(24),
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
               child: Container(
                 decoration: BoxDecoration(
                   gradient: _getGradientForType(widget.suggestion.type),
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(24),
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    width: 0.5,
+                    color: Colors.white.withValues(alpha: 0.2),
+                    width: 0.8,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: _getColorForType(widget.suggestion.type).withValues(alpha: 0.2),
+                      color: _getColorForType(widget.suggestion.type).withValues(alpha: 0.3),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
+                      spreadRadius: -4,
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.25),
                       blurRadius: 16,
                       offset: const Offset(0, 4),
                       spreadRadius: -2,
                     ),
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+                      color: Colors.white.withValues(alpha: 0.1),
+                      blurRadius: 2,
+                      offset: const Offset(0, 1),
+                      spreadRadius: 0,
                     ),
                   ],
                 ),
@@ -107,43 +116,48 @@ class _AISuggestionCardState extends State<AISuggestionCard>
   Widget _buildCompactCard() {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _buildIcon(),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
+          // Title row with checkbox and dismiss button
+          Row(
+            children: [
+              _buildIcon(),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
                   widget.suggestion.title,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 15,
+                    fontSize: 16,
                     fontWeight: FontWeight.w600,
                     letterSpacing: -0.2,
                   ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  widget.suggestion.message,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.8),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w400,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+              ),
+              if (widget.suggestion.actionable) ...[
+                const SizedBox(width: 8),
+                _buildCompactCheckbox(),
               ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Message below aligned with title
+          Padding(
+            padding: const EdgeInsets.only(left: 48), // Align with title text
+            child: Text(
+              widget.suggestion.message,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.85),
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+                height: 1.3,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          if (widget.suggestion.actionable) ...[
-            _buildCompactApplyButton(),
-            const SizedBox(width: 8),
-          ],
-          _buildDismissButton(),
         ],
       ),
     );
@@ -151,37 +165,32 @@ class _AISuggestionCardState extends State<AISuggestionCard>
 
   Widget _buildFullCard() {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header with icon, title, confidence, checkbox and dismiss
           Row(
             children: [
               _buildIcon(),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            widget.suggestion.title,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                        ),
-                        _buildConfidenceBadge(),
-                      ],
+                    // Title text - checkbox now in main row for proper positioning
+                    Text(
+                      widget.suggestion.title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.3,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: _getColorForType(widget.suggestion.type).withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8),
@@ -198,10 +207,15 @@ class _AISuggestionCardState extends State<AISuggestionCard>
                   ],
                 ),
               ),
-              _buildDismissButton(),
+              const SizedBox(width: 8),
+              _buildConfidenceBadge(),
+              if (widget.suggestion.actionable) ...[
+                const SizedBox(width: 8),
+                _buildCompactCheckbox(),
+              ],
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Text(
             widget.suggestion.message,
             style: TextStyle(
@@ -278,17 +292,14 @@ class _AISuggestionCardState extends State<AISuggestionCard>
               ),
             ),
           ],
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              if (widget.suggestion.actionable) ...[
-                Expanded(child: _buildApplyButton()),
-                const SizedBox(width: 12),
-              ],
-              if (widget.suggestion.type == AISuggestionType.composition)
+          if (widget.suggestion.type == AISuggestionType.composition) ...[
+            const SizedBox(height: 16),
+            Row(
+              children: [
                 Expanded(child: _buildShowOverlayButton()),
-            ],
-          ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -296,8 +307,8 @@ class _AISuggestionCardState extends State<AISuggestionCard>
 
   Widget _buildIcon() {
     return Container(
-      width: 44,
-      height: 44,
+      width: 36,
+      height: 36,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -323,7 +334,7 @@ class _AISuggestionCardState extends State<AISuggestionCard>
       child: Icon(
         _getIconForSuggestion(widget.suggestion),
         color: Colors.white,
-        size: 20,
+        size: 18,
       ),
     );
   }
@@ -376,68 +387,38 @@ class _AISuggestionCardState extends State<AISuggestionCard>
     );
   }
 
-  Widget _buildCompactApplyButton() {
+  Widget _buildCompactCheckbox() {
+    final primaryColor = _getColorForType(widget.suggestion.type);
+    final isSelected = widget.isSelected;
+    
     return Container(
-      height: 32,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.white.withValues(alpha: 0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => widget.onApply?.call(widget.suggestion),
-          borderRadius: BorderRadius.circular(16),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.auto_fix_high_rounded,
-                size: 14,
-                color: _getColorForType(widget.suggestion.type),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                'Apply',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: _getColorForType(widget.suggestion.type),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildApplyButton() {
-    return Container(
-      height: 44,
+      width: 24,
+      height: 24,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white,
-            Colors.white.withValues(alpha: 0.95),
+          colors: isSelected ? [
+            primaryColor.withValues(alpha: 0.8),
+            primaryColor.withValues(alpha: 0.6),
+          ] : [
+            primaryColor.withValues(alpha: 0.25),
+            primaryColor.withValues(alpha: 0.15),
           ],
         ),
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isSelected 
+            ? primaryColor
+            : primaryColor.withValues(alpha: 0.5),
+          width: isSelected ? 2.0 : 1.5,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.white.withValues(alpha: 0.2),
-            blurRadius: 8,
+            color: isSelected 
+              ? primaryColor.withValues(alpha: 0.6)
+              : primaryColor.withValues(alpha: 0.3),
+            blurRadius: isSelected ? 10 : 6,
             offset: const Offset(0, 2),
+            spreadRadius: isSelected ? 1 : 0,
           ),
         ],
       ),
@@ -445,33 +426,23 @@ class _AISuggestionCardState extends State<AISuggestionCard>
         color: Colors.transparent,
         child: InkWell(
           onTap: () => widget.onApply?.call(widget.suggestion),
-          borderRadius: BorderRadius.circular(22),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.auto_fix_high_rounded,
-                  size: 18,
-                  color: _getColorForType(widget.suggestion.type),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Apply Settings',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: _getColorForType(widget.suggestion.type),
-                  ),
-                ),
-              ],
+          borderRadius: BorderRadius.circular(12),
+          child: Center(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                isSelected ? Icons.check_circle_rounded : Icons.check_rounded,
+                key: ValueKey(isSelected),
+                size: isSelected ? 16 : 14,
+                color: isSelected ? Colors.white : primaryColor,
+              ),
             ),
           ),
         ),
       ),
     );
   }
+
 
   Widget _buildShowOverlayButton() {
     return Container(
@@ -518,28 +489,6 @@ class _AISuggestionCardState extends State<AISuggestionCard>
     );
   }
 
-  Widget _buildDismissButton() {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => widget.onDismiss?.call(widget.suggestion),
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Icon(
-            Icons.close_rounded,
-            color: Colors.white.withValues(alpha: 0.8),
-            size: 16,
-          ),
-        ),
-      ),
-    );
-  }
 
   void _showCompositionOverlay() {
     // Implementation to show composition guides

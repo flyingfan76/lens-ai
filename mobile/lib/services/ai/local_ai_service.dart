@@ -567,16 +567,12 @@ class LocalAIService with ErrorHandlerMixin, ServiceDisposalMixin implements IAI
         type: AISuggestionType.composition,
         category: AISuggestionCategory.zoomLevel,
         title: 'Consider zooming in',
-        message: 'Subject appears distant',
+        message: 'Subject appears distant - manually adjust zoom',
         icon: 'zoom_in',
         priority: 0.5,
         confidence: 0.7,
-        actionable: true,
-        action: SuggestionAction(
-          type: 'apply_settings',
-          settings: {'zoomLevel': 2.0},
-        ),
-        explanation: 'Zooming in will make the subject more prominent',
+        actionable: false,
+        explanation: 'Zooming in will make the subject more prominent. Use your camera\'s zoom controls to get closer.',
       ));
     }
     
